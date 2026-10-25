@@ -2,7 +2,7 @@
 
 Date: October 25, 2026.
 
-The user confirmed 1.0.0 works. Version 1.1.0 adds explicitly confirmed individual/bulk media deletion. Its source and package are being prepared for hosted CI and authorized publication. Automated live Emby deletion/restart validation remains incomplete.
+The user confirmed 1.0.0 works. Version 1.1.0 adds explicitly confirmed individual/bulk media deletion. It is published at https://github.com/TechSavage1989/whosceneit/releases/tag/v1.1.0, with successful hosted CI, public assets/feed, and an actual published-updater file-transaction check. Automated live Emby deletion/restart validation remains incomplete.
 
 ## Completed checks
 
@@ -23,13 +23,13 @@ The original 1.0.0 run passed all 16 compiled checks and nine browser checks. Cu
 
 ## Version 1.1.0 checks
 
-- Local release build: zero compiler warnings/errors. Twenty-eight compiled checks passed without the five-minute option; hosted CI must run the 29th real-timer check on the exact release source.
+- Local release build: zero compiler warnings/errors. Twenty-eight local compiled checks passed without the five-minute option. Hosted Windows and Linux each passed all 29 checks, including the actual five-minute timer, on exact source 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd.
 - Fifteen Chromium checks passed, including the real browser polling/cleanup timers. New cases cover individual preview, cross-page bulk selection, both confirmation requirements, cancellation without deletion, a single execution request, progress/report refresh, stale-selection clearing, watched-episode expansion in By title, and disabled in-progress-only entries.
 - Real temporary media files verify preview non-destructiveness, confirmed bulk deletion, duplicate/replayed execution, expiry, cancellation, settings preservation, changed-file rejection, concurrent-job exclusion, and honest partial-failure results.
 - Native 4.8 SDK objects with injected host/library/user services verify watched-series expansion, administrator policy, content-deletion permission, active playback, native CanDelete, shared-folder/library-root protection, and the actual DeleteOptions passed to ILibraryManager. The SDK protocol service uses a typed test stub because its ReadOnlySpan method cannot be handled by DispatchProxy. No real Emby media/library is used.
 - An active file-deletion fixture blocks actual updater Install and Restart calls until the operation finishes. Background feed checks remain allowed during deletion. A negative-control run restored the previous broad Busy guard and reproduced the failure under an actual in-flight check; the corrected guard passes the same test. Native playback matching is checked with numeric and GUID item IDs.
-- Updater timing negative control: the previous documentation/release-tool commit's Windows job failed the real timer check at https://github.com/TechSavage1989/whosceneit/actions/runs/40174933095. Its five-minute timer also applied a second full five-minute wall-clock cooldown, allowing an early tick to be dropped for the next interval. Version 1.1.0 retains the server-owned five-minute timer and uses the short cross-trigger cooldown for that callback; focus gating and Retry-After/backoff are unchanged. Final hosted real-timer validation is required for the corrected source.
-- The new explicit --published-upgrade mode will be run after publication. It loads the exact public 1.0.0 DLL with a pinned SHA-256 and exercises its updater against the public current feed and asset, then checks isolated new-assembly reload and cleanup. This is not an Emby process restart.
+- Updater timing negative control: the previous documentation/release-tool commit's Windows job failed the real timer check at https://github.com/TechSavage1989/whosceneit/actions/runs/40174933095. Its five-minute timer also applied a second full five-minute wall-clock cooldown, allowing an early tick to be dropped for the next interval. Version 1.1.0 retains the server-owned five-minute timer and uses the short cross-trigger cooldown for that callback; focus gating and Retry-After/backoff are unchanged. Final hosted real-timer validation passed on both platforms for the corrected source.
+- The explicit --published-upgrade mode passed after publication: real public 1.0.0-to-1.1.0 feed/download, digest, staging, installation, custom filename, backup, preserved configuration, isolated assembly reload, and cleanup. See docs/validation-published-upgrade.txt. It loads the exact public 1.0.0 DLL with a pinned SHA-256 and exercises its updater against the public current feed and asset, then checks isolated new-assembly reload and cleanup. This is not an Emby process restart.
 
 Historical 1.0.0 hosted GitHub Actions validation passed on the exact released source commit 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a: https://github.com/TechSavage1989/whosceneit/actions/runs/40174051730. Windows and Linux each passed all 16 compiled checks, including real timers, actual filesystem rollback, and settings preservation. Linux passed all nine browser checks, including real browser polling and cleanup. Release builds reported zero compiler warnings and errors.
 
@@ -46,14 +46,14 @@ The actual .NET timer runs for approximately five minutes; browser timer checks 
 - Enforcement of Emby's running authentication filter for anonymous and non-admin users.
 - Native Emby restart, visible dashboard reconnection, and behavior when a loaded DLL is locked by Windows.
 - Docker/NAS supervision, platform permissions, and crash recovery from a DLL that prevents the plugin from loading.
-- A real published-version-to-next-release upgrade. The initial public tag, release assets, and update feed are verified; no second application version has been published for an end-to-end upgrade test.
+- A native Emby process upgrade/restart/reconnect. The actual public 1.0.0-to-1.1.0 transport/file transaction and isolated assembly reload passed using SDK host fixtures.
 - Actual cross-volume target filesystems. The installer explicitly copies staging into the target directory before atomic replacement; local tests use separate directories on one filesystem.
 
 ## Blocked native integration test
 
 Automatic approval review rejected the isolated Emby startup test because Emby attempted an external public-IP lookup. The test was not bypassed or repeated indirectly. SDK-based and browser-fixture tests continued. This block must be resolved separately before claiming live Emby validation.
 
-## Publication and artifact identity
+## Historical 1.0.0 publication and artifact identity
 
 The repository was confirmed public and contained only its initial README, with no prior releases. The user explicitly approved source and v1.0.0 preview publication on October 25, 2026. The published preview is https://github.com/TechSavage1989/whosceneit/releases/tag/v1.0.0, with immutable tag v1.0.0 at source 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. All six uploaded assets matched the successful Linux CI artifact byte for byte and were subsequently downloaded from their public versioned URLs and verified against their SHA-256 digests and sizes. The main update feed was activated only after those public checks passed.
 
@@ -62,3 +62,13 @@ Published plugin SHA-256: e2f2e93ee1aa4e3d656bf373cbdc8b5e5fb7bdbca9a6f30dff9f4e
 Publication recovery: workflow 40174523972 uploaded every asset but failed at the draft's by-tag lookup. The authenticated release list resolved that same draft, while the by-tag endpoint could not. The draft was published through GitHub's interface after comparison with the successful CI artifact; no uploaded asset or public tag was replaced. The release script on main now uses the stable draft ID. The historical publication workflow remains marked failed; hosted application validation and the completed public release are independently verified. Frozen release packages retain the pre-publication notes; current validation and handoff details are maintained on main.
 
 build-metadata.json identifies the source commit and DLL digest. CONTENTS_SHA256.txt verifies the package's contents. External SHA256SUMS.txt verifies each prepared release asset. Matching hashes are integrity checks, not publisher signatures; the plugin is unsigned.
+
+## Verified 1.1.0 publication
+
+- Source/tag: 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd, v1.1.0.
+- Hosted Windows/Linux validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40178145566, successful; 29 compiled checks per platform and 15 Linux browser checks.
+- Publication workflow: https://github.com/TechSavage1989/whosceneit/actions/runs/40178653703, successful.
+- Six public assets independently downloaded and size/SHA-256 verified. All 41 source ZIP files match the exact tagged source; all 47 preview content hashes pass. Build metadata matches that source and records a clean tree.
+- WhoSceneIt.dll: 126,976 bytes, SHA-256 2db640f20e5aca376a1d955a7ef8a8466bd60cddafeb7ca90b981f20fd9a55b6.
+- The public main feed matches the 1.1.0 release manifest, URL, version, and digest. Neither published release/tag was overwritten.
+- The exact published 1.0.0 updater passed real HTTPS download and installation of 1.1.0 into an isolated temporary target, then new-assembly verification/cleanup. No real user media was deleted, and no live Emby restart was performed.

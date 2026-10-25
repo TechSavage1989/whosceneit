@@ -5,7 +5,7 @@ An administrator-only Emby Server plugin that answers two questions:
 - What movies and TV shows has this user watched?
 - Which users have watched this movie, TV show, or episode?
 
-Version 1.1.0 adds individual and bulk deletion of watched media. The user confirmed version 1.0.0 works; the new deletion feature still needs confirmation in a real Emby library. See VALIDATION.md before installation.
+Version 1.1.0 is published at https://github.com/TechSavage1989/whosceneit/releases/tag/v1.1.0 and adds individual and bulk deletion of watched media. The user confirmed version 1.0.0 works; the new deletion feature still needs confirmation in a real Emby library. See VALIDATION.md before installation.
 
 ## Features
 
