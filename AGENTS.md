@@ -6,7 +6,7 @@ Read this file and DEVELOPMENT_HANDOFF.md before editing. Then inspect the curre
 
 - Repository: https://github.com/TechSavage1989/whosceneit
 - The repository was public with only an initial README at commit c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5 when work began.
-- Latest maintained/published application: 1.2.1 preview, tag v1.2.1 at c68e1714c67c488adac12dda8b7c87e08b3f9126. Hosted Windows/Linux each passed 44 compiled checks; Linux passed 21 browser checks. All six public assets, canonical feed, 47 source files/53 preview hashes, and actual public 1.2.0-to-1.2.1 memory-loaded SDK updater installation/cleanup are verified. The publication workflow timed out on final feed verification after successful publication; do not rerun or replace this release. Live repaired-report confirmation remains pending.
+- Latest maintained/published application: 1.2.2 preview, tag v1.2.2 at 43494290988f57813fdfcb6ca9a42d225951f5b5. Hosted Windows/Linux each passed 49 compiled checks; Linux passed 23 browser checks. Publication workflow 40220959204 succeeded. All six public assets, canonical feed, 48 source files/54 preview hashes, and actual public 1.2.1-to-1.2.2 memory-loaded SDK updater installation/cleanup are verified. Live deletion success and the original native HTTP 500 cause remain unverified.
 - User-confirmed working baseline: 1.0.0, tag v1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. The user confirmed it works on October 25, 2026. Version 1.1.0 adds the explicitly requested media deletion feature.
 - Public source publication and release publication require the user's explicit approval. A repository URL alone does not override that instruction. Do not change visibility, create credentials, or embed tokens.
 - Preserve the stable assembly name and installed filename WhoSceneIt.dll and plugin ID b6405a2e-52e6-4218-a014-00a46a65f1f8 across versions. Use the assembly's actual installed location for updates so custom filenames survive.
@@ -15,7 +15,7 @@ Read this file and DEVELOPMENT_HANDOFF.md before editing. Then inspect the curre
 
 ## Deletion feedback repair
 
-- Current candidate: 1.2.2. The user's deletion dialog shows an HTTP 500 while loading the read-only preview, before confirmation. Do not claim files were deleted or that the unseen server exception has been reproduced. Decode Fetch Response error bodies and XHR errors, show precise no-start/unknown/active/final states, and never replay a destructive request on transport failure.
+- Published repair: 1.2.2. The user's deletion dialog shows an HTTP 500 while loading the read-only preview, before confirmation. Do not claim files were deleted or that the unseen server exception has been reproduced. Decode Fetch Response error bodies and XHR errors, show precise no-start/unknown/active/final states, and never replay a destructive request on transport failure.
 - Keep real service-method coverage with the native IRequest/IAuthorizationContext shape; the signed-in actor remains separate from the selected report user. A failed preview has no executable token. Per-item inspection failures stay blocked and visible. Progress only counts completed, blocked/skipped, or failed items as processed; identify any in-flight item separately.
 
 ## Report-query repair

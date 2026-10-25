@@ -2,20 +2,19 @@
 
 ## Current state
 
-- Current candidate: 1.2.2. Exact-source hosted CI, publication, and public upgrade verification are pending. The latest screenshot shows an HTTP 500 during deletion preview, before confirmation; no native deletion result is established.
-
-- Latest maintained/published version: 1.2.1 preview; assembly/file version: 1.2.1.0.
-- User-confirmed baseline: 1.0.0 reports. The latest screenshot confirms 1.2.0 is loaded but its default report fails. Version 1.2.1 repairs the verified null ancestor-list regression; a live server exception and user confirmation of the repaired report remain unavailable.
+- Latest maintained/published version: 1.2.2 preview; assembly/file version: 1.2.2.0.
+- User-confirmed baseline: 1.0.0 reports. The latest deletion screenshot shows an HTTP 500 during the read-only preview, before confirmation. Version 1.2.2 repairs error-body handling and deletion feedback; the original native exception and live deletion success remain unverified.
 - Repository: https://github.com/TechSavage1989/whosceneit; public. No visibility or credential changes were made.
-- Exact 1.2.1 source/tag: c68e1714c67c488adac12dda8b7c87e08b3f9126, v1.2.1. Build metadata records that exact source and a clean tree. Never replace published tags/assets.
-- Release: https://github.com/TechSavage1989/whosceneit/releases/tag/v1.2.1. All six public assets were independently downloaded and size/hash-checked. All 47 source files match the tagged tree; all 53 preview content hashes pass.
-- Published WhoSceneIt.dll: 142,336 bytes; SHA-256 16d75ae5b603e61545d9555412a86093fe03ecf51a3c9cce23e326d5b93bc8f2.
-- Live feed: https://raw.githubusercontent.com/TechSavage1989/whosceneit/main/update-manifest.json, independently verified through direct canonical HTTPS to match the public 1.2.1 manifest. Feed commit: 32d8d1b82d20982a4943d3f8d081a10a37042644.
-- Hosted validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40216607262, successful; Windows/Linux each passed 44 compiled checks, Linux passed 21 browser checks.
-- Publication run https://github.com/TechSavage1989/whosceneit/actions/runs/40217267071 published/verified assets and advanced the feed, then timed out on its final public-feed verification. The workflow remains marked failed. Subsequent independent downloads, canonical feed comparison, and actual public 1.2.0-to-1.2.1 SDK updater installation/health/cleanup all passed. Do not rerun or republish this version.
-- Stable assembly/filename: WhoSceneIt.dll; plugin ID: b6405a2e-52e6-4218-a014-00a46a65f1f8. Customized filenames/settings survive updates. Versions 1.0.0/1.1.0 need manual replacement once; the actual public 1.2.0 updater installed 1.2.1 in memory-loaded SDK fixtures.
-- Local branch: main, tracking origin/main. Main holds current verification notes and a longer future publication feed-verification retry budget; immutable release tags identify application source.
-- Previous immutable sources: 1.2.0 at e2be637d3e333d14fb6ae6e6a36c2b95dca59aaf; 1.1.1 at c29b1b94644168ec2ce63e359735fd244528fc3f; 1.1.0 at 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd; 1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. Original baseline: c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5.
+- Exact 1.2.2 source/tag: 43494290988f57813fdfcb6ca9a42d225951f5b5, v1.2.2. Build metadata records that exact source and a clean tree. Never replace published tags/assets.
+- Release: https://github.com/TechSavage1989/whosceneit/releases/tag/v1.2.2. All six public assets were independently downloaded and size/hash-checked. All 48 source files match the tagged tree; all 54 preview content hashes pass.
+- Published WhoSceneIt.dll: 150,016 bytes; SHA-256 dc87b73fd77e893e22eb1ec2833f792f42f79c74962a0807ed32f0db6185bc7a.
+- Live feed: https://raw.githubusercontent.com/TechSavage1989/whosceneit/main/update-manifest.json, independently verified through direct canonical HTTPS to match the public 1.2.2 manifest. Feed commit: 24c1f8aafc5b633cc9921b5baf614bfd1b5f711f.
+- Hosted validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40220322970, successful; Windows/Linux each passed 49 compiled checks, Linux passed all 23 browser checks including real timers. Release builds had zero warnings/errors.
+- Publication run https://github.com/TechSavage1989/whosceneit/actions/runs/40220959204 succeeded, verified assets, and advanced/verified the canonical feed.
+- The actual public 1.2.1 updater installed exact public 1.2.2 bytes using memory-loaded entry points in a temporary SDK fixture, preserving settings/custom filename/backup and verifying pending reload state/cleanup. The legacy 1.0.0 failure/manual-bootstrap negative control also passed. See docs/validation-published-upgrade.txt. No live Emby process was started or restarted.
+- Stable assembly/filename: WhoSceneIt.dll; plugin ID: b6405a2e-52e6-4218-a014-00a46a65f1f8. Customized filenames/settings survive updates. Versions 1.0.0/1.1.0 need manual replacement once.
+- Local branch: main, tracking origin/main. Main holds current verification notes; immutable release tags identify application source.
+- Previous immutable sources: 1.2.1 at c68e1714c67c488adac12dda8b7c87e08b3f9126; 1.2.0 at e2be637d3e333d14fb6ae6e6a36c2b95dca59aaf; 1.1.1 at c29b1b94644168ec2ce63e359735fd244528fc3f; 1.1.0 at 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd; 1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. Original baseline: c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5.
 
 ## Version 1.2.2 deletion feedback
 
@@ -25,7 +24,7 @@ The browser now decodes native Fetch Response error bodies, including Emby's JSO
 
 DeletionService returns a structured PreviewFailed status for preview errors while retaining native Admin route attributes and request-bound actor policy checks. DeletionManager converts individual inspection exceptions to blocked entries, and tracks Started, Processing, Processed, and CurrentItemName. Actual native deletion is still performed only through the guarded Emby backend. Native service tests cover IRequest-bound administrator identity, no-user/API-key-only/non-admin rejection, full preview/execute/status/replay flow with synthetic files, current-item/cancellation counts, and blocked inspection failures.
 
-Local validation passed 48 quick compiled checks and 23 browser checks including real timers. An incomplete local browser process produced only four PASS lines with a zero exit status; that run is not accepted. A full rerun passed all 23, and the runner now rejects incomplete early exits. Hosted real-timer validation should run 49 compiled checks on each platform and 23 Linux browser checks. The published-upgrade helper now targets the pinned public 1.2.1 DLL upgrading to this release; run it after publication. No live Emby process or real user media is used. The underlying HTTP 500 remains unobserved; new error handling must report its cause if an environmental or native issue remains.
+Local validation passed 48 quick compiled checks and 23 browser checks including real timers. An incomplete local browser process produced only four PASS lines with a zero exit status; that run is not accepted. A full rerun passed all 23, and the runner now rejects incomplete early exits. Exact-source hosted Windows/Linux each passed all 49 compiled checks, including real timers; Linux passed all 23 browser checks. Publication, all six public assets, source/preview archives, tag, and canonical feed passed verification. The pinned public 1.2.1 memory-loaded updater installed exact public 1.2.2 bytes and passed settings/custom-target/backup/pending-health/cleanup checks after publication. No live Emby process or real user media is used. The underlying HTTP 500 remains unobserved; new error handling must report its cause if an environmental or native issue remains.
 
 ## Version 1.2.1 report-query repair
 
@@ -89,7 +88,9 @@ After publication and feed verification, explicitly run the public previous-vers
 
     dotnet run --project tests/WhoSceneIt.Tests/WhoSceneIt.Tests.csproj -c Release -- --published-upgrade
 
-Current 1.2.1 validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40216607262, successful at source c68e1714c67c488adac12dda8b7c87e08b3f9126. Windows/Linux each passed 44 compiled checks; Linux passed 21 browser checks. Public assets/tag/feed and a real public 1.2.0-to-1.2.1 updater file transaction passed independent verification. Publication workflow 40217267071 timed out only after publishing and advancing the feed; its failure status remains historical. No asset/tag was replaced.
+Current 1.2.2 validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40220322970, successful at source 43494290988f57813fdfcb6ca9a42d225951f5b5. Windows/Linux each passed 49 compiled checks; Linux passed all 23 browser checks. Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/40220959204 completed successfully. All six public assets/tag/feed, 48 source files/54 preview hashes, and the actual public 1.2.1-to-1.2.2 updater file transaction/health/cleanup passed independent verification.
+
+Historical 1.2.1 validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40216607262, successful at source c68e1714c67c488adac12dda8b7c87e08b3f9126. Windows/Linux each passed 44 compiled checks; Linux passed 21 browser checks. Public assets/tag/feed and a real public 1.2.0-to-1.2.1 updater file transaction passed independent verification. Publication workflow 40217267071 timed out only after publishing and advancing the feed; its failure status remains historical. No asset/tag was replaced.
 
 Historical 1.2.0 validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40213700764, successful at exact source e2be637d3e333d14fb6ae6e6a36c2b95dca59aaf. Windows/Linux each passed 43 compiled checks; Linux passed 20 browser checks. Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/40214340337 completed successfully. All six assets, source/preview archives, metadata, tag, and feed passed independent public verification. Actual public memory-loaded 1.1.1-to-1.2.0 updater installation and new-entry-point health/cleanup passed in SDK fixtures.
 

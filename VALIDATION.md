@@ -2,15 +2,16 @@
 
 Date: October 25, 2026.
 
-Version 1.2.2 repairs deletion preview/error feedback and adds explicit confirmation/progress/results. Hosted exact-source CI, publication, and public upgrade verification are pending. The user's HTTP 500 preview response did not expose its underlying server exception; no claim of live deletion success is made.
+Version 1.2.2 repairs deletion preview/error feedback and adds explicit confirmation/progress/results. Hosted exact-source CI, publication, public asset/feed verification, and the public previous-version upgrade check passed. Exact source: 43494290988f57813fdfcb6ca9a42d225951f5b5; tag v1.2.2. The user's HTTP 500 preview response did not expose its underlying server exception; no claim of live deletion success is made.
 
 ## Version 1.2.2 checks
 
-- Local Release builds have zero warnings/errors. All 48 quick compiled checks pass; hosted real-timer validation should run 49 on each platform.
+- Local Release builds have zero warnings/errors. All 48 quick compiled checks pass. Exact-source hosted Windows and Linux each passed all 49 checks, including real timers, with zero warnings/errors: https://github.com/TechSavage1989/whosceneit/actions/runs/40220322970.
 - New service tests invoke actual Preview/Execute/Status/Cancel methods with native SDK IRequest and AuthorizationInfo/User objects. They verify administrator binding, rejection of API-key-only/non-admin/missing requests, read-only preview, typed confirmation, temporary-file deletion, real status polling, ownership, and replay safety.
 - A held deletion worker verifies Started, Processing, Processed, CurrentItemName, queued counts, cancellation, and final counts. An inspection exception blocks that item and retains the rest of the review; preview never invokes native deletion.
-- Twenty-three Chromium checks pass locally, including real timers; hosted Linux must pass the same 23. Native browser Fetch Response errors are decoded as safe text. Tests cover structured preview failure, no-start messaging, read-only retry with fresh confirmation, all-blocked previews, live progress, loss of the execution response and a status response, recovery without replay, closing/reopening progress, and final results. The runner rejects an incomplete early exit instead of treating a partial log as success.
-- After publication, verify all assets/tag/source/feed and run the actual public 1.2.1-to-1.2.2 memory-loaded SDK updater check. No native Emby startup or real-library deletion is attempted.
+- Twenty-three Chromium checks pass locally and on hosted Linux, including real timers. Native browser Fetch Response errors are decoded as safe text. Tests cover structured preview failure, no-start messaging, read-only retry with fresh confirmation, all-blocked previews, live progress, loss of the execution response and a status response, recovery without replay, closing/reopening progress, and final results. The runner rejects an incomplete early exit instead of treating a partial log as success.
+- Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/40220959204 succeeded. All six public downloads passed independent size/hash verification; all 48 source files and 54 preview hashes matched, the immutable tag matched the approved source, and the canonical feed exactly matched the public manifest. The 150,016-byte DLL SHA-256 is dc87b73fd77e893e22eb1ec2833f792f42f79c74962a0807ed32f0db6185bc7a.
+- The actual public 1.2.1-to-1.2.2 memory-loaded SDK updater check passed after publication, including custom-target installation, settings/rollback preservation, pending-health verification, staging cleanup, and the legacy failure/manual-bootstrap control. See docs/validation-published-upgrade.txt. No native Emby startup or real-library deletion is attempted.
 
 ## Historical 1.2.1 validation
 
