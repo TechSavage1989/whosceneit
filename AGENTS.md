@@ -13,6 +13,11 @@ Read this file and DEVELOPMENT_HANDOFF.md before editing. Then inspect the curre
 - Keep reports read-only. The user explicitly approved individual and bulk deletion of watched media and publication of the new build. Deletion must use Emby's native policy checks and library deletion API, an administrator-bound expiring preview, exact-path revalidation, explicit DELETE confirmation, and progress/error reporting. Never delete a TV show folder to implement watched-episode deletion. Never grant permissions or change watch state to make an item eligible. Every plugin endpoint must require Emby's native Admin role.
 - No server setup, Codex CLI automation, unattended workers, payment setup, or API-account setup. GitHub CI and an explicitly invoked release workflow are part of the requested build/release scope.
 
+## Deletion feedback repair
+
+- Current candidate: 1.2.2. The user's deletion dialog shows an HTTP 500 while loading the read-only preview, before confirmation. Do not claim files were deleted or that the unseen server exception has been reproduced. Decode Fetch Response error bodies and XHR errors, show precise no-start/unknown/active/final states, and never replay a destructive request on transport failure.
+- Keep real service-method coverage with the native IRequest/IAuthorizationContext shape; the signed-in actor remains separate from the selected report user. A failed preview has no executable token. Per-item inspection failures stay blocked and visible. Progress only counts completed, blocked/skipped, or failed items as processed; identify any in-flight item separately.
+
 ## Report-query repair
 
 - Published repair: 1.2.1. The user's screenshot confirms 1.2.0 is loaded but its report request fails. The 1.2.0 unscoped report sets AncestorIds to null instead of retaining the SDK's default empty array. Preserve native collection defaults; set AncestorIds only for a validated show scope. The SDK regression test catches the old code. The screenshot does not show a native stack trace, so do not claim another server cause is excluded.
@@ -34,7 +39,7 @@ Use .NET SDK 8 or newer. The plugin must target netstandard2.0. Emby supplies it
     npm run test:ui -- --real-timers
     python scripts/package.py
 
-The C# test runner generates an unpublished next-patch DLL to exercise upgrades from the current version (1.2.2 for the 1.2.1 source). Never publish a test-artifacts fixture. Version 1.2.1 must be built from the actual repair source, not the old 1.2.0 source's same-numbered fixture. The real timer test takes about five minutes. Browser tests use synthetic data and never connect to a user's Emby server. After publication, --published-upgrade reproduces the public 1.0.0 memory-loaded entry-point failure and one-time manual bootstrap, then exercises the actual public 1.2.0 memory-loaded updater installing the current release. It never starts Emby.
+The C# test runner generates an unpublished next-patch DLL to exercise upgrades from the current version (1.2.3 for the 1.2.2 source). Never publish a test-artifacts fixture. Version 1.2.2 must be built from the actual repair source, not the old 1.2.1 source's same-numbered fixture. The real timer test takes about five minutes. Browser tests use synthetic data and never connect to a user's Emby server. After publication, --published-upgrade reproduces the public 1.0.0 memory-loaded entry-point failure and one-time manual bootstrap, then exercises the actual public 1.2.1 memory-loaded updater installing the current release. It never starts Emby.
 
 ## Updates and releases
 

@@ -1,12 +1,14 @@
 
-> whosceneit-validation@1.2.1 test:ui
-> node tests/ui.smoke.cjs --real-timers
+> whosceneit-validation@1.2.2 test:ui
+> node tests/ui.smoke.cjs
 
 PASS initial user report, paging, and safe title rendering
 PASS CSV includes every page and neutralizes formula-like titles
 PASS bulk selection carries across pages and preview cancellation never deletes media
 PASS individual delete buttons preview exactly the requested movie
-PASS confirmed bulk deletion posts once, shows progress, and refreshes the report
+PASS native Fetch preview errors and structured failures show no-deletion state and retry only the read-only preview
+PASS all-blocked previews explain each blocked item and never offer a destructive confirmation
+PASS confirmed deletion shows live progress, recovers lost responses without replay, and reports final results
 PASS report scope and filter changes clear stale bulk selections
 PASS show grouping and stale-request suppression during user changes
 PASS title selection and users who watched a show
@@ -21,5 +23,3 @@ PASS report errors show safe native messages and HTTP status, preserve auth guid
 PASS explicit download and install controls, restart warning, and hidden empty Read more
 PASS real browser focus events and listener cleanup without duplicate subscriptions
 PASS mobile layout and no browser exceptions
-PASS real browser update-status polling timer
-PASS browser timers stop after leaving the plugin page

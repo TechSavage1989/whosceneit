@@ -186,6 +186,11 @@ public sealed class NativeDeletionFixture
     public User Admin;
     public string SessionItemId = "1";
     public EmbyDeletionBackend Backend;
+    public IUserManager Users;
+    public IUserDataManager Data;
+    public ILibraryManager Library;
+    public ISessionManager Sessions;
+    public IApplicationHost Host;
     public NativeDeletionFixture(string root)
     {
         // DispatchProxy cannot box ReadOnlySpan<char>. Provide the SDK's protocol
@@ -197,8 +202,9 @@ public sealed class NativeDeletionFixture
         var admin = Admin = new User { InternalId = 5, Name = "Admin", Policy = new MediaBrowser.Model.Users.UserPolicy { IsAdministrator = true, EnableContentDeletion = true } };
         var user = new User { InternalId = 4, Name = "Alice", Policy = new MediaBrowser.Model.Users.UserPolicy() };
         var users = Proxy.Create<IUserManager>((m, a) => m.Name switch {
-            "GetUserById" => (string)a[0] == "admin" ? admin : user,
+            "GetUserById" => a[0] is long id ? (id == 5 ? admin : user) : (string)a[0] == "admin" ? admin : user,
             "GetUserPolicy" => ((User)a[0]).Policy,
+            "GetUserDto" => new MediaBrowser.Model.Dto.UserDto { Id = ((User)a[0]).InternalId == 5 ? "admin" : ((User)a[0]).InternalId == 4 ? "alice" : "other" },
             "GetUserList" => new[] { user, admin }, _ => m.ReturnType == typeof(MediaBrowser.Model.Dto.UserItemShareLevel) ? Enum.GetValues<MediaBrowser.Model.Dto.UserItemShareLevel>().Max() : null });
         var data = Proxy.Create<IUserDataManager>((m, a) => m.Name == "GetUserData" ? new UserItemData { Played = Played, PlaybackPositionTicks = ((User)a[0]).InternalId == 4 ? Position : OtherPosition } : null);
         var library = Proxy.Create<ILibraryManager>((m, a) => {
@@ -222,6 +228,7 @@ public sealed class NativeDeletionFixture
             return new[] { session };
         });
         var host = Proxy.Create<IApplicationHost>((m, a) => m.Name == "get_IsStartupComplete" ? true : null);
+        Users = users; Data = data; Library = library; Sessions = sessions; Host = host;
         Backend = new EmbyDeletionBackend(users, data, library, sessions, host);
     }
     private static IMediaSourceManager FileProtocolStub()

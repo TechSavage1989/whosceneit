@@ -1,5 +1,15 @@
 # Changes
 
+## 1.2.2 - deletion confirmation and progress
+
+- Separated read-only preview failure, review/confirmation, deletion submission, active progress, and final result states. A failed preview explicitly states that no deletion was started.
+- Read native Fetch error response bodies as well as XHR-style errors, so Emby's returned error reason and HTTP status are visible as safe text.
+- Returned structured preview failures for authentication/availability/selection errors and kept per-item inspection failures visible as blocked items without discarding the whole review.
+- Added a read-only Retry preview action. Every successful retry requires fresh acknowledgement and typed DELETE confirmation.
+- Added processing/completed counts, a current-item label, a progress bar, clear blocked/skipped/failed results, and closing/reopening the current progress view without stopping the operation. Unknown submission/status responses are polled without replaying deletion.
+- Added real service-method tests with native SDK request authorization, temporary media deletion, cancellation, progress, ownership, and replay checks. Added browser tests using actual Fetch Response errors and lost responses.
+- The supplied HTTP 500 did not include its server exception. This release repairs missing error-body handling and deletion feedback; it preserves native permissions, playback/watch checks, and all existing deletion guards.
+
 ## 1.2.1 - report query repair
 
 - Preserved Emby's native empty ancestor-ID array for reports without a selected show. Version 1.2.0 incorrectly set it to null; the new SDK-default regression test fails on that code and passes after the repair.

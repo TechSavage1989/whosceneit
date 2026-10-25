@@ -10,7 +10,7 @@ let browser;
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.setContent('<body style="background:#171c20;color:#e8ecef;font-family:Arial,sans-serif">'+fs.readFileSync(path.join(__dirname,'../src/WhoSceneIt/Web/whosceneit.html'),'utf8')+'</body>');
   await page.evaluate(() => {
-    window.calls=[];window.update={InstalledVersion:'1.2.0',LatestVersion:'1.2.1',UpdateAvailable:true,Downloaded:false,Busy:false,RestartRequired:false,CanRestart:true,AwaitingDashboardVerification:true,Message:'An update is available.',Notes:['Example change.'],HasMoreNotes:false,ReleaseUrl:'https://github.com/TechSavage1989/whosceneit/releases/tag/v1.2.1'};
+    window.calls=[];window.update={InstalledVersion:'1.2.1',LatestVersion:'1.2.2',UpdateAvailable:true,Downloaded:false,Busy:false,RestartRequired:false,CanRestart:true,AwaitingDashboardVerification:true,Message:'An update is available.',Notes:['Example change.'],HasMoreNotes:false,ReleaseUrl:'https://github.com/TechSavage1989/whosceneit/releases/tag/v1.2.2'};
     window.deletionPlans={};window.deletionCounter=0;
     const row=(id,name,type='Movie')=>({ItemId:id,UserId:'alice',UserName:'Alice',Name:name,Type:type,Year:2024,Status:type==='Series'?'Watched episodes':'Watched',WatchedCount:type==='Series'?4:1,InProgressCount:0,SavedPlayCount:1,LastPlayedUtc:'2025-01-02T10:00:00.0000000+00:00'});
     window.sampleRows=[row('10','Example Show','Series'),row('11','<img src=x onerror="window.injected=true">'),row('12','=HYPERLINK("test")'),...Array.from({length:202},(_,i)=>row(String(i+100),'Movie '+String(i).padStart(3,'0')))];
@@ -23,7 +23,7 @@ let browser;
         const list=(rows)=>({Items:rows.slice(Number(p.StartIndex||0),Number(p.StartIndex||0)+Number(p.Limit||100)),TotalRecordCount:rows.length});
         if(u.pathname.endsWith('/Users'))return [{Id:'alice',Name:'Alice'},{Id:'bob',Name:'Bob'}];
         if(u.pathname.endsWith('/UserReport')){
-          if(window.reportFailure)throw structuredClone(window.reportFailure);
+          if(window.reportFailure){if(window.reportFailureAsFetch)throw new Response(JSON.stringify(window.reportFailure.responseJSON),{status:window.reportFailure.status,headers:{'Content-Type':'application/json'}});throw structuredClone(window.reportFailure);}
           await new Promise(resolve=>setTimeout(resolve,p.UserId==='alice'?80:5));
           let rows=p.UserId==='bob'?[row('20','Bob Movie')]:window.sampleRows;
           if(p.View==='Episodes')rows=window.episodeRows.map(r=>({...r,UserId:p.UserId,UserName:p.UserId==='bob'?'Bob':'Alice'}));
@@ -40,18 +40,26 @@ let browser;
         if(u.pathname.endsWith('/Titles'))return list([{Id:'10',Name:'Example Show',Type:'Series',Year:2024},{Id:'100',Name:'Example Movie',Type:'Movie',Year:2024}]);
         if(u.pathname.endsWith('/Viewers'))return {...list([{...row('10','Example Show','Series'),UserName:'Alice',AvailableEpisodeCount:8},{...row('10','Example Show','Series'),UserId:'bob',UserName:'Bob',WatchedCount:8,Status:'All available episodes watched',AvailableEpisodeCount:8}]),Title:{Id:'10',Name:'Example Show',Type:'Series'}};
         if(u.pathname.endsWith('/Delete/Preview')){
+          if(window.previewFailure)throw new Response(JSON.stringify({ResponseStatus:{Message:'Fixture preview failed: signed-in context unavailable <img src=x onerror="window.previewInjected=true">'}}),{status:500,headers:{'Content-Type':'application/json'}});
+          if(window.previewEnvelope)return {State:'PreviewFailed',Message:'Fixture preview validation failed. No deletion was started.',Started:false};
           const ids=body.ItemIds.split(',').flatMap(id=>id==='10'?['400','401']:[id]);
           const items=ids.map(id=>({ItemId:id,Name:id==='400'?'Watched episode one':id==='401'?'Watched episode two':'Movie '+id,Type:'Movie',Paths:['/media/mock/'+id+'.mkv'],WatchedBy:['Alice'],State:'Ready'}));
-          const plan={Token:'preview-'+(++window.deletionCounter),State:'Ready',Items:items,Ready:items.length,Total:items.length,Deleted:0,Skipped:0,Failed:0,Message:'Review the exact media and paths.'};window.deletionPlans[plan.Token]=plan;return structuredClone(plan);
+          const plan={Token:'preview-'+(++window.deletionCounter),State:'Ready',Items:items,Ready:items.length,Total:items.length,Deleted:0,Skipped:0,Failed:0,Started:false,Processing:0,Processed:0,Message:'Review the exact media and paths.'};
+          if(window.previewAllBlocked){plan.Items.forEach(i=>{i.State='Blocked';i.Message='Fixture deletion permission is unavailable';});plan.Ready=0;plan.Skipped=plan.Total;}
+          window.deletionPlans[plan.Token]=plan;return structuredClone(plan);
         }
         if(u.pathname.endsWith('/Delete/Execute')){
           const plan=window.deletionPlans[body.Token];if(body.Confirmation!=='DELETE')throw new Error('Confirmation missing');
-          plan.State='Deleting';plan.Message='Deleting confirmed media...';return structuredClone(plan);
+          plan.State='Deleting';plan.Started=true;plan.Processing=1;plan.CurrentItemName=plan.Items[0].Name;plan.Ready=plan.Total-1;plan.Items[0].State='Deleting';plan.Message='Deleting confirmed media...';
+          if(window.executeReceiptLost){window.executeReceiptLost=false;throw new Response(JSON.stringify({ResponseStatus:{Message:'Fixture execution response lost'}}),{status:503});}
+          return structuredClone(plan);
         }
         if(u.pathname.endsWith('/Delete/Status')){
+          if(window.statusFailure){window.statusFailure=false;throw new Response(JSON.stringify({ResponseStatus:{Message:'Fixture status temporarily unavailable'}}),{status:503});}
           const plan=window.deletionPlans[p.Token];if(plan.State==='Deleting'){
-            plan.State='Completed';plan.Deleted=plan.Items.length;plan.Ready=0;plan.Message='Deletion finished.';plan.Items.forEach(item=>item.State='Deleted');
-            window.sampleRows=window.sampleRows.filter(row=>!plan.Items.some(item=>item.ItemId===row.ItemId));
+            plan.Polls=(plan.Polls||0)+1;
+            if(plan.Polls>1){plan.State='Completed';plan.Deleted=plan.Items.length;plan.Processed=plan.Total;plan.Ready=0;plan.Processing=0;plan.CurrentItemName=null;plan.Message='Deletion finished.';plan.Items.forEach(item=>item.State='Deleted');
+            window.sampleRows=window.sampleRows.filter(row=>!plan.Items.some(item=>item.ItemId===row.ItemId));}
           }return structuredClone(plan);
         }
         if(u.pathname.endsWith('/Delete/Cancel')){const plan=window.deletionPlans[body.Token];plan.State='Cancelled';plan.Message='Deletion cancelled.';return structuredClone(plan);}
@@ -95,15 +103,35 @@ let browser;
   assert.match(await get('deleteItems').innerText(),/\/media\/mock\/200.mkv/);
   await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});
   console.log('PASS individual delete buttons preview exactly the requested movie');
+  await page.evaluate(()=>window.previewFailure=true);await get('deleteSelected').click();await get('deletePhase').filter({hasText:'Preview failed. No deletion was started'}).waitFor();
+  assert.match(await get('deleteSummary').innerText(),/Fixture preview failed/);assert.equal(await get('deleteSummary').locator('img').count(),0);assert.equal(await page.evaluate(()=>window.previewInjected),undefined);
+  assert.equal(await get('confirmDelete').isVisible(),false);assert.equal(await get('deleteProgressArea').isVisible(),false);assert.equal(await get('retryPreview').isVisible(),true);
+  assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Execute')).length),0);
+  if(process.env.WSI_DELETE_FAILURE_SCREENSHOT)await page.screenshot({path:process.env.WSI_DELETE_FAILURE_SCREENSHOT,fullPage:false});
+  await page.evaluate(()=>{window.previewFailure=false;window.previewEnvelope=true;});await get('retryPreview').click();await get('deleteSummary').filter({hasText:'Fixture preview validation failed'}).waitFor();
+  await page.evaluate(()=>window.previewEnvelope=false);await get('retryPreview').click();await get('deletePhase').filter({hasText:'Step 2 of 3'}).waitFor();
+  assert.equal(await get('deleteAcknowledge').isChecked(),false);assert.equal(await get('deleteWord').inputValue(),'');assert.equal(await get('confirmDelete').isEnabled(),false);
+  await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});
+  console.log('PASS native Fetch preview errors and structured failures show no-deletion state and retry only the read-only preview');
+  await page.evaluate(()=>window.previewAllBlocked=true);await get('deleteSelected').click();await get('deletePhase').filter({hasText:'Nothing can be deleted'}).waitFor();
+  assert.equal(await get('deleteConfirmFields').isVisible(),false);assert.equal(await get('deleteProgressArea').isVisible(),false);assert.match(await get('deleteItems').innerText(),/Fixture deletion permission/);
+  await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});await page.evaluate(()=>window.previewAllBlocked=false);
+  console.log('PASS all-blocked previews explain each blocked item and never offer a destructive confirmation');
+  await page.evaluate(()=>{window.executeReceiptLost=true;window.statusFailure=true;});
   await get('deleteSelected').click();await get('deleteSummary').filter({hasText:'2 ready'}).waitFor();
   await get('deleteAcknowledge').check();await get('deleteWord').fill('DELETE');await get('confirmDelete').click();
+  await get('deletePhase').filter({hasText:'Deletion status is unavailable'}).waitFor();assert.equal(await get('retryPreview').isVisible(),false);assert.equal(await get('confirmDelete').isVisible(),false);
+  await get('deletePhase').filter({hasText:'Step 3 of 3: Deleting'}).waitFor();assert.equal(await get('deleteProgressArea').isVisible(),true);assert.match(await get('deleteProgressText').innerText(),/Current item: Movie/);
+  if(process.env.WSI_DELETE_PROGRESS_SCREENSHOT)await page.screenshot({path:process.env.WSI_DELETE_PROGRESS_SCREENSHOT,fullPage:false});
+  await get('closeDelete').click();await get('deleteDialog').waitFor({state:'hidden'});assert.equal(await get('viewDeletion').isVisible(),true);await get('viewDeletion').click();
   await get('deleteSummary').filter({hasText:'2 deleted; 0 ready'}).waitFor();
+  assert.match(await get('deletePhase').innerText(),/Deletion completed/);assert.equal(await get('deleteProgress').getAttribute('value'),'2');
   assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Execute')).length),1);
   const deletionCall=await page.evaluate(()=>window.calls.find(c=>c.path.endsWith('/Delete/Execute')));
   assert.equal(deletionCall.method,'POST');assert.equal(deletionCall.body.Confirmation,'DELETE');
   await get('closeDelete').click();await get('reportStatus').filter({hasText:'203 matching titles'}).waitFor();
   assert.equal(await get('selectionCount').innerText(),'0 selected');
-  console.log('PASS confirmed bulk deletion posts once, shows progress, and refreshes the report');
+  console.log('PASS confirmed deletion shows live progress, recovers lost responses without replay, and reports final results');
   await get('reportBody').locator('[data-item-selection="201"]').check();
   await get('filter').fill('Movie 101');await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();
   assert.equal(await get('selectionCount').innerText(),'0 selected');
@@ -170,7 +198,7 @@ let browser;
   assert.equal((await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/UserReport')).at(-1))).params.SeriesId,'10');
   await get('clearSeries').click();await get('userSelect').selectOption('alice');await get('titleTab').click();await get('reportStatus').filter({hasText:'2 matching users'}).waitFor();
   console.log('PASS viewer drilldown keeps the chosen user and show together');
-  await page.evaluate(()=>{window.reportFailure={status:500,responseJSON:{ResponseStatus:{Message:'Fixture query failed: <img src=x onerror="window.errorInjected=true">',StackTrace:'DO_NOT_SHOW_STACK_TRACE'}}};window.update.AwaitingDashboardVerification=true;});
+  await page.evaluate(()=>{window.reportFailureAsFetch=true;window.reportFailure={status:500,responseJSON:{ResponseStatus:{Message:'Fixture query failed: <img src=x onerror="window.errorInjected=true">',StackTrace:'DO_NOT_SHOW_STACK_TRACE'}}};window.update.AwaitingDashboardVerification=true;});
   await get('userTab').click();await get('reportStatus').filter({hasText:'Fixture query failed:'}).waitFor();
   assert.match(await get('reportStatus').innerText(),/HTTP 500/);assert.equal(await get('reportStatus').locator('img').count(),0);
   assert.equal(await page.evaluate(()=>window.errorInjected),undefined);assert.ok(!(await get('reportStatus').innerText()).includes('DO_NOT_SHOW_STACK_TRACE'));
@@ -178,7 +206,7 @@ let browser;
   const healthyBeforeFailure=await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Updates/Healthy')).length);
   await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await page.waitForTimeout(100);
   assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Updates/Healthy')).length),healthyBeforeFailure);
-  await page.evaluate(()=>window.reportFailure={status:502,responseText:'<html>Fixture gateway error</html>'});
+  await page.evaluate(()=>{window.reportFailureAsFetch=false;window.reportFailure={status:502,responseText:'<html>Fixture gateway error</html>'};});
   await get('refresh').click();await get('reportStatus').filter({hasText:'HTTP 502'}).waitFor();assert.ok(!(await get('reportStatus').innerText()).includes('<html>'));
   await page.evaluate(()=>window.reportFailure={status:403,responseJSON:{ResponseStatus:{Message:'Do not show this authorization detail'}}});
   await get('refresh').click();await get('reportStatus').filter({hasText:'Administrator access is required'}).waitFor();

@@ -211,6 +211,7 @@ try
     ProgressChecks.Run(Test, Assert);
     await PluginPathChecks.Run(root, candidate, json, Test, TestAsync, Assert);
     await DeletionChecks.Run(root, Test, TestAsync, Assert);
+    await DeletionServiceChecks.Run(root, Test, TestAsync, Assert);
     await TestAsync("Background update checks do not interrupt media deletion", async () =>
     {
         var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);

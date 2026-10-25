@@ -5,10 +5,20 @@ define([], function () {
         var state = { mode: 'user', start: 0, total: 0, titleStart: 0, selected: null, series: null, token: 0, titleToken: 0, active: false, initialized: false, busy: false, exporting: false, reportHealthy: false };
         var pollTimer = null, filterTimer = null, deletionTimer = null;
         var selections = new Set(), selectionContext = '', currentRows = [];
-        var deletion = { token: null, state: null, busy: false, ready: 0, request: 0 };
+        var deletion = { token: null, state: null, busy: false, submitting: false, ready: 0, request: 0, ids: [], userId: null };
         var pageSize = 100;
         function api(path, data, method) {
-            return ApiClient.ajax({ type: method || 'GET', url: ApiClient.getUrl('WhoSceneIt/' + path, data || {}), dataType: 'json' });
+            return ApiClient.ajax({ type: method || 'GET', url: ApiClient.getUrl('WhoSceneIt/' + path, data || {}), dataType: 'json' }).catch(normalizeError);
+        }
+        function normalizeError(error) {
+            if (!error || error.responseJSON || error.responseText || typeof error.text !== 'function') return Promise.reject(error);
+            var response;
+            try { response = typeof error.clone === 'function' ? error.clone() : error; } catch (_) { return Promise.reject(error); }
+            return Promise.resolve().then(function () { return response.text(); }).then(function (body) {
+                var normalized = { status: error.status, responseText: body };
+                try { normalized.responseJSON = JSON.parse(body); } catch (_) {}
+                return Promise.reject(normalized);
+            }, function () { return Promise.reject(error); });
         }
         function text(node, value) { node.textContent = value == null ? '' : String(value); }
         function errorText(error) {
@@ -24,15 +34,15 @@ define([], function () {
         function status(message, error) { text(find('reportStatus'), message); find('reportStatus').classList.toggle('wsi-error', !!error); }
         function deletionApi(action, data, method) {
             if (method === 'GET') return api('Delete/' + action, data);
-            return ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('WhoSceneIt/Delete/' + action), data: JSON.stringify(data || {}), contentType: 'application/json', dataType: 'json' });
+            return ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('WhoSceneIt/Delete/' + action), data: JSON.stringify(data || {}), contentType: 'application/json', dataType: 'json' }).catch(normalizeError);
         }
         function deletionError(error) {
-            var result = error && error.responseJSON;
-            if (!result && error && error.responseText) { try { result = JSON.parse(error.responseText); } catch (_) {} }
-            return result && ((result.ResponseStatus && result.ResponseStatus.Message) || result.Message) || errorText(error);
+            return errorText(error);
         }
         function updateSelections() {
             var byTitle = state.mode === 'title';
+            find('viewDeletion').hidden = !deletion.token || deletion.state === 'Ready' || deletion.state === 'Loading' || deletion.state === 'PreviewFailed';
+            text(find('viewDeletion'), deletion.busy ? 'View deletion progress' : 'View deletion results');
             text(find('selectionCount'), selections.size + ' selected');
             find('selectionCount').hidden = byTitle; find('clearSelection').hidden = byTitle;
             find('deleteSelected').hidden = byTitle; find('deleteTitle').hidden = !byTitle;
@@ -204,49 +214,86 @@ define([], function () {
             return '"' + str.replace(/"/g, '""') + '"';
         }
         function confirmEnabled() { find('confirmDelete').disabled = deletion.busy || deletion.state !== 'Ready' || !deletion.ready || !find('deleteAcknowledge').checked || find('deleteWord').value !== 'DELETE'; }
+        function previewFailed(message) {
+            deletion.state = 'PreviewFailed'; deletion.busy = false; deletion.ready = 0; deletion.token = null;
+            text(find('deletePhase'), 'Preview failed. No deletion was started for this selection.');
+            text(find('deleteSummary'), message);
+            find('deleteConfirmFields').hidden = true; find('confirmDelete').hidden = true; find('cancelDelete').hidden = true;
+            find('deleteContinuation').hidden = true; find('deleteProgressArea').hidden = true;
+            find('closeDelete').hidden = false; find('retryPreview').hidden = false; updateSelections();
+        }
         function showDeletion(result) {
+            if (!result || result.State === 'PreviewFailed' || !result.Token) {
+                if (deletion.busy) { deletionStatusUnavailable('Emby did not return a valid operation status.'); return; }
+                previewFailed(result && result.Message || 'Emby did not return a valid deletion preview.'); return;
+            }
+            ['Deleted','Ready','Skipped','Failed','Total','Processing'].forEach(function (key) { if (typeof result[key] !== 'number') result[key] = 0; });
             deletion.token = result.Token; deletion.state = result.State; deletion.ready = result.Ready; deletion.busy = result.State === 'Deleting';
+            var confirm = result.State === 'Ready' && result.Ready > 0;
+            text(find('deletePhase'), result.State === 'Ready' ? (confirm ? 'Step 2 of 3: Review and confirm. No deletion has started.' : 'Nothing can be deleted. Review the blocked items below.') : result.State === 'Deleting' ? 'Step 3 of 3: Deleting confirmed media' : result.State === 'Cancelled' ? (result.Started === false ? 'Preview cancelled. No deletion started.' : 'Deletion cancelled or stopped') : (result.Failed || result.Skipped ? 'Deletion finished with items to review' : 'Deletion completed'));
+            find('retryPreview').hidden = true; find('deleteContinuation').hidden = result.State !== 'Deleting';
+            var processed = result.Processed == null ? (result.Deleted || 0) + (result.Skipped || 0) + (result.Failed || 0) : result.Processed;
+            find('deleteProgressArea').hidden = result.State === 'Ready' || result.Started === false || !result.Total;
+            find('deleteProgress').max = Math.max(1, result.Total || 0); find('deleteProgress').value = processed;
+            text(find('deleteProgressText'), processed + ' of ' + result.Total + ' processed' + (result.CurrentItemName ? '. Current item: ' + result.CurrentItemName : '') + '. ' + (result.Processing || 0) + ' currently deleting.');
             text(find('deleteSummary'), result.Message + ' ' + result.Deleted + ' deleted; ' + result.Ready + ' ready; ' + result.Skipped + ' blocked or skipped; ' + result.Failed + ' failed.');
             find('deleteItems').replaceChildren();
             (result.Items || []).forEach(function (item) {
                 var li = document.createElement('li'); text(li, item.Name + (item.Detail ? ' - ' + item.Detail : '') + ' (' + item.State + ')');
                 var detail = document.createElement('small'); text(detail, (item.Paths || []).join('\n') + ((item.WatchedBy || []).length ? '\nWatched by: ' + item.WatchedBy.join(', ') : '') + (item.Message ? '\n' + item.Message : '')); li.appendChild(detail); find('deleteItems').appendChild(li);
             });
-            find('deleteConfirmFields').hidden = result.State !== 'Ready'; find('confirmDelete').hidden = result.State !== 'Ready';
+            find('deleteConfirmFields').hidden = !confirm; find('confirmDelete').hidden = !confirm;
+            text(find('confirmDelete'), 'Permanently delete ' + result.Ready + ' media item' + (result.Ready === 1 ? '' : 's'));
             find('cancelDelete').hidden = result.State !== 'Ready' && result.State !== 'Deleting';
-            find('closeDelete').hidden = result.State === 'Ready' || result.State === 'Deleting';
-            find('cancelDelete').disabled = false; text(find('cancelDelete'), deletion.busy ? 'Stop after current item' : 'Cancel');
+            find('closeDelete').hidden = result.State === 'Ready'; text(find('closeDelete'), deletion.busy ? 'Close progress view' : 'Close and refresh');
+            find('cancelDelete').disabled = false; text(find('cancelDelete'), deletion.busy ? 'Stop after current item' : (confirm ? 'Cancel' : 'Close preview'));
             confirmEnabled(); updateSelections();
             clearTimeout(deletionTimer);
             if (deletion.busy && state.active) deletionTimer = setTimeout(pollDeletion, 1000);
         }
-        function previewDeletion(ids) {
+        function previewDeletion(ids, fixedUserId) {
             if (deletion.busy || !ids.length) return;
             if (ids.length > 500) { status('Select at most 500 titles per deletion batch.', true); return; }
             var request = ++deletion.request;
+            deletion.ids = ids.slice(); deletion.userId = arguments.length > 1 ? fixedUserId : (state.mode === 'user' ? find('userSelect').value : null);
             deletion.token = null; deletion.state = 'Loading'; deletion.ready = 0;
+            text(find('deletePhase'), 'Step 1 of 3: Preparing preview for ' + ids.length + ' selected title' + (ids.length === 1 ? '' : 's') + '. No deletion has started.');
+            find('deleteContinuation').hidden = true; find('deleteProgressArea').hidden = true; find('retryPreview').hidden = true;
             find('deleteAcknowledge').checked = false; find('deleteWord').value = ''; find('deleteItems').replaceChildren();
             text(find('deleteSummary'), 'Checking watched items, Emby permissions, playback sessions, and deletion paths...');
             find('deleteConfirmFields').hidden = true; find('confirmDelete').hidden = true; find('cancelDelete').hidden = false;
             find('closeDelete').hidden = true; find('cancelDelete').disabled = false; text(find('cancelDelete'), 'Cancel');
             if (!find('deleteDialog').open) find('deleteDialog').showModal();
-            deletionApi('Preview', { UserId: state.mode === 'user' ? find('userSelect').value : null, ItemIds: ids.join(',') }).then(function (result) {
-                if (request !== deletion.request || !state.active) { deletionApi('Cancel', { Token: result.Token }).catch(function () {}); return; }
+            deletionApi('Preview', { UserId: deletion.userId, ItemIds: ids.join(',') }).then(function (result) {
+                if (request !== deletion.request || !state.active) { if (result && result.Token) deletionApi('Cancel', { Token: result.Token }).catch(function () {}); return; }
                 showDeletion(result);
-            }).catch(function (error) { if (request === deletion.request) { deletion.state = 'Error'; text(find('deleteSummary'), deletionError(error)); find('cancelDelete').hidden = true; find('closeDelete').hidden = false; } });
+            }).catch(function (error) { if (request === deletion.request) previewFailed(deletionError(error)); });
         }
         function pollDeletion() {
-            if (!state.active || !deletion.token) return;
+            if (!state.active || !deletion.token || deletion.submitting) return;
             deletionApi('Status', { Token: deletion.token }, 'GET').then(showDeletion).catch(function (error) {
-                text(find('deleteSummary'), 'Unable to read deletion progress. The confirmed operation may still be running. ' + deletionError(error));
-                if (state.active) deletionTimer = setTimeout(pollDeletion, 3000);
+                deletionStatusUnavailable(deletionError(error));
             });
+        }
+        function deletionStatusUnavailable(message) {
+            text(find('deletePhase'), 'Deletion status is unavailable. The confirmed operation may still be running.');
+            text(find('deleteSummary'), message + ' Do not submit another deletion. Status will be checked again.');
+            find('confirmDelete').hidden = true; find('deleteConfirmFields').hidden = true; find('retryPreview').hidden = true;
+            find('cancelDelete').disabled = false; text(find('cancelDelete'), 'Stop remaining items');
+            find('closeDelete').hidden = false; text(find('closeDelete'), 'Close progress view');
+            updateSelections();
+            if (state.active && deletion.token) { clearTimeout(deletionTimer); deletionTimer = setTimeout(pollDeletion, 3000); }
         }
         function executeDeletion() {
             if (find('confirmDelete').disabled) return;
-            deletion.busy = true; confirmEnabled(); find('cancelDelete').disabled = true; updateSelections();
-            deletionApi('Execute', { Token: deletion.token, Confirmation: find('deleteWord').value }).then(showDeletion).catch(function (error) {
-                text(find('deleteSummary'), 'Unable to confirm the operation status. ' + deletionError(error));
+            deletion.busy = true; deletion.submitting = true; deletion.state = 'Submitting'; confirmEnabled(); find('cancelDelete').disabled = true; updateSelections();
+            text(find('deletePhase'), 'Step 3 of 3: Submitting confirmed deletion. Waiting for Emby...');
+            find('deleteConfirmFields').hidden = true; find('confirmDelete').hidden = true; find('deleteContinuation').hidden = false;
+            find('deleteProgressArea').hidden = false;
+            find('closeDelete').hidden = false; text(find('closeDelete'), 'Close progress view');
+            deletionApi('Execute', { Token: deletion.token, Confirmation: find('deleteWord').value }).then(function (result) { deletion.submitting = false; showDeletion(result); }).catch(function (error) {
+                deletion.submitting = false;
+                deletionStatusUnavailable(deletionError(error));
                 // A lost response must never trigger another destructive request.
                 pollDeletion();
             });
@@ -334,7 +381,9 @@ define([], function () {
             find('deleteTitle').addEventListener('click', function () { if (state.selected) previewDeletion([state.selected.Id]); });
             find('deleteAcknowledge').addEventListener('change', confirmEnabled); find('deleteWord').addEventListener('input', confirmEnabled);
             find('confirmDelete').addEventListener('click', executeDeletion); find('cancelDelete').addEventListener('click', cancelDeletion);
-            find('closeDelete').addEventListener('click', function () { find('deleteDialog').close(); resetSelections(); loadReport(); pollUpdate(); });
+            find('retryPreview').addEventListener('click', function () { previewDeletion(deletion.ids, deletion.userId); });
+            find('viewDeletion').addEventListener('click', function () { if (!find('deleteDialog').open) find('deleteDialog').showModal(); pollDeletion(); });
+            find('closeDelete').addEventListener('click', function () { find('deleteDialog').close(); if (!deletion.busy) { resetSelections(); loadReport(); pollUpdate(); } });
             find('deleteDialog').addEventListener('cancel', function (event) { event.preventDefault(); if (!deletion.busy) cancelDeletion(); });
             find('checkUpdate').addEventListener('click', function () { updateAction('Check','manual'); });
             find('downloadUpdate').addEventListener('click', function () { updateAction('Download'); });

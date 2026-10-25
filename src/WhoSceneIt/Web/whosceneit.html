@@ -109,6 +109,7 @@
           <button data-id="clearSelection" type="button" disabled>Clear selection</button>
           <button data-id="deleteSelected" type="button" class="wsi-danger" disabled>Delete selected media...</button>
           <button data-id="deleteTitle" type="button" class="wsi-danger" hidden disabled>Delete watched media...</button>
+          <button data-id="viewDeletion" type="button" hidden>View deletion progress</button>
         </div>
         <p data-id="selectionNote" class="wsi-note wsi-muted">Select fully watched media individually or by page. Saved partial playback and rewatches are preserved for every user. Deleting media affects every user.</p>
         <div data-id="reportStatus" class="wsi-status" role="status" aria-live="polite"></div>
@@ -117,9 +118,11 @@
       </div>
       <dialog data-id="deleteDialog" class="wsi-delete" aria-labelledby="wsi-delete-title">
         <h2 id="wsi-delete-title">Review media deletion</h2>
+        <p data-id="deletePhase" role="status" aria-live="polite">Step 1 of 3: Prepare preview</p>
         <p class="wsi-error">This permanently deletes the listed media from Emby and its storage for every user. It cannot be undone by this plugin. Emby may also remove the listed folders and their contents.</p>
-        <p class="wsi-note">Confirmed deletions continue if you leave this page. Keep it open to monitor progress or stop the remaining items.</p>
+        <p data-id="deleteContinuation" class="wsi-note" hidden>Confirmed deletions continue if you leave this page. Keep it open to monitor progress or stop the remaining items.</p>
         <p data-id="deleteSummary" role="status" aria-live="polite"></p>
+        <div data-id="deleteProgressArea" hidden><progress data-id="deleteProgress" max="1" value="0" style="width:100%;max-width:none" aria-label="Deletion progress"></progress><p data-id="deleteProgressText" role="status" aria-live="polite"></p></div>
         <ol data-id="deleteItems" class="wsi-delete-list"></ol>
         <div data-id="deleteConfirmFields" class="wsi-delete-confirm">
           <label class="wsi-check"><input type="checkbox" data-id="deleteAcknowledge">I reviewed the paths and understand this removes media for everyone.</label>
@@ -128,6 +131,7 @@
         <div class="wsi-actions">
           <button data-id="confirmDelete" type="button" class="wsi-danger" disabled>Delete confirmed media</button>
           <button data-id="cancelDelete" type="button">Cancel</button>
+          <button data-id="retryPreview" type="button" hidden>Retry preview</button>
           <button data-id="closeDelete" type="button" hidden>Close and refresh</button>
         </div>
       </dialog>

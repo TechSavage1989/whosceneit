@@ -21,7 +21,7 @@ manifest = {
     "SchemaVersion": 1, "AppId": "WhoSceneIt", "PluginId": "b6405a2e-52e6-4218-a014-00a46a65f1f8",
     "Repository": repository, "Version": version, "MinimumEmbyVersion": "4.8.0.0",
     "ReleaseUrl": release_root + "tag/v" + version,
-    "Notes": ["Fixed an invalid null scope in reports without a selected TV show.", "Report failures now show Emby's error message and HTTP status safely.", "Preserved episode progress, media deletion guards, and updater behavior."],
+    "Notes": ["Clear preview, confirmation, deletion progress, and final result states.", "Preview failures show the actual reason and never start deletion.", "Live counts and safe recovery when a response is lost."],
     "HasMoreNotes": True,
     "Asset": {"FileName": "WhoSceneIt.dll", "DownloadUrl": release_root + "download/v" + version + "/WhoSceneIt.dll", "Sha256": sha, "SizeBytes": len(data)}
 }

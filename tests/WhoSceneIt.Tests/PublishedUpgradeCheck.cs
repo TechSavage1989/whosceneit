@@ -61,8 +61,8 @@ public static class PublishedUpgradeCheck
             Assert(File.ReadAllText(settings) == "preserve configuration" && Hash(Path.Combine(data, "rollback", "WhoSceneIt.dll")) == previousHash, "Bootstrap changed settings or the single backup.");
             Console.WriteLine("PASS Public " + expected + " manual bootstrap: actual memory-loaded entry point resolves the installed DLL, preserves settings/custom filename/backup, and cleans staging.");
             Console.WriteLine("Installed SHA-256: " + Hash(target));
-            const string patchedHash = "ab828ce02eff35e632ca6605c0b583eede2c0021fb74374a7740f243812a7661";
-            var patchedPrevious = await http.GetByteArrayAsync("https://github.com/TechSavage1989/whosceneit/releases/download/v1.2.0/WhoSceneIt.dll");
+            const string patchedHash = "16d75ae5b603e61545d9555412a86093fe03ecf51a3c9cce23e326d5b93bc8f2";
+            var patchedPrevious = await http.GetByteArrayAsync("https://github.com/TechSavage1989/whosceneit/releases/download/v1.2.1/WhoSceneIt.dll");
             Assert(Convert.ToHexString(SHA256.HashData(patchedPrevious)).ToLowerInvariant() == patchedHash, "The previous patched updater failed its pinned digest.");
             string upgradeRoot, upgradeTarget, upgradeData, upgradeSettings;
             using (var upgradable = new MemoryPluginFixture(root, patchedPrevious, json))
@@ -77,7 +77,7 @@ public static class PublishedUpgradeCheck
                 while (Get<bool>(Status(manager), "Busy") && DateTimeOffset.UtcNow < timeout) await Task.Delay(200);
                 Assert(Get<bool>(Status(manager), "Downloaded"), "The patched previous updater did not verify the public download.");
                 var installed = Call(manager, "Install");
-                Assert(Get<bool>(installed, "RestartRequired"), "Public 1.2.0 could not install the new DLL: " + Get<string>(installed, "Message"));
+                Assert(Get<bool>(installed, "RestartRequired"), "Public 1.2.1 could not install the new DLL: " + Get<string>(installed, "Message"));
                 Assert(Hash(upgradable.Target) == Hash(target), "The previous updater installed different public bytes.");
                 upgradeRoot = upgradable.Root; upgradeTarget = upgradable.Target; upgradeData = upgradable.Data; upgradeSettings = upgradable.Settings;
             }
@@ -87,7 +87,7 @@ public static class PublishedUpgradeCheck
             Call(upgraded.Manager, "ConfirmDashboardHealthy");
             Assert(!File.Exists(Path.Combine(upgradeData, "pending-install.json")) && !File.Exists(Path.Combine(upgradeData, "downloaded.dll")), "Verified upgrade staging was not cleaned.");
             Assert(Hash(Path.Combine(upgradeData, "rollback", "WhoSceneIt.dll")) == patchedHash && File.ReadAllText(upgradeSettings) == "preserve configuration", "The public upgrade changed settings or rollback bytes.");
-            Console.WriteLine("PASS Published 1.2.0 to " + expected + ": actual memory-loaded entry points, real HTTPS feed/download, verified custom-target installation, backup, settings, pending reload verification, and cleanup.");
+            Console.WriteLine("PASS Published 1.2.1 to " + expected + ": actual memory-loaded entry points, real HTTPS feed/download, verified custom-target installation, backup, settings, pending reload verification, and cleanup.");
             Console.WriteLine("Versions 1.0.0 and 1.1.0 need manual replacement once. No live Emby process was started or restarted.");
         }
         finally { try { Directory.Delete(root, true); } catch { } }

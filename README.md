@@ -5,7 +5,7 @@ An administrator-only Emby Server plugin that answers two questions:
 - What movies and TV shows has this user watched?
 - Which users have watched this movie, TV show, or episode?
 
-Version 1.2.1 is published at https://github.com/TechSavage1989/whosceneit/releases/tag/v1.2.1 and repairs the unscoped report query introduced in 1.2.0 and displays Emby's underlying error message when a request fails. It retains episode progress, watch-state filters, show completion totals, and per-show episode lists. It retains the 1.1.1 updater path fix and individual/bulk deletion. The user confirmed 1.0.0 reports work; real-library deletion and native Emby restart still need validation. See VALIDATION.md before installation.
+Version 1.2.2 improves deletion preview, confirmation, live progress, and final results. Preview errors explicitly state that no deletion started and show Emby's returned reason. It retains episode progress, report-query repair, individual/bulk deletion, and updater behavior. Live Emby deletion/restart still needs validation; see VALIDATION.md.
 
 ## Features
 
@@ -24,7 +24,7 @@ Emby Server 4.8 or newer is the intended target. The plugin is built against the
 
 ## Install
 
-If version 1.0.0 or 1.1.0 reports an empty "path" during installation, replace the DLL manually using the steps below. The already loaded old updater cannot apply its own path fix. Install the current 1.2.1 DLL directly; intermediate versions are unnecessary. Version 1.1.1 already contains the path fix and can use the normal updater. Keep the existing filename if you customized it.
+If version 1.0.0 or 1.1.0 reports an empty "path" during installation, replace the DLL manually using the steps below. The already loaded old updater cannot apply its own path fix. Install the current 1.2.2 DLL directly; intermediate versions are unnecessary. Version 1.1.1 already contains the path fix and can use the normal updater. Keep the existing filename if you customized it.
 
 1. Stop Emby Server.
 2. Find its Server Data Folder in the Emby dashboard. Open the plugins directory directly under that folder.
@@ -52,11 +52,13 @@ In By user, choose a user and use a title's Delete button, or select rows and ch
 
 In By title, select a movie, show, or episode and choose Delete watched media. This view includes media marked watched by at least one current user; filtering the viewer list does not narrow the deletion preview. TV shows expand into watched episodes rather than deleting the show folder or unwatched episodes.
 
+Delete selected media first prepares a read-only preview. If preparation fails, no deletion has started; the dialog shows the reason and Retry preview. Retry only prepares another review and never confirms deletion. If every item is blocked, the dialog lists the reasons without offering confirmation.
+
 Review every listed path. Deletion removes media from the library and its storage for every user. Emby's normal deletion behavior can also remove listed folders, metadata, subtitles, and other folder contents. The plugin blocks filesystem roots, configured library roots, and directory deletions containing other movie/episode library items. Merged versions or unusual shared-folder layouts may therefore require Emby's own media controls.
 
 Check the acknowledgement, type DELETE, and choose Delete confirmed media. Only the frozen preview can run; newly watched episodes are not added after confirmation. Previews expire after ten minutes. Emby's deletion permissions, current watch status, playback sessions, and exact deletion paths are rechecked before each item. Local movies and episodes must qualify; channels, virtual media, and non-file sources are excluded. The selected administrator must already have Emby's content-deletion permission for the item.
 
-The progress view lists deleted, blocked/skipped, and failed items. Stop after current item preserves the remaining items. Confirmed operations continue inside Emby if you leave the page, and are not replayed automatically after a server restart. Partial deletion can occur if Emby or the filesystem fails; refresh the library and review the result before retrying. Plugin rollback restores only the plugin DLL and cannot recover deleted media. Plugin installation/restart is blocked while deletion is running.
+After confirmation, a progress bar shows processed/total counts, the current item, and deleted, queued, blocked/skipped, and failed results. A lost response is treated as an unknown status; the plugin checks the existing operation and does not resubmit deletion. Close progress view only closes the dialog; View deletion progress reopens the current operation while you remain on this page. Stop after current item preserves the remaining items. Confirmed operations continue inside Emby if you leave the page, and are not replayed automatically after a server restart. Partial deletion can occur if Emby or the filesystem fails; refresh the library and review the result before retrying. Plugin rollback restores only the plugin DLL and cannot recover deleted media. Plugin installation/restart is blocked while deletion is running.
 
 ## Updates
 

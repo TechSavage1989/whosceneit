@@ -2,6 +2,8 @@
 
 ## Current state
 
+- Current candidate: 1.2.2. Exact-source hosted CI, publication, and public upgrade verification are pending. The latest screenshot shows an HTTP 500 during deletion preview, before confirmation; no native deletion result is established.
+
 - Latest maintained/published version: 1.2.1 preview; assembly/file version: 1.2.1.0.
 - User-confirmed baseline: 1.0.0 reports. The latest screenshot confirms 1.2.0 is loaded but its default report fails. Version 1.2.1 repairs the verified null ancestor-list regression; a live server exception and user confirmation of the repaired report remain unavailable.
 - Repository: https://github.com/TechSavage1989/whosceneit; public. No visibility or credential changes were made.
@@ -14,6 +16,16 @@
 - Stable assembly/filename: WhoSceneIt.dll; plugin ID: b6405a2e-52e6-4218-a014-00a46a65f1f8. Customized filenames/settings survive updates. Versions 1.0.0/1.1.0 need manual replacement once; the actual public 1.2.0 updater installed 1.2.1 in memory-loaded SDK fixtures.
 - Local branch: main, tracking origin/main. Main holds current verification notes and a longer future publication feed-verification retry budget; immutable release tags identify application source.
 - Previous immutable sources: 1.2.0 at e2be637d3e333d14fb6ae6e6a36c2b95dca59aaf; 1.1.1 at c29b1b94644168ec2ce63e359735fd244528fc3f; 1.1.0 at 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd; 1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. Original baseline: c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5.
+
+## Version 1.2.2 deletion feedback
+
+The user reports that Delete selected media opens a prompt without confirmation/progress. The screenshot shows the preview request failed with HTTP 500. In the existing controller, Execute is sent only after the separate acknowledgement and typed DELETE step, so this prompt does not establish that deletion started. The exact live server exception is absent.
+
+The browser now decodes native Fetch Response error bodies, including Emby's JSON error message, instead of expecting only XHR responseJSON/responseText. The official archived MediaBrowser/Emby.ApiClient.Javascript source returns rejected Fetch responses for HTTP errors. The UI distinguishes preview failure (no deletion started), read-only retry, eligible review/confirmation, submission, active counts/current item/progress, unknown status, and final outcomes. Unknown status never clears the token or replays Execute. The progress dialog can close/reopen the current operation without cancelling it; status is not polled while the Execute request is still awaiting a response. A retry requires fresh confirmation. All-blocked previews offer no destructive confirmation.
+
+DeletionService returns a structured PreviewFailed status for preview errors while retaining native Admin route attributes and request-bound actor policy checks. DeletionManager converts individual inspection exceptions to blocked entries, and tracks Started, Processing, Processed, and CurrentItemName. Actual native deletion is still performed only through the guarded Emby backend. Native service tests cover IRequest-bound administrator identity, no-user/API-key-only/non-admin rejection, full preview/execute/status/replay flow with synthetic files, current-item/cancellation counts, and blocked inspection failures.
+
+Local validation passed 48 quick compiled checks and 21 quick browser checks. Hosted real-timer validation should run 49 compiled checks on each platform and 23 Linux browser checks. The published-upgrade helper now targets the pinned public 1.2.1 DLL upgrading to this release; run it after publication. No live Emby process or real user media is used. The underlying HTTP 500 remains unobserved; new error handling must report its cause if an environmental or native issue remains.
 
 ## Version 1.2.1 report-query repair
 
@@ -89,7 +101,7 @@ Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/4
 
 The historical public 1.0.0-to-1.1.0 test passed real GitHub HTTPS transport and file replacement with an explicitly supplied target. It bypassed UpdateEntryPoint and did not establish that Emby supplied a usable installation path. The user screenshot disproved that assumption. See the 1.1.1 repair and revised post-publication check above; retain the old output only as historical file-transaction evidence.
 
-The current test runner creates an unpublished next-patch 1.2.2 fixture for the 1.2.1 source. The old 1.2.0 source's same-numbered 1.2.1 fixture is not this patch and must never be published. The old 1.1.0 source generated a test-only 1.1.1 fixture; it is not the patched release and must never be published. Never publish that fixture. Browser fixtures contain synthetic data only. Native SDK fixture protocol/service stubs are test infrastructure, not a running Emby server.
+The current test runner creates an unpublished next-patch 1.2.3 fixture for the 1.2.2 source. The old 1.2.1 source's 1.2.2 test fixture is not this release and must never be published. The old 1.2.0 source's same-numbered 1.2.1 fixture is not this patch and must never be published. The old 1.1.0 source generated a test-only 1.1.1 fixture; it is not the patched release and must never be published. Never publish that fixture. Browser fixtures contain synthetic data only. Native SDK fixture protocol/service stubs are test infrastructure, not a running Emby server.
 
 Negative controls: historical Windows run 40174933095 missed its timer request under the redundant five-minute wall-clock gate. The corrected real timer passes on both platforms. A local run restoring the broad update Busy guard reproduced interruption of deletion by a background check; the corrected IsInstalling guard passes that same test.
 

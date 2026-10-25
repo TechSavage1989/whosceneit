@@ -35,6 +35,10 @@ namespace WhoSceneIt.Deletion
         public int Failed { get; set; }
         public int Skipped { get; set; }
         public int Ready { get; set; }
+        public int Processing { get; set; }
+        public int Processed { get; set; }
+        public string CurrentItemName { get; set; }
+        public bool Started { get; set; }
         public DeletionItem[] Items { get; set; } = Array.Empty<DeletionItem>();
     }
 
@@ -62,6 +66,7 @@ namespace WhoSceneIt.Deletion
             public DateTimeOffset Expires;
             public DeletionInspection[] Entries;
             public bool Cancel;
+            public bool Started;
         }
         public DeletionManager(IDeletionBackend backend, Func<DateTimeOffset> now = null)
         {
@@ -77,7 +82,15 @@ namespace WhoSceneIt.Deletion
             _backend.EnsureAvailable();
             var ids = _backend.Resolve(userId, rootIds.Distinct(StringComparer.Ordinal).ToArray()).Distinct(StringComparer.Ordinal).Take(MaximumItems + 1).ToArray();
             if (ids.Length > MaximumItems) throw new ArgumentException("This selection contains more than 500 media items. Use TV episodes or a smaller selection.");
-            var entries = ids.Select(id => _backend.Inspect(actorId, userId, id)).ToArray();
+            var entries = ids.Select(id =>
+            {
+                try { return _backend.Inspect(actorId, userId, id); }
+                catch (Exception exception)
+                {
+                    return new DeletionInspection { Item = new DeletionItem { ItemId = id, Name = "Library item " + id, State = "Blocked",
+                        Message = "Emby could not inspect this item for deletion: " + exception.Message + ". No deletion was started for this item." } };
+                }
+            }).ToArray();
             // Never let two different library IDs cause the same physical target to be removed twice.
             var paths = new HashSet<string>(System.IO.Path.DirectorySeparatorChar == '\\' ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
             foreach (var entry in entries.Where(e => e.Item.State == "Ready"))
@@ -124,7 +137,7 @@ namespace WhoSceneIt.Deletion
                 if (!plan.Entries.Any(e => e.Item.State == "Ready")) throw new InvalidOperationException("No items in this preview can be deleted.");
                 // Acquire before returning or scheduling work, so update/restart guards see the operation.
                 var activity = new ReportActivity();
-                _running = true; plan.State = "Deleting"; plan.Message = "Deleting confirmed media...";
+                _running = true; plan.Started = true; plan.State = "Deleting"; plan.Message = "Deleting confirmed media...";
                 _ = Task.Run(() => Run(plan, activity));
                 return Snapshot(plan);
             }
@@ -139,6 +152,7 @@ namespace WhoSceneIt.Deletion
                     {
                         if (entry.Item.State != "Ready") continue;
                         if (plan.Cancel) { entry.Item.State = "Skipped"; entry.Item.Message = "Cancelled before this item was deleted."; continue; }
+                        entry.Item.State = "Deleting";
                     }
                     try
                     {
@@ -182,7 +196,9 @@ namespace WhoSceneIt.Deletion
                 Paths = e.Item.Paths.ToArray(), WatchedBy = e.Item.WatchedBy.ToArray(), State = e.Item.State, Message = e.Item.Message }).ToArray();
             return new DeletionStatus { Token = plan.Token, State = plan.State, Message = plan.Message, ExpiresUtc = plan.Expires.ToString("O"), Items = items,
                 Total = items.Length, Ready = items.Count(i => i.State == "Ready"), Deleted = items.Count(i => i.State == "Deleted"), Failed = items.Count(i => i.State == "Failed"),
-                Skipped = items.Count(i => i.State == "Blocked" || i.State == "Skipped") };
+                Skipped = items.Count(i => i.State == "Blocked" || i.State == "Skipped"), Processing = items.Count(i => i.State == "Deleting"),
+                Processed = items.Count(i => i.State == "Deleted" || i.State == "Blocked" || i.State == "Skipped" || i.State == "Failed"),
+                CurrentItemName = items.FirstOrDefault(i => i.State == "Deleting")?.Name, Started = plan.Started };
         }
     }
 }

@@ -1,6 +1,18 @@
-# Who Scene It 1.2.1 - preview validation
+# Who Scene It 1.2.2 - preview validation
 
 Date: October 25, 2026.
+
+Version 1.2.2 repairs deletion preview/error feedback and adds explicit confirmation/progress/results. Hosted exact-source CI, publication, and public upgrade verification are pending. The user's HTTP 500 preview response did not expose its underlying server exception; no claim of live deletion success is made.
+
+## Version 1.2.2 checks
+
+- Local Release builds have zero warnings/errors. All 48 quick compiled checks pass; hosted real-timer validation should run 49 on each platform.
+- New service tests invoke actual Preview/Execute/Status/Cancel methods with native SDK IRequest and AuthorizationInfo/User objects. They verify administrator binding, rejection of API-key-only/non-admin/missing requests, read-only preview, typed confirmation, temporary-file deletion, real status polling, ownership, and replay safety.
+- A held deletion worker verifies Started, Processing, Processed, CurrentItemName, queued counts, cancellation, and final counts. An inspection exception blocks that item and retains the rest of the review; preview never invokes native deletion.
+- Twenty-one quick Chromium checks pass; hosted Linux must pass 23 including real timers. Native browser Fetch Response errors are decoded as safe text. Tests cover structured preview failure, no-start messaging, read-only retry with fresh confirmation, all-blocked previews, live progress, loss of the execution response and a status response, recovery without replay, and final results.
+- After publication, verify all assets/tag/source/feed and run the actual public 1.2.1-to-1.2.2 memory-loaded SDK updater check. No native Emby startup or real-library deletion is attempted.
+
+## Historical 1.2.1 validation
 
 Version 1.2.1 repairs an unscoped report-query regression and adds useful error details. Exact-source hosted CI, all public assets/feed, and public upgrade verification passed. Publication completed before the workflow timed out on its final feed check; independent verification confirmed the canonical feed afterward. The supplied screenshot contains a generic failed-request message rather than a server exception; the exact live stack trace has not been observed.
 

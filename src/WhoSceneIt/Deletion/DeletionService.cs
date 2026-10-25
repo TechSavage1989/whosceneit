@@ -43,6 +43,7 @@ namespace WhoSceneIt.Deletion
         }
         private string Actor()
         {
+            if (Request == null) throw new UnauthorizedAccessException("Emby did not provide the signed-in request context. Reload this page and sign in again.");
             var user = _authorization.GetAuthorizationInfo(Request)?.User;
             var policy = user == null ? null : _users.GetUserPolicy(user);
             if (policy == null || !policy.IsAdministrator || policy.IsDisabled) throw new UnauthorizedAccessException("Sign in with an Emby administrator account to delete media.");
@@ -50,9 +51,16 @@ namespace WhoSceneIt.Deletion
         }
         public object Post(PreviewDeletion request)
         {
-            var actor = Actor();
-            if (string.IsNullOrEmpty(request.ItemIds) || request.ItemIds.Length > 11000) throw new ArgumentException("Select between 1 and 500 titles.");
-            return _manager.Preview(actor, request.UserId, request.ItemIds.Split(',').Select(s => s.Trim()).ToArray());
+            try
+            {
+                var actor = Actor();
+                if (request == null || string.IsNullOrEmpty(request.ItemIds) || request.ItemIds.Length > 11000) throw new ArgumentException("Select between 1 and 500 titles.");
+                return _manager.Preview(actor, request.UserId, request.ItemIds.Split(',').Select(s => s.Trim()).ToArray());
+            }
+            catch (Exception exception)
+            {
+                return new DeletionStatus { State = "PreviewFailed", Message = "No deletion was started for this selection. " + exception.Message };
+            }
         }
         public object Post(ExecuteDeletion request) => _manager.Execute(Actor(), request.Token, request.Confirmation);
         public object Get(GetDeletionStatus request) => _manager.Status(Actor(), request.Token);
