@@ -15,7 +15,7 @@ public static class DeletionServiceChecks
             var request = Proxy.Create<IRequest>((m, a) => null);
             var info = new AuthorizationInfo { User = native.Admin };
             var auth = Proxy.Create<IAuthorizationContext>((m, a) => { assert(ReferenceEquals(a[0], request), "Authorization was not bound to the actual request."); return info; });
-            var service = new DeletionService(auth, native.Users, native.Data, native.Library, native.Sessions, native.Host, new TestJson()) { Request = request };
+            var service = new DeletionService(auth, native.Users, native.Data, native.Library, native.Sessions, native.Host, new TestJson(), Proxy.Create<MediaBrowser.Common.Configuration.IApplicationPaths>((m, a) => m.Name == "get_DataPath" ? Path.Combine(root, "service-protection") : null)) { Request = request };
             return (service, native, next => info = next);
         }
         test("Native deletion service binds the authenticated administrator request before read-only preview", () =>
@@ -89,7 +89,7 @@ public static class DeletionServiceChecks
     {
         public void EnsureAvailable() { }
         public string[] Resolve(string user, string[] ids, bool allowUnwatched = false) => ids;
-        public DeletionInspection Inspect(string actor, string user, string id, bool allowUnwatched = false) => id == "2" ? throw new IOException("Fixture path unavailable") : new() { Item = new() { ItemId = id, Name = "Fixture media", Paths = new[] { "/synthetic/one.mkv" } }, Fingerprint = "fixture" };
-        public void Delete(string actor, string user, string id, string fingerprint, bool allowUnwatched = false) => throw new Exception("A preview must never delete.");
+        public DeletionInspection Inspect(string actor, string user, string id, bool allowUnwatched = false, bool allowWatchedResume = false) => id == "2" ? throw new IOException("Fixture path unavailable") : new() { Item = new() { ItemId = id, Name = "Fixture media", Paths = new[] { "/synthetic/one.mkv" } }, Fingerprint = "fixture" };
+        public void Delete(string actor, string user, string id, string fingerprint, bool allowUnwatched = false, bool allowWatchedResume = false) => throw new Exception("A preview must never delete.");
     }
 }

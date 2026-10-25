@@ -1,21 +1,21 @@
   Determining projects to restore...
-  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 238 ms).
+  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 194 ms).
   WhoSceneIt -> <source>/test-artifacts/upgrade-fixture/WhoSceneIt.dll
 
 Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:01.85
+Time Elapsed 00:00:01.59
   Determining projects to restore...
-  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 297 ms).
+  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 193 ms).
   WhoSceneIt -> <source>/src/WhoSceneIt/bin/Release/netstandard2.0/WhoSceneIt.dll
 
 Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:02.09
+Time Elapsed 00:00:01.61
 PASS Manual watch flags are retained without inventing play counts or dates
 PASS Play counts and dates alone never imply completed viewing
 PASS Shows with identical names remain separate and repeated records do not inflate counts
@@ -70,6 +70,9 @@ PASS An active media deletion blocks plugin installation and restart
 PASS Disabled integrations use no external requests and keep the preview read-only
 PASS Radarr synchronization verifies exact files, unmonitors first, and removes metadata without extra file deletion
 PASS Sonarr synchronization unmonitors every covered episode and removes only the matched file record
+PASS Optional empty Sonarr show removal requires both libraries empty and disables additional file deletion
+PASS Remaining, incoming, or uncertain Emby episode files preserve the Sonarr show entry
+PASS Lost empty-series deletion receipts are read back once and partial failures stay separate
 PASS Sonarr blocks a shared file when it includes an episode outside the selected Emby range
 PASS Unavailable, ambiguous, unmatched, and different-size service records block media deletion
 PASS Changed remote targets, native guards, and saved settings invalidate a confirmed selection
@@ -80,4 +83,20 @@ PASS Sonarr cleanup preserves a replacement file appearing after native deletion
 PASS Connection checks support Sonarr v5, preserve URL bases, reject redirects, and never disclose keys
 PASS Path mapping respects Windows, UNC, POSIX case, path boundaries, and traversal rejection
 PASS Native plugin settings persist keys, preserve blank keys, clear explicitly, and block edits during deletion
-RESULT 64 checks passed.
+PASS Never-delete records persist, protect current and future show episodes, and respect path boundaries
+PASS Never delete blocks every native mode and protection added after preview is rechecked
+PASS Watched-with-resume permission preserves genuinely unfinished progress and never changes flags
+PASS Native cleanup inventory uses completion, resume, age, and full-show state without inventing dates
+PASS Corrupt and unwritable retention state fail closed
+PASS UTC daily, weekly, and interval schedules advance strictly beyond the current instant
+PASS Cleanup rules default to review and require fresh authorization for enabled automatic deletion
+PASS On-demand evaluation queues a fresh checkbox review even for automatic rules
+PASS Scheduled automatic cleanup journals targets before deletion and uses completed resume mode only
+PASS Playback triggers are user-scoped, coalesced, delayed, and rate-limited
+PASS Rule edits invalidate old prompts and executable previews
+PASS An on-demand review does not postpone a saved schedule and failed journaling prevents deletion
+PASS Disabling a running rule stops remaining items after the in-flight item
+PASS Fresh watch eligibility and revoked rule ownership prevent queued deletion
+PASS Native uncertainty remains on durable automation hold and is never retried after restart
+PASS Protection and cleanup endpoints reject missing or API-key-only native actor contexts
+RESULT 83 checks passed.

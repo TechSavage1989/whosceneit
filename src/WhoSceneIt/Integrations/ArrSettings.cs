@@ -14,6 +14,7 @@ namespace WhoSceneIt.Integrations
         public string EmbyPathRoot { get; set; } = "";
         public string ArrPathRoot { get; set; } = "";
         public bool AddImportExclusion { get; set; } = true;
+        public bool RemoveEmptySeries { get; set; }
         public ArrConnection Copy() => (ArrConnection)MemberwiseClone();
     }
     public sealed class ArrSettings
@@ -24,7 +25,7 @@ namespace WhoSceneIt.Integrations
         public string Key()
         {
             using var sha = SHA256.Create();
-            string Part(ArrConnection c) => string.Join("\n", c.Enabled, c.BaseUrl, c.ApiKey, c.EmbyPathRoot, c.ArrPathRoot, c.AddImportExclusion);
+            string Part(ArrConnection c) => string.Join("\n", c.Enabled, c.BaseUrl, c.ApiKey, c.EmbyPathRoot, c.ArrPathRoot, c.AddImportExclusion, c.RemoveEmptySeries);
             return Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(Part(Sonarr) + "\n---\n" + Part(Radarr))));
         }
     }
@@ -37,8 +38,9 @@ namespace WhoSceneIt.Integrations
         public string EmbyPathRoot { get; set; }
         public string ArrPathRoot { get; set; }
         public bool AddImportExclusion { get; set; }
+        public bool RemoveEmptySeries { get; set; }
         public static ArrConnectionView From(ArrConnection c) => new ArrConnectionView { Enabled = c.Enabled, BaseUrl = c.BaseUrl,
-            HasApiKey = !string.IsNullOrEmpty(c.ApiKey), EmbyPathRoot = c.EmbyPathRoot, ArrPathRoot = c.ArrPathRoot, AddImportExclusion = c.AddImportExclusion };
+            HasApiKey = !string.IsNullOrEmpty(c.ApiKey), EmbyPathRoot = c.EmbyPathRoot, ArrPathRoot = c.ArrPathRoot, AddImportExclusion = c.AddImportExclusion, RemoveEmptySeries = c.RemoveEmptySeries };
     }
     public sealed class ArrSettingsView
     {
@@ -55,11 +57,12 @@ namespace WhoSceneIt.Integrations
         public string EmbyPathRoot { get; set; }
         public string ArrPathRoot { get; set; }
         public bool AddImportExclusion { get; set; } = true;
+        public bool RemoveEmptySeries { get; set; }
         public ArrConnection Merge(ArrConnection saved)
         {
             var c = new ArrConnection { Enabled = Enabled, BaseUrl = (BaseUrl ?? "").Trim(),
                 ApiKey = ClearApiKey ? "" : string.IsNullOrWhiteSpace(ApiKey) ? saved.ApiKey ?? "" : ApiKey.Trim(),
-                EmbyPathRoot = (EmbyPathRoot ?? "").Trim(), ArrPathRoot = (ArrPathRoot ?? "").Trim(), AddImportExclusion = AddImportExclusion };
+                EmbyPathRoot = (EmbyPathRoot ?? "").Trim(), ArrPathRoot = (ArrPathRoot ?? "").Trim(), AddImportExclusion = AddImportExclusion, RemoveEmptySeries = RemoveEmptySeries };
             if (c.BaseUrl.Length > 2048 || c.ApiKey.Length > 256 || c.ApiKey.Any(char.IsControl)) throw new ArgumentException("Check the connection URL and API key.");
             if (c.BaseUrl.Length > 0) c.BaseUrl = ArrClient.ValidateBaseUrl(c.BaseUrl).AbsoluteUri;
             if (c.Enabled && (c.BaseUrl.Length == 0 || c.ApiKey.Length == 0)) throw new ArgumentException("Enabled connections need a server URL and API key.");

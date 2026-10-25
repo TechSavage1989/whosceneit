@@ -21,7 +21,7 @@ manifest = {
     "SchemaVersion": 1, "AppId": "WhoSceneIt", "PluginId": "b6405a2e-52e6-4218-a014-00a46a65f1f8",
     "Repository": repository, "Version": version, "MinimumEmbyVersion": "4.8.0.0",
     "ReleaseUrl": release_root + "tag/v" + version,
-    "Notes": ["Optional deletion of partially watched and unwatched media.", "Checkbox confirmation replaces typing DELETE.", "Frozen preview scope, native protections, and Sonarr/Radarr results retained."],
+    "Notes": ["Persistent Never delete protection for movies, shows, and episodes.", "Cleanup rules with review prompts, UTC schedules, and playback/watch-state triggers.", "Optional removal of verified empty Sonarr show entries; native protections and service results retained."],
     "HasMoreNotes": True,
     "Asset": {"FileName": "WhoSceneIt.dll", "DownloadUrl": release_root + "download/v" + version + "/WhoSceneIt.dll", "Sha256": sha, "SizeBytes": len(data)}
 }

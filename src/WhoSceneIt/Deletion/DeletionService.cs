@@ -2,6 +2,8 @@ using System;
 using System.Linq;
 using System.Threading;
 using MediaBrowser.Common;
+using MediaBrowser.Common.Configuration;
+using WhoSceneIt.Retention;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Net;
 using MediaBrowser.Controller.Session;
@@ -39,11 +41,16 @@ namespace WhoSceneIt.Deletion
         private readonly IAuthorizationContext _authorization;
         private readonly IUserManager _users;
         public IRequest Request { get; set; }
-        public DeletionService(IAuthorizationContext authorization, IUserManager users, IUserDataManager data, ILibraryManager library, ISessionManager sessions, IApplicationHost host, IJsonSerializer json)
+        public DeletionService(IAuthorizationContext authorization, IUserManager users, IUserDataManager data, ILibraryManager library, ISessionManager sessions, IApplicationHost host, IJsonSerializer json, IApplicationPaths paths)
         {
             _authorization = authorization; _users = users;
-            LazyInitializer.EnsureInitialized(ref _manager, () => new DeletionManager(new EmbyDeletionBackend(users, data, library, sessions, host),
-                synchronization: new ArrSynchronization(ArrSettingsStore.Read, json, beginOperation: ArrSettingsStore.BeginOperation)));
+            Shared(users, data, library, sessions, host, json, paths);
+        }
+        public static DeletionManager Shared(IUserManager users, IUserDataManager data, ILibraryManager library, ISessionManager sessions, IApplicationHost host, IJsonSerializer json, IApplicationPaths paths)
+        {
+            var protection = RetentionStore.For(paths, json);
+            return LazyInitializer.EnsureInitialized(ref _manager, () => new DeletionManager(new EmbyDeletionBackend(users, data, library, sessions, host, protection.Reason, protection.LockProtection),
+                synchronization: new ArrSynchronization(ArrSettingsStore.Read, json, beginOperation: ArrSettingsStore.BeginOperation, hasNativeSeriesFiles: new EmbyCleanupCatalog(users, data, library).SeriesHasFiles)));
         }
         private string Actor()
         {

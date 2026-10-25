@@ -1,6 +1,7 @@
 """Build the plugin and an unpublished upgrade fixture, then run its checks."""
 from pathlib import Path
 import os
+import re
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -13,7 +14,19 @@ current = tuple(map(int, ET.parse(project).findtext(".//Version").split(".")))
 candidate = ".".join(map(str, (current[0], current[1], current[2] + 1)))
 
 def run(*arguments):
-    subprocess.run([dotnet, *map(str, arguments)], cwd=root, check=True)
+    command = [dotnet, *map(str, arguments)]
+    if arguments[0] != "run":
+        subprocess.run(command, cwd=root, check=True)
+        return
+    lines = []
+    with subprocess.Popen(command, cwd=root, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as process:
+        for line in process.stdout:
+            print(line, end="", flush=True)
+            lines.append(line)
+        if process.wait() != 0:
+            raise subprocess.CalledProcessError(process.returncode, command)
+    if not re.search(r"^RESULT \d+ checks passed\.$", "".join(lines), re.MULTILINE):
+        raise RuntimeError("The compiled test suite exited before reporting completion.")
 
 run("build", project, "-c", "Release", "-p:UseSharedCompilation=false", "-o", fixture,
     "-p:Version=" + candidate, "-p:AssemblyVersion=" + candidate + ".0", "-p:FileVersion=" + candidate + ".0")

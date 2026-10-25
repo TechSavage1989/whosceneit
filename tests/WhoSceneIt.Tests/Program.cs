@@ -82,10 +82,11 @@ try
     Test("Every report, update, deletion, and integration route requires the native Admin role", () =>
     {
         var routes = typeof(Plugin).Assembly.GetTypes().Where(t=>t.GetCustomAttribute<RouteAttribute>()!=null).ToArray();
-        Assert(routes.Length==17,"Unexpected public endpoint count.");
+        Assert(routes.Length==27,"Unexpected public endpoint count.");
         Assert(routes.All(t=>t.GetCustomAttribute<AuthenticatedAttribute>()?.Roles=="Admin"),"An endpoint is missing server-side authorization.");
         Assert(routes.Where(t=>t.Namespace=="WhoSceneIt.Updates" && t.Name!="GetUpdates").All(t=>t.GetCustomAttribute<RouteAttribute>().Verbs=="POST"),"Update writes allow GET.");
         Assert(routes.Where(t=>t.Namespace=="WhoSceneIt.Deletion" && t.Name!="GetDeletionStatus").All(t=>t.GetCustomAttribute<RouteAttribute>().Verbs=="POST"),"Deletion writes allow GET.");
+        Assert(routes.Where(t=>t.Namespace=="WhoSceneIt.Retention" && t.Name!="GetRetention" && t.Name!="GetProtection").All(t=>t.GetCustomAttribute<RouteAttribute>().Verbs=="POST"),"Retention writes allow GET.");
         Assert(routes.Where(t=>t.Namespace=="WhoSceneIt.Integrations" && t.Name!="GetArrSettings").All(t=>t.GetCustomAttribute<RouteAttribute>().Verbs=="POST"),"Integration writes allow GET.");
     });
     Test("Manifest rejects other repositories, versions, URLs, hashes, sizes, and app identities", () =>
@@ -222,7 +223,7 @@ try
         instance.SetValue(null, manager); Task check = null;
         try
         {
-            check = manager.CheckAsync("startup"); await entered.Task;
+            check = manager.CheckAsync("startup"); if (check.IsCompleted && !entered.Task.IsCompleted) throw new Exception("Background fixture did not reach its HTTP handler: " + json.SerializeToString(manager.Status())); await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert(manager.Status().Busy && !manager.IsInstalling, "The background check fixture did not become busy.");
             new NativeDeletionFixture(root).Backend.EnsureAvailable();
         }
@@ -248,6 +249,7 @@ try
         Assert(deletion.Status("admin", preview.Token).State == "Completed", "Deletion did not finish after the guard check.");
     });
     await ArrChecks.Run(root, Test, TestAsync, Assert);
+    await RetentionChecks.Run(root, Test, TestAsync, Assert);
     if(args.Contains("--real-timer"))
     {
         await TestAsync("Real five-minute timer, two-minute focus gate, manual cooldown expiry, ETag, and HTTP 304", async()=>

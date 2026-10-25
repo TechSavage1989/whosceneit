@@ -31,6 +31,7 @@ namespace WhoSceneIt.Deletion
         public string Fingerprint { get; set; }
         public string MediaPath { get; set; }
         public long? MediaSize { get; set; }
+        public long SeriesId { get; set; }
         public int? SeasonNumber { get; set; }
         public int? EpisodeNumber { get; set; }
         public int? EpisodeNumberEnd { get; set; }
@@ -54,16 +55,26 @@ namespace WhoSceneIt.Deletion
         public string CurrentItemName { get; set; }
         public bool Started { get; set; }
         public bool AllowUnwatched { get; set; }
+        public bool AllowWatchedResume { get; set; }
+        public string RuleName { get; set; }
         public int SyncFailed { get; set; }
         public int Synchronized { get; set; }
         public DeletionItem[] Items { get; set; } = Array.Empty<DeletionItem>();
     }
 
+    public sealed class DeletionPlanHooks
+    {
+        public string RuleName { get; set; }
+        public Func<string, string> Validate { get; set; }
+        public Action<DeletionStatus, DeletionInspection[]> Begin { get; set; }
+        public Action<DeletionStatus> Complete { get; set; }
+    }
+
     public interface IDeletionBackend
     {
         string[] Resolve(string userId, string[] rootIds, bool allowUnwatched = false);
-        DeletionInspection Inspect(string actorId, string userId, string itemId, bool allowUnwatched = false);
-        void Delete(string actorId, string userId, string itemId, string expectedFingerprint, bool allowUnwatched = false);
+        DeletionInspection Inspect(string actorId, string userId, string itemId, bool allowUnwatched = false, bool allowWatchedResume = false);
+        void Delete(string actorId, string userId, string itemId, string expectedFingerprint, bool allowUnwatched = false, bool allowWatchedResume = false);
         void EnsureAvailable();
     }
 
@@ -72,6 +83,7 @@ namespace WhoSceneIt.Deletion
     public sealed class DeletionManager
     {
         public const int MaximumItems = 500;
+        public bool IsRunning { get { lock (_sync) return _running; } }
         private readonly object _sync = new object();
         private readonly Dictionary<string, Plan> _plans = new Dictionary<string, Plan>(StringComparer.Ordinal);
         private readonly IDeletionBackend _backend;
@@ -85,7 +97,8 @@ namespace WhoSceneIt.Deletion
             public DeletionInspection[] Entries;
             public bool Cancel;
             public bool Started;
-            public bool AllowUnwatched;
+            public bool AllowUnwatched, AllowWatchedResume;
+            public DeletionPlanHooks Hooks;
             public IExternalDeletionSession External;
         }
         public DeletionManager(IDeletionBackend backend, Func<DateTimeOffset> now = null, IDeletionSynchronization synchronization = null)
@@ -94,7 +107,7 @@ namespace WhoSceneIt.Deletion
             _now = now ?? (() => DateTimeOffset.UtcNow);
             _synchronization = synchronization;
         }
-        public DeletionStatus Preview(string actorId, string userId, string[] rootIds, bool allowUnwatched = false)
+        public DeletionStatus Preview(string actorId, string userId, string[] rootIds, bool allowUnwatched = false, bool allowWatchedResume = false, DeletionPlanHooks hooks = null)
         {
             if (string.IsNullOrWhiteSpace(actorId)) throw new UnauthorizedAccessException("An administrator sign-in is required.");
             if (rootIds == null || rootIds.Length == 0 || rootIds.Length > MaximumItems)
@@ -107,7 +120,10 @@ namespace WhoSceneIt.Deletion
             var entries = ids.Select(id =>
             {
                 DeletionInspection entry = null;
-                try { entry = _backend.Inspect(actorId, userId, id, allowUnwatched); if (entry.Item.State == "Ready") external?.Preview(entry); return entry; }
+                try { entry = _backend.Inspect(actorId, userId, id, allowUnwatched, allowWatchedResume);
+                    var blocked = hooks?.Validate?.Invoke(id);
+                    if (blocked != null) { entry.Item.State = "Blocked"; entry.Item.Message = blocked; }
+                    if (entry.Item.State == "Ready") external?.Preview(entry); return entry; }
                 catch (Exception exception)
                 {
                     entry ??= new DeletionInspection { Item = new DeletionItem { ItemId = id, Name = "Library item " + id } };
@@ -131,7 +147,7 @@ namespace WhoSceneIt.Deletion
                 foreach (var key in _plans.Where(p => p.Value.State != "Deleting" && p.Value.State != "Ready").OrderBy(p => p.Value.Expires).Take(Math.Max(0, _plans.Count - 63)).Select(p => p.Key).ToArray()) _plans.Remove(key);
                 if (_plans.Count >= 64 || _plans.Values.Count(p => p.ActorId == actorId && (p.State == "Ready" || p.State == "Deleting")) >= 8)
                     throw new InvalidOperationException("Close or cancel older deletion previews, or wait ten minutes before trying again.");
-                var plan = new Plan { Token = Guid.NewGuid().ToString("N"), ActorId = actorId, UserId = userId, Expires = _now().AddMinutes(10), Entries = entries, External = external, AllowUnwatched = allowUnwatched,
+                var plan = new Plan { Token = Guid.NewGuid().ToString("N"), ActorId = actorId, UserId = userId, Expires = _now().AddMinutes(10), Entries = entries, External = external, AllowUnwatched = allowUnwatched, AllowWatchedResume = allowWatchedResume, Hooks = hooks,
                     Message = "Review the exact media and paths below. Deletion removes them from the server for every user." };
                 _plans.Add(plan.Token, plan);
                 return Snapshot(plan);
@@ -172,6 +188,8 @@ namespace WhoSceneIt.Deletion
                     plan.Message = "No deletion was started. " + exception.Message;
                     return Snapshot(plan);
                 }
+                try { plan.Hooks?.Begin?.Invoke(Snapshot(plan), plan.Entries.Where(e => e.Item.State == "Ready").ToArray()); }
+                catch { externalActivity?.Dispose(); throw; }
                 var activity = new ReportActivity();
                 _running = true; plan.Started = true; plan.State = "Deleting"; plan.Message = "Deleting confirmed media...";
                 _ = Task.Run(() => Run(plan, activity, externalActivity));
@@ -195,22 +213,25 @@ namespace WhoSceneIt.Deletion
                     try
                     {
                         _backend.EnsureAvailable();
-                        var current = _backend.Inspect(plan.ActorId, plan.UserId, entry.Item.ItemId, plan.AllowUnwatched);
-                        if (current.Item.State != "Ready" || current.Fingerprint != entry.Fingerprint)
+                        var current = _backend.Inspect(plan.ActorId, plan.UserId, entry.Item.ItemId, plan.AllowUnwatched, plan.AllowWatchedResume);
+                        var ruleBlock = plan.Hooks?.Validate?.Invoke(entry.Item.ItemId);
+                        if (ruleBlock != null || current.Item.State != "Ready" || current.Fingerprint != entry.Fingerprint)
                         {
-                            lock (_sync) { entry.Item.State = "Skipped"; entry.Item.Message = current.Item.Message ?? "This item or its deletion paths changed. Review it again.";
+                            lock (_sync) { entry.Item.State = "Skipped"; entry.Item.Message = ruleBlock ?? current.Item.Message ?? "This item or its deletion paths changed. Review it again.";
                                 if (entry.ExternalPlan != null) { entry.Item.ExternalState = "Not run"; entry.Item.ExternalMessage = "The native deletion check blocked this item before service changes."; } }
                             continue;
                         }
                         lock (_sync) { if (entry.ExternalPlan != null) entry.Item.ExternalState = "Unmonitoring"; }
                         plan.External?.BeforeDelete(entry);
                         lock (_sync) { if (entry.ExternalPlan != null) entry.Item.ExternalState = "Unmonitored"; }
+                        var changedRule = plan.Hooks?.Validate?.Invoke(entry.Item.ItemId);
+                        if (changedRule != null) throw new InvalidOperationException(changedRule);
                         nativeAttempted = true;
-                        _backend.Delete(plan.ActorId, plan.UserId, entry.Item.ItemId, entry.Fingerprint, plan.AllowUnwatched);
+                        _backend.Delete(plan.ActorId, plan.UserId, entry.Item.ItemId, entry.Fingerprint, plan.AllowUnwatched, plan.AllowWatchedResume);
                         lock (_sync) { entry.Item.EmbyState = "Deleted"; if (entry.ExternalPlan != null) entry.Item.ExternalState = "Synchronizing"; }
                         plan.External?.AfterDelete(entry);
                         lock (_sync) { entry.Item.State = "Deleted"; entry.Item.Message = "Deleted through Emby.";
-                            if (entry.ExternalPlan != null) { entry.Item.ExternalState = "Completed"; entry.Item.ExternalMessage = entry.Item.ExternalService == "Sonarr" ? "File record removed; affected episodes are unmonitored. Series and episode listings retained." : "Movie entry removed without asking Radarr to delete additional files. Any selected import-list exclusion was requested."; } }
+                            if (entry.ExternalPlan != null) { entry.Item.ExternalState = "Completed"; if (entry.Item.ExternalService != "Sonarr") entry.Item.ExternalMessage = "Movie entry removed without asking Radarr to delete additional files. Any selected import-list exclusion was requested."; } }
                     }
                     catch (Exception exception)
                     {
@@ -238,10 +259,13 @@ namespace WhoSceneIt.Deletion
                 externalActivity?.Dispose();
                 lock (_sync)
                 {
-                    _running = false; plan.Expires = _now().AddMinutes(10);
+                    plan.Expires = _now().AddMinutes(10);
                     plan.State = plan.Cancel ? "Cancelled" : "Completed";
                     plan.Message = plan.Cancel ? "Deletion stopped. Completed deletions cannot be undone." : "Deletion finished. Review any blocked, skipped, or failed items below.";
                 }
+                try { plan.Hooks?.Complete?.Invoke(Snapshot(plan)); }
+                catch { lock (_sync) plan.Message += " Cleanup history could not be saved. Automation holds remain in place; repair storage before further cleanup."; }
+                finally { lock (_sync) _running = false; }
             }
         }
         private Plan Find(string actorId, string token)
@@ -260,7 +284,7 @@ namespace WhoSceneIt.Deletion
                 Total = items.Length, Ready = items.Count(i => i.State == "Ready"), Deleted = items.Count(i => i.State == "Deleted" || i.EmbyState == "Deleted"), Failed = items.Count(i => i.State == "Failed"),
                 Skipped = items.Count(i => i.State == "Blocked" || i.State == "Skipped"), Processing = items.Count(i => i.State == "Deleting"),
                 Processed = items.Count(i => i.State == "Deleted" || i.State == "Blocked" || i.State == "Skipped" || i.State == "Failed"),
-                CurrentItemName = items.FirstOrDefault(i => i.State == "Deleting")?.Name, Started = plan.Started, AllowUnwatched = plan.AllowUnwatched,
+                CurrentItemName = items.FirstOrDefault(i => i.State == "Deleting")?.Name, Started = plan.Started, AllowUnwatched = plan.AllowUnwatched, AllowWatchedResume = plan.AllowWatchedResume, RuleName = plan.Hooks?.RuleName,
                 SyncFailed = items.Count(i => i.EmbyState == "Deleted" && i.ExternalState == "Failed"), Synchronized = items.Count(i => i.ExternalState == "Completed") };
         }
     }

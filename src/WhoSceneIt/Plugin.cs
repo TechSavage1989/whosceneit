@@ -35,6 +35,11 @@ namespace WhoSceneIt
                 },
                 new PluginPageInfo
                 {
+                    Name = "whosceneit-1.5.0.js",
+                    EmbeddedResourcePath = "WhoSceneIt.Web.whosceneit.js"
+                },
+                new PluginPageInfo
+                {
                     Name = "whosceneit-1.4.0.js",
                     EmbeddedResourcePath = "WhoSceneIt.Web.whosceneit.js"
                 },

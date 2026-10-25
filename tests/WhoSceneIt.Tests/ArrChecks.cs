@@ -43,6 +43,29 @@ public static class ArrChecks
             assert(done.Deleted == 1 && done.Synchronized == 1 && f.SeriesPresent && !f.RecordPresent && !f.Monitored, "Sonarr did not retain the series while removing the file record.");
             assert(f.Mutations.Count == 2 && f.Mutations[0].body.Contains("\"episodeIds\":[301,302]") && f.Mutations[1].path.EndsWith("/episodefile/201") && !f.Mutations.Any(c => c.path.Contains("/series/")), "Sonarr deleted a series or failed to cover all episodes in the selected range.");
         });
+        await testAsync("Optional empty Sonarr show removal requires both libraries empty and disables additional file deletion", async () =>
+        {
+            using var f = new ArrFixture(root, sonarr:true); f.Settings.Sonarr.RemoveEmptySeries=true;
+            var p=f.Preview(); assert(p.Items[0].ExternalMessage.Contains("empty") || p.Items[0].ExternalMessage.Contains("no episode files"),"The preview omitted conditional show removal.");
+            var done=await Done(f,p); assert(done.Synchronized==1 && !f.SeriesPresent && f.Mutations.Count==3 && f.Mutations.Last().path.Contains("series/10?deleteFiles=false&addImportListExclusion=false") && done.Items[0].ExternalMessage.Contains("show entry removed"),"Empty-series removal was unsafe or falsely reported.");
+        });
+        await testAsync("Remaining, incoming, or uncertain Emby episode files preserve the Sonarr show entry", async () =>
+        {
+            foreach(var kind in new[]{"remote","native","incoming"})
+            {
+                using var f=new ArrFixture(root,sonarr:true);f.Settings.Sonarr.RemoveEmptySeries=true;f.RemoteRemaining=kind=="remote";f.NativeRemaining=kind=="native";f.IncomingFile=kind=="incoming";
+                var done=await Done(f,f.Preview());assert(done.Synchronized==1 && f.SeriesPresent && f.Mutations.Count==2,"A nonempty show entry was removed: "+kind);
+            }
+        });
+        await testAsync("Lost empty-series deletion receipts are read back once and partial failures stay separate", async () =>
+        {
+            foreach(var fail in new[]{false,true})
+            {
+                using var f=new ArrFixture(root,sonarr:true);f.Settings.Sonarr.RemoveEmptySeries=true;f.LostSeriesDelete=!fail;f.FailSeriesDelete=fail;
+                var done=await Done(f,f.Preview());assert(done.Deleted==1 && (fail?done.SyncFailed==1 && f.SeriesPresent:done.Synchronized==1 && !f.SeriesPresent) && f.Mutations.Count(c=>c.path.Contains("series/10?"))==1,"Empty-series mutation replay or partial success reporting failed.");
+            }
+            using var changed=new ArrFixture(root,sonarr:true);var p=changed.Preview();changed.Settings.Sonarr.RemoveEmptySeries=true;var stopped=changed.Manager.Execute("admin",p.Token,true);assert(!stopped.Started && changed.Mutations.Count==0,"Changing the empty-series setting did not invalidate a preview.");
+        });
         test("Sonarr blocks a shared file when it includes an episode outside the selected Emby range", () =>
         {
             using var f = new ArrFixture(root, sonarr: true); f.SharedFile = true;
@@ -152,6 +175,8 @@ public sealed class ArrFixture : IDisposable
     public bool Sonarr, SharedFile, V5, LostPut, LostDelete, FailDelete, MovieFileMissing;
     public Action OnUnmonitor;
     public bool Monitored = true, RecordPresent = true, SeriesPresent = true;
+    public bool RemoteRemaining, NativeRemaining, IncomingFile, LostSeriesDelete, FailSeriesDelete;
+    private int _fileListReads;
     public bool FilePresentWhenUnmonitored, FilePresentWhenRemoteDeleted;
     public int FileId = 201;
     public string Condition;
@@ -166,7 +191,7 @@ public sealed class ArrFixture : IDisposable
             EmbyPathRoot = Path.GetDirectoryName(File), ArrPathRoot = sonarr ? "/tv/Show" : "/movies", AddImportExclusion = true };
         if (sonarr) Settings.Sonarr = connection; else Settings.Radarr = connection;
         Http = new HttpClient(new FakeHttp(Respond));
-        Manager = new DeletionManager(Backend, synchronization: new ArrSynchronization(() => Settings, new TestJson(), Http));
+        Manager = new DeletionManager(Backend, synchronization: new ArrSynchronization(() => Settings, new TestJson(), Http, hasNativeSeriesFiles: _ => NativeRemaining));
     }
     public DeletionStatus Preview(params string[] ids) => Manager.Preview("admin", "alice", ids.Length == 0 ? new[] { "1" } : ids);
     private async Task<HttpResponseMessage> Respond(HttpRequestMessage request)
@@ -191,8 +216,8 @@ public sealed class ArrFixture : IDisposable
             if (route == "movie") return Json(Condition == "unmatched" ? Array.Empty<ArrMovie>() : Condition == "ambiguous" ? new[] { Movie(), Movie() } : Condition == "same-record" ? new[] { Movie(), new ArrMovie { id = 101, tmdbId = 1001, path = "/movies", monitored = true, movieFile = new ArrFile { id = 202, path = "/movies/" + Path.GetFileName(Backend.FileFor("2")), size = _size } } } : new[] { Movie() });
             if (route == "movie/101") return RecordPresent ? Json(Movie()) : Missing();
             if (route == "series") return Json(new[] { new ArrSeries { id = 10, path = "/tv/Show" } });
-            if (route == "series/10") return Json(new ArrSeries { id = 10, path = "/tv/Show" });
-            if (route == "episodefile?seriesId=10") return Json(new[] { EpisodeFile() });
+            if (route == "series/10") return SeriesPresent ? Json(new ArrSeries { id = 10, path = "/tv/Show" }) : Missing();
+            if (route == "episodefile?seriesId=10") { ++_fileListReads; return Json(RecordPresent ? new[] { EpisodeFile() } : RemoteRemaining || IncomingFile && _fileListReads >= 3 ? new[] { new ArrFile { id=999,seriesId=10,path="/tv/Show/new.mkv",size=1 } } : Array.Empty<ArrFile>()); }
             if (route == "episodefile/201") return RecordPresent ? Json(EpisodeFile()) : Missing();
             if (route.StartsWith("episode?")) return Json(Episodes());
         }
@@ -210,6 +235,11 @@ public sealed class ArrFixture : IDisposable
             RecordPresent = false;
             if (LostDelete) { LostDelete = false; return new(HttpStatusCode.ServiceUnavailable); }
             return Json(new { });
+        }
+        if (method == "DELETE" && route.StartsWith("series/10?"))
+        {
+            if (FailSeriesDelete) return new(HttpStatusCode.ServiceUnavailable);
+            SeriesPresent=false; if (LostSeriesDelete) return new(HttpStatusCode.ServiceUnavailable); return Json(new {});
         }
         throw new Exception("Unexpected fixture request: " + method + " " + path + " parsed as " + route);
     }
@@ -229,10 +259,10 @@ public sealed class ArrBackend : IDeletionBackend
     public string FileFor(string id) => _native.FileFor(id);
     public string[] Resolve(string user, string[] ids, bool allowUnwatched = false) => ids;
     public void EnsureAvailable() { }
-    public DeletionInspection Inspect(string actor, string user, string id, bool allowUnwatched = false)
+    public DeletionInspection Inspect(string actor, string user, string id, bool allowUnwatched = false, bool allowWatchedResume = false)
     {
         var item = _native.Inspect(actor, user, id, allowUnwatched); item.MediaPath = FileFor(id); item.MediaSize = new FileInfo(FileFor(id)).Length;
-        item.Item.Type = _episode ? "Episode" : "Movie"; item.SeasonNumber = 1; item.EpisodeNumber = 1; item.EpisodeNumberEnd = EpisodeEnd; return item;
+        item.SeriesId = _episode ? 10 : 0; item.Item.Type = _episode ? "Episode" : "Movie"; item.SeasonNumber = 1; item.EpisodeNumber = 1; item.EpisodeNumberEnd = EpisodeEnd; return item;
     }
-    public void Delete(string actor, string user, string id, string expected, bool allowUnwatched = false) { _native.Delete(actor, user, id, expected, allowUnwatched); AfterDelete?.Invoke(); }
+    public void Delete(string actor, string user, string id, string expected, bool allowUnwatched = false, bool allowWatchedResume = false) { _native.Delete(actor, user, id, expected, allowUnwatched); AfterDelete?.Invoke(); }
 }

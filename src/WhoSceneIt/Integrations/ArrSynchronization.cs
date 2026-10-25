@@ -23,13 +23,14 @@ namespace WhoSceneIt.Integrations
         private readonly IJsonSerializer _json;
         private readonly HttpClient _http;
         private readonly Func<string, IDisposable> _begin;
-        public ArrSynchronization(Func<ArrSettings> settings, IJsonSerializer json, HttpClient http = null, Func<string, IDisposable> beginOperation = null)
-        { _settings = settings; _json = json; _http = http; _begin = beginOperation; }
-        public IExternalDeletionSession BeginPreview() => new Session(_settings, _json, _http, _begin);
+        private readonly Func<DeletionInspection, bool> _hasNativeSeriesFiles;
+        public ArrSynchronization(Func<ArrSettings> settings, IJsonSerializer json, HttpClient http = null, Func<string, IDisposable> beginOperation = null, Func<DeletionInspection, bool> hasNativeSeriesFiles = null)
+        { _settings = settings; _json = json; _http = http; _begin = beginOperation; _hasNativeSeriesFiles = hasNativeSeriesFiles ?? (_ => true); }
+        public IExternalDeletionSession BeginPreview() => new Session(_settings, _json, _http, _begin, _hasNativeSeriesFiles);
         private sealed class Target
         {
             public string Service, Path, ParentPath;
-            public int Id, FileId, SeriesId, TmdbId;
+            public int Id, FileId, SeriesId, TmdbId, TvdbId;
             public long Size;
             public int[] Episodes;
             public int Season, EpisodeStart, EpisodeEnd;
@@ -41,12 +42,14 @@ namespace WhoSceneIt.Integrations
             private readonly Func<ArrSettings> _current;
             private readonly Func<string, IDisposable> _begin;
             private readonly ArrClient _sonarr, _radarr;
+            private readonly Func<DeletionInspection, bool> _hasNativeSeriesFiles;
             private ArrMovie[] _movies;
             private ArrSeries[] _series;
             private readonly Dictionary<int, ArrFile[]> _files = new Dictionary<int, ArrFile[]>();
             private readonly Dictionary<int, ArrEpisode[]> _episodes = new Dictionary<int, ArrEpisode[]>();
-            public Session(Func<ArrSettings> settings, IJsonSerializer json, HttpClient http, Func<string, IDisposable> begin)
+            public Session(Func<ArrSettings> settings, IJsonSerializer json, HttpClient http, Func<string, IDisposable> begin, Func<DeletionInspection, bool> hasNativeSeriesFiles)
             {
+                _hasNativeSeriesFiles = hasNativeSeriesFiles;
                 _current = settings; _saved = settings().Copy(); _key = _saved.Key(); _begin = begin;
                 _sonarr = new ArrClient("Sonarr", _saved.Sonarr, json, http); _radarr = new ArrClient("Radarr", _saved.Radarr, json, http);
             }
@@ -88,10 +91,10 @@ namespace WhoSceneIt.Integrations
                         var linked = episodes.Where(e => e != null && e.episodeFileId == file.id).ToArray();
                         if (!item.SeasonNumber.HasValue || !item.EpisodeNumber.HasValue || linked.Length == 0 || linked.Any(e => e.id <= 0 || e.seriesId != s.id || e.seasonNumber != item.SeasonNumber || e.episodeNumber < item.EpisodeNumber || e.episodeNumber > (item.EpisodeNumberEnd ?? item.EpisodeNumber)))
                             throw new InvalidOperationException("This Sonarr file includes episodes outside the selected Emby episode or its numbered range. Review shared episode files in Sonarr.");
-                        target = new Target { Service = "Sonarr", Id = file.id, FileId = file.id, SeriesId = s.id, Size = file.size, ParentPath = s.path, Path = path,
+                        target = new Target { Service = "Sonarr", Id = file.id, FileId = file.id, SeriesId = s.id, TvdbId = s.tvdbId, Size = file.size, ParentPath = s.path, Path = path,
                             Season = item.SeasonNumber.Value, EpisodeStart = item.EpisodeNumber.Value, EpisodeEnd = item.EpisodeNumberEnd ?? item.EpisodeNumber.Value,
                             Episodes = linked.Select(e => e.id).Distinct().OrderBy(id => id).ToArray() };
-                        item.Item.ExternalMessage = "Unmonitor " + target.Episodes.Length + " matched episode(s), then remove the Sonarr file record after Emby deletes the media. The series and episode listings remain.";
+                        item.Item.ExternalMessage = "Unmonitor " + target.Episodes.Length + " matched episode(s), then remove the Sonarr file record after Emby deletes the media. " + (connection.RemoveEmptySeries ? "Remove the Sonarr show entry only if no episode files remain in Sonarr or Emby; do not delete additional files." : "Keep the Sonarr show entry and unmonitor removed episodes.");
                     }
                     if (target.Id <= 0 || target.FileId <= 0 || target.Size < 0) throw new InvalidOperationException("The service returned an invalid media identity.");
                     if (!item.MediaSize.HasValue || item.MediaSize.Value != target.Size) throw new InvalidOperationException(target.Service + " and Emby report different file sizes. Check the exact file and path mapping before deletion.");
@@ -117,7 +120,7 @@ namespace WhoSceneIt.Integrations
                     var s = _sonarr.Get<ArrSeries>("series/" + target.SeriesId);
                     var f = _sonarr.Get<ArrFile>("episodefile/" + target.Id);
                     var episodes = _sonarr.Get<ArrEpisode[]>("episode?episodeFileId=" + target.Id);
-                    if (s.id != target.SeriesId || !ArrPath.Equal(s.path, target.ParentPath) || f.id != target.Id || f.seriesId != target.SeriesId || f.size != target.Size || !ArrPath.Equal(FilePath(f, s.path), target.Path) ||
+                    if (s.id != target.SeriesId || s.tvdbId != target.TvdbId || !ArrPath.Equal(s.path, target.ParentPath) || f.id != target.Id || f.seriesId != target.SeriesId || f.size != target.Size || !ArrPath.Equal(FilePath(f, s.path), target.Path) ||
                         episodes.Any(e => e.seriesId != target.SeriesId || e.seasonNumber != target.Season || e.episodeNumber < target.EpisodeStart || e.episodeNumber > target.EpisodeEnd) ||
                         (afterDeletion ? episodes.Any(e => !target.Episodes.Contains(e.id)) : !episodes.Select(e => e.id).OrderBy(id => id).SequenceEqual(target.Episodes)))
                         throw new InvalidOperationException("The matched Sonarr file, series, or linked episodes changed. Review the selection again.");
@@ -165,6 +168,27 @@ namespace WhoSceneIt.Integrations
                 {
                     var episodes = client.Get<ArrEpisode[]>("episode?seriesId=" + target.SeriesId).Where(e => target.Episodes.Contains(e.id)).ToArray();
                     if (episodes.Length != target.Episodes.Length || episodes.Any(e => e.monitored || e.episodeFileId != 0)) throw new InvalidOperationException("Sonarr removed the original file record, but episode monitoring or file links need review.");
+                    item.Item.ExternalMessage = "File record removed; affected episodes are unmonitored. The Sonarr show entry remains.";
+                    if (_saved.Sonarr.RemoveEmptySeries)
+                    {
+                        var remaining = client.Get<ArrFile[]>("episodefile?seriesId=" + target.SeriesId);
+                        if (remaining.Length == 0 && !_hasNativeSeriesFiles(item))
+                        {
+                            var series = client.Get<ArrSeries>("series/" + target.SeriesId, true);
+                            if (series != null)
+                            {
+                                if (series.id != target.SeriesId || series.tvdbId != target.TvdbId || !ArrPath.Equal(series.path, target.ParentPath)) throw new InvalidOperationException("The empty Sonarr series identity changed. Its entry was retained.");
+                                // Recheck at the last point before the single, non-replayed mutation.
+                                if (client.Get<ArrFile[]>("episodefile?seriesId=" + target.SeriesId).Length != 0 || _hasNativeSeriesFiles(item)) { item.Item.ExternalMessage += " New or remaining episode files preserve the show entry."; return; }
+                                Exception error = null;
+                                try { client.Mutate("DELETE", "series/" + target.SeriesId + "?deleteFiles=false&addImportListExclusion=false"); }
+                                catch (ArrRequestException e) { error = e; }
+                                if (client.Get<ArrSeries>("series/" + target.SeriesId, true) != null) throw error ?? new InvalidOperationException("Sonarr did not confirm removal of the empty show entry. Review it before retrying anything.");
+                            }
+                            item.Item.ExternalMessage = "Episode file removed and unmonitored; verified empty Sonarr show entry removed with deleteFiles=false.";
+                        }
+                        else item.Item.ExternalMessage += " Remaining episode files preserve the show entry.";
+                    }
                 }
             }
         }

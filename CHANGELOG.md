@@ -1,5 +1,15 @@
 # Changes
 
+## 1.5.0 - never delete and automatic cleanup
+
+- Added persistent Never delete protection for movies, shows, and episodes, with show protection inherited by current and future episodes. Manual, bulk, unfinished, and automatic deletion all recheck it. Protected titles can be managed individually, by selection, or from the protected list.
+- Added administrator-owned cleanup rules for completed media, completed media with resume positions, or both. Choose movies, individual episodes, or episodes of fully watched shows, a waiting period, and a bounded batch size. Saved unfinished viewing for any user remains protected.
+- Added review prompts, on-demand evaluation, interval/daily/weekly UTC schedules, and optional playback-stopped, watched-state, startup, and dashboard triggers. Rules start disabled with review mode selected. Enabled unattended deletion requires fresh checkbox authorization when saving the rule.
+- Reuse exact native/service previews, deletion revalidation, progress, cancellation, permissions, and Sonarr/Radarr synchronization. Editing or disabling a rule stops remaining items after the current item. Manual evaluation always queues review, including for automatic rules.
+- Added atomic persistent state, a pre-mutation attempt journal, history/live results, and automation holds for interrupted or uncertain attempts. Jobs are not replayed on restart. Explicitly reviewed holds can be released for a future fresh evaluation. Storage failure blocks deletion.
+- Added a separate Sonarr option to remove a show entry only when no episode files remain in Sonarr or Emby, with deleteFiles=false and read-back verification. Default behavior retains the show and unmonitors deleted episodes.
+- Added SDK, persistence, scheduling, eligibility, restart, service, and browser coverage. The compiled test runner now rejects incomplete zero-exit runs. Reports, settings, previous deletion modes, stable DLL identity, and updater behavior remain available.
+
 ## 1.4.0 - optional unfinished deletion and checkbox confirmation
 
 - Added an off-by-default option to include partially watched, unwatched, and watched-with-resume media. Selected shows include all available eligible episodes when opted in; ordinary previews retain completed-only behavior and saved-progress protection.

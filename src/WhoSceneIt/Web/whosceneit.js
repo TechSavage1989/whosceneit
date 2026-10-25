@@ -2,13 +2,14 @@ define([], function () {
     'use strict';
     return function (view) {
         var find = function (name) { return view.querySelector('[data-id="' + name + '"]'); };
-        if (!find('integrationSettings') || !find('deletePhase') || !find('allowUnwatched') || !find('deleteScope')) {
+        if (!find('integrationSettings') || !find('deletePhase') || !find('allowUnwatched') || !find('deleteScope') || !find('retentionSettings')) {
             var notice = document.createElement('p'); notice.textContent = 'Who Scene It was updated. Reload this page to load the current deletion and synchronization controls.'; view.prepend(notice); return;
         }
         var state = { mode: 'user', start: 0, total: 0, titleStart: 0, selected: null, series: null, token: 0, titleToken: 0, active: false, initialized: false, busy: false, exporting: false, reportHealthy: false };
         var pollTimer = null, filterTimer = null, deletionTimer = null;
         var selections = new Set(), selectionContext = '', currentRows = [];
         var integrationsLoaded = false, integrationBusy = false;
+        var retention = { settings:null, actor:null, flags:{}, editing:null, busy:false }, retentionTimer = null;
         var deletion = { token: null, state: null, busy: false, submitting: false, ready: 0, request: 0, ids: [], userId: null, allowUnwatched: false };
         var pageSize = 100;
         function api(path, data, method) {
@@ -43,6 +44,92 @@ define([], function () {
         function integrationApi(path, data) {
             return ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('WhoSceneIt/Integrations' + path), data: JSON.stringify(data), contentType: 'application/json', dataType: 'json' }).catch(normalizeError);
         }
+        function retentionApi(path, data) {
+            return ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('WhoSceneIt/Retention/' + path), data: JSON.stringify(data || {}), contentType: 'application/json', dataType: 'json' }).catch(normalizeError);
+        }
+        function cleanupControls() {
+            var automatic = find('cleanupEnabled').checked && find('cleanupAction').value === 'Automatic';
+            find('cleanupAuthorizeField').hidden = !automatic;
+            find('saveCleanup').disabled = !retention.settings || retention.busy || (automatic && !find('cleanupAuthorize').checked);
+            find('evaluateCleanup').disabled = !retention.editing || retention.busy;
+            find('removeCleanup').disabled = !retention.editing || retention.busy;
+            find('cleanupIntervalField').hidden = find('cleanupSchedule').value !== 'Interval';
+            find('cleanupTimeField').hidden = ['Daily','Weekly'].indexOf(find('cleanupSchedule').value) < 0;
+            find('cleanupWeekdayField').hidden = find('cleanupSchedule').value !== 'Weekly';
+            find('clearCleanupHold').disabled = retention.busy || !find('cleanupHoldList').value || !find('cleanupHoldAuthorize').checked;
+            find('removeProtection').disabled = !find('protectedList').value || retention.busy;
+            updateSelections();
+        }
+        function editCleanup(id) {
+            var p = retention.settings && retention.settings.Policies.find(function (p) { return p.Id === id; });
+            retention.editing = p ? p.Id : null;
+            find('cleanupRule').value = p ? p.Id : '';
+            var defaults = { Name:'Watched media cleanup', UserId:find('userSelect').value, Scope:'Both', WatchMode:'Watched', MinimumDays:7, MaximumItems:100, Action:'Review', Schedule:'Off', IntervalHours:24, TimeUtc:'03:00', Weekday:0 };
+            [['cleanupName','Name'],['cleanupUser','UserId'],['cleanupScope','Scope'],['cleanupWatchMode','WatchMode'],['cleanupDays','MinimumDays'],['cleanupMaximum','MaximumItems'],['cleanupAction','Action'],['cleanupSchedule','Schedule'],['cleanupHours','IntervalHours'],['cleanupTime','TimeUtc'],['cleanupWeekday','Weekday']].forEach(function (pair) { find(pair[0]).value = p ? p[pair[1]] : defaults[pair[1]]; });
+            [['cleanupEnabled','Enabled'],['cleanupPlayback','OnPlaybackStopped'],['cleanupWatched','OnWatchedChanged'],['cleanupStartup','OnStartup'],['cleanupDashboard','OnDashboard']].forEach(function (pair) { find(pair[0]).checked = !!(p && p[pair[1]]); });
+            find('cleanupAuthorize').checked = false;
+            text(find('cleanupNext'), p ? 'Next scheduled evaluation: ' + dateLabel(p.NextRunUtc) + '. Event rules also observe the settling delay and cooldown.' : 'New rules are disabled and prompt for review by default.');
+            cleanupControls();
+        }
+        function renderRetention(result) {
+            retention.settings = result.Settings;
+            if (result.ActorId) retention.actor = result.ActorId;
+            if (!retention.settings) throw new Error('Cleanup settings were not returned.');
+            var selected = retention.editing || '', protection = find('protectedList').value;
+            find('cleanupRule').replaceChildren(); var option = document.createElement('option'); option.value = ''; text(option, 'New rule'); find('cleanupRule').appendChild(option);
+            (retention.settings.Policies || []).filter(function (p) { return p.OwnerId === retention.actor; }).forEach(function (p) { var o = document.createElement('option'); o.value = p.Id; text(o, p.Name + (p.Enabled ? ' (enabled)' : ' (disabled)')); find('cleanupRule').appendChild(o); });
+            find('cleanupRule').value = selected;
+            find('protectedList').replaceChildren(); option = document.createElement('option'); option.value = ''; text(option, 'Choose a protected title (' + retention.settings.Protected.length + ')'); find('protectedList').appendChild(option);
+            retention.settings.Protected.forEach(function (p) { var o = document.createElement('option'); o.value = p.ItemId; text(o, p.Name + ' (' + p.Type + ')'); find('protectedList').appendChild(o); }); find('protectedList').value = protection;
+            var reviews = retention.settings.Reviews.filter(function (r) { return r.OwnerId === retention.actor; });
+            find('cleanupPrompt').hidden = !reviews.length; text(find('cleanupPrompt'), reviews.length + ' cleanup prompt(s) await review. Open Never delete and automatic cleanup to review them. No deletion starts from a prompt alone.');
+            find('cleanupReviews').replaceChildren();
+            if (!reviews.length) text(find('cleanupReviews'), 'No cleanup prompts await this administrator.');
+            reviews.forEach(function (r) { var line = document.createElement('p'); text(line, r.Name + ': ' + r.ItemIds.length + ' item(s), ' + r.Trigger + '. '); var review = document.createElement('button'); review.type = 'button'; text(review, 'Review media'); review.dataset.cleanupReview = r.Id; review.addEventListener('click', function () { openCleanupReview(r.Id); }); line.appendChild(review); var dismiss = document.createElement('button'); dismiss.type = 'button'; text(dismiss, 'Dismiss'); dismiss.addEventListener('click', function () { retentionAction('Dismiss', { Id:r.Id }); }); line.appendChild(dismiss); find('cleanupReviews').appendChild(line); });
+            find('cleanupRuns').replaceChildren();
+            retention.settings.Runs.slice().reverse().slice(0,12).forEach(function (r) { var line = document.createElement('p'); text(line, r.Name + ': ' + r.State + ', ' + (r.Deleted || 0) + ' deleted, ' + (r.Failed || 0) + ' failed, ' + (r.Skipped || 0) + ' skipped, ' + (r.SyncFailed || 0) + ' service issues. ' + (r.Message || '') + ' ' + dateLabel(r.StartedUtc)); if (r.Token && r.OwnerId === retention.actor && (r.State === 'Deleting' || r.FinishedUtc && Date.parse(r.FinishedUtc) + 600000 > Date.now())) { var progress = document.createElement('button'); progress.type = 'button'; text(progress, r.State === 'Deleting' ? 'View progress / stop' : 'View details'); progress.addEventListener('click', function () { if (deletion.busy && deletion.token !== r.Token) { text(find('cleanupStatus'), 'Use the current deletion dialog before opening another operation.'); return; } deletion.token = r.Token; deletion.busy = r.State === 'Deleting'; deletion.state = r.State; find('deleteAcknowledge').checked = false; if (!find('deleteDialog').open) find('deleteDialog').showModal(); pollDeletion(); }); line.appendChild(progress); } find('cleanupRuns').appendChild(line); });
+            if (!retention.settings.Runs.length) text(find('cleanupRuns'), 'No cleanup runs yet.');
+            find('cleanupHoldFields').hidden = !retention.settings.Holds.length;
+            var selectedHold = find('cleanupHoldList').value; find('cleanupHoldList').replaceChildren(); var holdOption = document.createElement('option'); holdOption.value = ''; text(holdOption,'Choose an automation hold'); find('cleanupHoldList').appendChild(holdOption);
+            retention.settings.Holds.forEach(function (h) { var o = document.createElement('option'); o.value = h.RunId + '/' + h.ItemId; text(o, h.Name + ' (item ' + h.ItemId + ')'); find('cleanupHoldList').appendChild(o); }); find('cleanupHoldList').value = selectedHold; if (!find('cleanupHoldList').value) find('cleanupHoldAuthorize').checked = false;
+            text(find('cleanupHolds'), retention.settings.Holds.length ? retention.settings.Holds.length + ' item(s) are on automation hold after an uncertain or failed operation. Inspect them in Emby and the configured service. They are excluded from future automatic runs; use manual deletion after review, or explicitly clear a reviewed hold to allow a future fresh cleanup. Holds persist across restarts.' : 'No uncertain cleanup attempts are on hold. Confirmed jobs are never replayed after a restart.');
+            text(find('cleanupStatus'), result.Message || 'Cleanup settings loaded.');
+            if (retention.editing && !retention.settings.Policies.some(function (p) { return p.Id === retention.editing; })) editCleanup(null);
+            cleanupControls();
+        }
+        function loadRetention() {
+            if (!state.active) return Promise.resolve();
+            clearTimeout(retentionTimer);
+            return api('Retention').then(function (result) { if (state.active) renderRetention(result); }).catch(function (error) { text(find('cleanupStatus'), errorText(error)); }).then(function () { if (state.active) retentionTimer = setTimeout(loadRetention,15000); });
+        }
+        function retentionAction(path, data) {
+            if (retention.busy) return Promise.resolve(); retention.busy = true; cleanupControls();
+            return retentionApi(path,data).then(function () { return loadRetention(); }).catch(function (error) { text(find('cleanupStatus'),errorText(error)); }).then(function () { retention.busy = false; cleanupControls(); });
+        }
+        function saveCleanup(event) {
+            event.preventDefault(); if (find('saveCleanup').disabled) return;
+            var p = { Id:retention.editing, Name:find('cleanupName').value.trim(), UserId:find('cleanupUser').value, Scope:find('cleanupScope').value, WatchMode:find('cleanupWatchMode').value, MinimumDays:Number(find('cleanupDays').value), MaximumItems:Number(find('cleanupMaximum').value), Action:find('cleanupAction').value, Schedule:find('cleanupSchedule').value, IntervalHours:Number(find('cleanupHours').value), TimeUtc:find('cleanupTime').value, Weekday:Number(find('cleanupWeekday').value), Enabled:find('cleanupEnabled').checked, OnPlaybackStopped:find('cleanupPlayback').checked, OnWatchedChanged:find('cleanupWatched').checked, OnStartup:find('cleanupStartup').checked, OnDashboard:find('cleanupDashboard').checked };
+            retention.busy = true; cleanupControls();
+            retentionApi('Policy', { Policy:p, Confirmed:find('cleanupAuthorize').checked }).then(function (saved) { retention.editing = saved.Id; find('cleanupAuthorize').checked = false; return loadRetention().then(function () { editCleanup(saved.Id); }); }).catch(function (error) { text(find('cleanupStatus'), errorText(error)); }).then(function () { retention.busy = false; cleanupControls(); });
+        }
+        function protectMedia(ids, protect) {
+            if (!ids.length || retention.busy) return; retention.busy = true; cleanupControls();
+            retentionApi('Protection', { ItemIds:ids.join(','), Protected:protect }).then(function (result) { renderRetention(result); selections.clear(); return loadReport(); }).catch(function (error) { text(find('cleanupStatus'),errorText(error)); status(errorText(error),true); }).then(function () { retention.busy = false; cleanupControls(); });
+        }
+        function protectionButton(id) {
+            var flag = retention.flags[id] || {}, button = document.createElement('button'); button.type = 'button'; button.dataset.protectItem = id;
+            text(button, flag.NeverDelete ? flag.Explicit ? 'Remove never delete' : 'Protected by show' : 'Never delete'); button.disabled = !!flag.NeverDelete && !flag.Explicit; button.title = flag.Reason || 'Protect this title from every deletion mode';
+            button.addEventListener('click', function () { protectMedia([flag.SourceId || id], !flag.NeverDelete); }); return button;
+        }
+        function openCleanupReview(id) {
+            if (deletion.busy) return;
+            var request = ++deletion.request; deletion.reviewId = id; deletion.ids = []; deletion.state = 'Loading'; deletion.token = null; deletion.ready = 0;
+            find('deleteAcknowledge').checked = false; find('deleteConfirmFields').hidden = true; find('confirmDelete').hidden = true; find('retryPreview').hidden = true; find('closeDelete').hidden = true; find('cancelDelete').hidden = false; find('cancelDelete').disabled = false; text(find('cancelDelete'),'Cancel'); find('deleteProgressArea').hidden = true; find('deleteItems').replaceChildren();
+            text(find('deletePhase'),'Preparing cleanup review. No deletion has started.'); text(find('deleteScope'),'Rechecking the saved rule and its selected items.'); text(find('deleteSummary'),'Checking protection, completed state, permissions, playback, paths, and configured services...');
+            if (!find('deleteDialog').open) find('deleteDialog').showModal();
+            retentionApi('Review',{Id:id}).then(function (result) { if (request !== deletion.request || !state.active) { if (result.Token) deletionApi('Cancel',{Token:result.Token}).catch(function () {}); return; } showDeletion(result); }).catch(function (error) { if (request === deletion.request) previewFailed(deletionError(error)); });
+        }
+
         function integrationControls() {
             ['saveIntegrations','testSonarr','testRadarr'].forEach(function (id) { find(id).disabled = !integrationsLoaded || integrationBusy || deletion.busy; });
             find('reloadIntegrations').disabled = integrationBusy || deletion.busy;
@@ -62,14 +149,14 @@ define([], function () {
                 find(name + 'EmbyRoot').value = c.EmbyPathRoot || ''; find(name + 'ArrRoot').value = c.ArrPathRoot || '';
                 text(find(name + 'KeyStatus'), c.HasApiKey ? 'A key is stored. Leave blank to keep it.' : 'No API key is stored.');
             });
-            find('radarrExclude').checked = !!settings.Radarr.AddImportExclusion;
+            find('radarrExclude').checked = !!settings.Radarr.AddImportExclusion; find('sonarrRemoveEmpty').checked = !!settings.Sonarr.RemoveEmptySeries;
             var enabled = ['Sonarr','Radarr'].filter(function (name) { return settings[name].Enabled; });
             text(find('integrationSummary'), enabled.length ? 'Synchronization enabled for ' + enabled.join(' and ') + '. Unmatched or unreachable items are blocked before media deletion.' : 'Emby-only deletion. Configure and enable Sonarr/Radarr to synchronize their records.');
             integrationsLoaded = true; integrationControls();
         }
         function connectionValues(name) {
             return { Enabled: find(name + 'Enabled').checked, BaseUrl: find(name + 'Url').value.trim(), ApiKey: find(name + 'Key').value,
-                ClearApiKey: find(name + 'ClearKey').checked, EmbyPathRoot: find(name + 'EmbyRoot').value.trim(), ArrPathRoot: find(name + 'ArrRoot').value.trim(), AddImportExclusion: name === 'radarr' && find('radarrExclude').checked };
+                ClearApiKey: find(name + 'ClearKey').checked, EmbyPathRoot: find(name + 'EmbyRoot').value.trim(), ArrPathRoot: find(name + 'ArrRoot').value.trim(), AddImportExclusion: name === 'radarr' && find('radarrExclude').checked, RemoveEmptySeries:name === 'sonarr' && find('sonarrRemoveEmpty').checked };
         }
         function saveIntegrations() {
             if (integrationBusy || deletion.busy) return;
@@ -98,20 +185,24 @@ define([], function () {
             find('selectionCount').hidden = byTitle; find('clearSelection').hidden = byTitle;
             find('deleteSelected').hidden = byTitle; find('deleteTitle').hidden = !byTitle;
             find('clearSelection').disabled = !selections.size || deletion.busy;
-            find('deleteSelected').disabled = !selections.size || state.busy || deletion.busy;
-            find('deleteTitle').disabled = !state.selected || !state.reportHealthy || (!allStates && !currentRows.some(canDelete)) || state.busy || deletion.busy;
+            find('deleteSelected').disabled = !selections.size || state.busy || deletion.busy || retention.busy;
+            find('protectSelected').disabled = !selections.size || retention.busy || state.busy; find('protectSelected').hidden = byTitle; find('protectTitle').hidden = !byTitle || !state.selected;
+            var titleFlag = state.selected && retention.flags[state.selected.Id] || {}; text(find('protectTitle'),titleFlag.NeverDelete ? titleFlag.Explicit ? 'Remove never delete' : 'Protected by show' : 'Never delete this title'); find('protectTitle').disabled = state.busy || retention.busy || !!titleFlag.NeverDelete && !titleFlag.Explicit;
+            find('deleteTitle').disabled = !!titleFlag.NeverDelete || !state.selected || !state.reportHealthy || (!allStates && !currentRows.some(canDelete)) || state.busy || deletion.busy || retention.busy;
             text(find('deleteTitle'), allStates ? 'Delete selected title media...' : 'Delete watched media...');
             text(find('selectionNote'), allStates ? 'All watch states are eligible for review. Selected shows include all available episodes. Media with saved progress for any user can be removed. Deleting media affects every user; review the exact files and service actions.' : byTitle ? 'Deletion includes completed media only. Saved partial playback and rewatches for any user are preserved. Review the exact paths before confirming.' : 'Select fully watched media individually or by page. Selections carry across pages. TV shows expand to completed episodes. Saved partial playback and rewatches for any user are preserved. Deleting media affects every user.');
-            view.querySelectorAll('[data-item-selection]').forEach(function (box) { box.checked = selections.has(box.dataset.itemSelection); box.disabled = deletion.busy; });
+            view.querySelectorAll('[data-item-selection]').forEach(function (box) { box.checked = selections.has(box.dataset.itemSelection); box.disabled = deletion.busy || state.busy || retention.busy; });
+            view.querySelectorAll('[data-delete-item]').forEach(function (button) { var row = currentRows.find(function (r) { return r.ItemId === button.dataset.deleteItem; }); button.disabled = state.busy || deletion.busy || retention.busy || !row || !canDelete(row); });
+            view.querySelectorAll('[data-protect-item]').forEach(function (button) { var flag = retention.flags[button.dataset.protectItem] || {}; button.disabled = state.busy || retention.busy || !!flag.NeverDelete && !flag.Explicit; });
             var pageBox = view.querySelector('[data-page-selection]');
             if (pageBox) {
                 var eligible = currentRows.filter(canDelete);
                 pageBox.checked = !!eligible.length && eligible.every(function (row) { return selections.has(row.ItemId); });
                 pageBox.indeterminate = !pageBox.checked && eligible.some(function (row) { return selections.has(row.ItemId); });
-                pageBox.disabled = deletion.busy || !eligible.length;
+                pageBox.disabled = deletion.busy || state.busy || retention.busy || !eligible.length;
             }
         }
-        function canDelete(row) { return find('allowUnwatched').checked ? ['Movie','Episode','Series'].indexOf(row.Type) >= 0 : row.DeletableCount != null ? row.DeletableCount > 0 : row.WatchedCount > 0 && !row.WatchedWithResumeCount; }
+        function canDelete(row) { if ((retention.flags[row.ItemId] || {}).NeverDelete) return false; return find('allowUnwatched').checked ? ['Movie','Episode','Series'].indexOf(row.Type) >= 0 : row.DeletableCount != null ? row.DeletableCount > 0 : row.WatchedCount > 0 && !row.WatchedWithResumeCount; }
         function resetSelections() { selections.clear(); updateSelections(); }
         function reportParams(start, limit) {
             var values = { StartIndex: start, Limit: limit, WatchState: find('watchState').value, IncludeInProgress: true, SearchTerm: find('filter').value.trim(), SortBy: find('sort').value };
@@ -179,7 +270,7 @@ define([], function () {
                 selectionHead.appendChild(pageBox); tr.appendChild(selectionHead);
             }
             headings.forEach(function (label) { var th = document.createElement('th'); th.scope = 'col'; text(th, label); tr.appendChild(th); });
-            if (!byTitle) { var actionHead = document.createElement('th'); actionHead.scope = 'col'; text(actionHead, 'Delete media'); tr.appendChild(actionHead); }
+            if (!byTitle) { var actionHead = document.createElement('th'); actionHead.scope = 'col'; text(actionHead, 'Media actions'); tr.appendChild(actionHead); }
             find('reportHead').replaceChildren(tr); find('reportBody').replaceChildren();
             rows.forEach(function (item) {
                 var row = document.createElement('tr');
@@ -208,8 +299,8 @@ define([], function () {
                 if (!byTitle) {
                     var actionCell = cell(row, ''), remove = document.createElement('button'); remove.type = 'button'; remove.className = 'wsi-danger';
                     text(remove, item.Type === 'Series' ? (find('allowUnwatched').checked ? 'Delete episodes...' : 'Delete watched episodes...') : 'Delete...'); remove.disabled = !canDelete(item) || deletion.busy;
-                    remove.setAttribute('aria-label', 'Review deletion of ' + item.Name);
-                    remove.addEventListener('click', function () { previewDeletion([item.ItemId]); }); actionCell.appendChild(remove);
+                    remove.dataset.deleteItem = item.ItemId; remove.setAttribute('aria-label', 'Review deletion of ' + item.Name);
+                    remove.addEventListener('click', function () { previewDeletion([item.ItemId]); }); actionCell.appendChild(remove); actionCell.appendChild(protectionButton(item.ItemId));
                 }
                 find('reportBody').appendChild(row);
             });
@@ -231,10 +322,15 @@ define([], function () {
             updateSelections();
             return api(path, reportParams(state.start, pageSize)).then(function (result) {
                 if (token !== state.token || !state.active) return;
+                var ids = Array.from(new Set((result.Items || []).map(function (row) { return row.ItemId; }).concat(state.mode === 'title' && state.selected ? [state.selected.Id] : [])));
+                return (ids.length ? api('Retention/Protection',{ItemIds:ids.join(',')}) : Promise.resolve([])).then(function (flags) {
+                if (token !== state.token || !state.active) return;
+                retention.flags = {}; flags.forEach(function (flag) { retention.flags[flag.ItemId] = flag; if (flag.NeverDelete) selections.delete(flag.ItemId); });
                 state.busy = false;
                 state.reportHealthy = true;
                 if (!result.Items.length && state.start > 0 && result.TotalRecordCount > 0) { state.start = Math.floor((result.TotalRecordCount - 1) / pageSize) * pageSize; return loadReport(); }
                 renderReport(result);
+                });
             }).catch(function (error) { if (token === state.token && state.active) { state.busy = false; state.reportHealthy = false; selections.clear(); clearReport(); status(errorText(error), true); } });
         }
         function showSelected() {
@@ -281,7 +377,7 @@ define([], function () {
             }
             ['Deleted','Ready','Skipped','Failed','Total','Processing','Synchronized','SyncFailed'].forEach(function (key) { if (typeof result[key] !== 'number') result[key] = 0; });
             deletion.token = result.Token; deletion.state = result.State; deletion.ready = result.Ready; deletion.busy = result.State === 'Deleting';
-            text(find('deleteScope'), result.AllowUnwatched ? 'Preview scope: all watch states, including unfinished media and saved progress for any user. Shows expand into all available episodes.' : 'Preview scope: fully watched media only. Saved partial playback and rewatches remain protected.');
+            text(find('deleteScope'), (result.RuleName ? 'Rule: ' + result.RuleName + '. ' : '') + (result.AllowUnwatched ? 'Preview scope: all watch states, including unfinished media and saved progress for any user. Shows expand into all available episodes.' : result.AllowWatchedResume ? 'Preview scope: fully watched media, including saved resume positions for completed viewers. Unfinished viewing for any user remains protected.' : 'Preview scope: fully watched media only. Saved partial playback and rewatches remain protected.'));
             var confirm = result.State === 'Ready' && result.Ready > 0;
             text(find('deletePhase'), result.State === 'Ready' ? (confirm ? 'Step 2 of 3: Review and confirm. No deletion has started.' : 'Nothing can be deleted. Review the blocked items below.') : result.State === 'Deleting' ? 'Step 3 of 3: Deleting confirmed media and updating configured services' : result.State === 'Cancelled' ? (result.Started === false ? 'Preview cancelled. No deletion started.' : 'Deletion cancelled or stopped') : (result.Failed || result.Skipped || result.SyncFailed ? 'Deletion finished with items to review' : 'Deletion completed'));
             find('retryPreview').hidden = true; find('deleteContinuation').hidden = result.State !== 'Deleting';
@@ -305,10 +401,10 @@ define([], function () {
             if (deletion.busy && state.active) deletionTimer = setTimeout(pollDeletion, 1000);
         }
         function previewDeletion(ids, fixedUserId, fixedAllowUnwatched) {
-            if (deletion.busy || !ids.length) return;
+            if (deletion.busy || state.busy || retention.busy || !ids.length) return;
             if (ids.length > 500) { status('Select at most 500 titles per deletion batch.', true); return; }
             var request = ++deletion.request;
-            deletion.ids = ids.slice(); deletion.userId = arguments.length > 1 ? fixedUserId : (state.mode === 'user' ? find('userSelect').value : null);
+            deletion.reviewId = null; deletion.ids = ids.slice(); deletion.userId = arguments.length > 1 ? fixedUserId : (state.mode === 'user' ? find('userSelect').value : null);
             deletion.allowUnwatched = arguments.length > 2 ? fixedAllowUnwatched : find('allowUnwatched').checked;
             deletion.token = null; deletion.state = 'Loading'; deletion.ready = 0;
             text(find('deletePhase'), 'Step 1 of 3: Preparing preview for ' + ids.length + ' selected title' + (ids.length === 1 ? '' : 's') + '. No deletion has started.');
@@ -417,7 +513,7 @@ define([], function () {
         }
         function focus() { if (state.active && document.visibilityState !== 'hidden') updateAction('Check', 'focus'); }
         function init() {
-            if (state.initialized) { loadReport(); pollUpdate(); return; }
+            if (state.initialized) { loadReport(); pollUpdate(); loadRetention(); retentionApi('Dashboard',{}).catch(function () {}); return; }
             state.initialized = true;
             find('userTab').addEventListener('click', function () { changeMode('user'); });
             find('titleTab').addEventListener('click', function () { changeMode('title'); });
@@ -436,12 +532,27 @@ define([], function () {
             find('testSonarr').addEventListener('click', function () { testIntegration('Sonarr'); });
             find('testRadarr').addEventListener('click', function () { testIntegration('Radarr'); });
             find('clearSelection').addEventListener('click', resetSelections);
+            find('protectSelected').addEventListener('click', function () { protectMedia(Array.from(selections),true); });
+            find('protectTitle').addEventListener('click', function () { if (!state.selected) return; var flag = retention.flags[state.selected.Id] || {}; protectMedia([flag.SourceId || state.selected.Id], !flag.NeverDelete); });
+            find('cleanupForm').addEventListener('submit', saveCleanup);
+            find('cleanupForm').addEventListener('change', function (event) { if (event.target !== find('cleanupAuthorize')) find('cleanupAuthorize').checked = false; cleanupControls(); });
+            find('cleanupForm').addEventListener('input', function (event) { if (event.target !== find('cleanupAuthorize')) find('cleanupAuthorize').checked = false; cleanupControls(); });
+            find('cleanupRule').addEventListener('change', function () { editCleanup(find('cleanupRule').value); });
+            find('newCleanup').addEventListener('click', function () { editCleanup(null); });
+            find('evaluateCleanup').addEventListener('click', function () { retentionAction('Evaluate',{Id:retention.editing}); });
+            find('removeCleanup').addEventListener('click', function () { retentionAction('Policy/Remove',{Id:retention.editing}).then(function () { editCleanup(null); }); });
+            find('reloadCleanup').addEventListener('click', loadRetention);
+            find('cleanupHoldList').addEventListener('change', function () { find('cleanupHoldAuthorize').checked = false; cleanupControls(); });
+            find('cleanupHoldAuthorize').addEventListener('change', cleanupControls);
+            find('clearCleanupHold').addEventListener('click', function () { if (find('clearCleanupHold').disabled) return; var value = find('cleanupHoldList').value.split('/'); retentionAction('Hold/Clear',{RunId:value[0],ItemId:value[1],Confirmed:find('cleanupHoldAuthorize').checked}); find('cleanupHoldAuthorize').checked = false; });
+            find('protectedList').addEventListener('change', cleanupControls);
+            find('removeProtection').addEventListener('click', function () { if (find('protectedList').value) protectMedia([find('protectedList').value], false); });
             find('deleteSelected').addEventListener('click', function () { previewDeletion(Array.from(selections)); });
             find('deleteTitle').addEventListener('click', function () { if (state.selected) previewDeletion([state.selected.Id]); });
             find('allowUnwatched').addEventListener('change', function () { selections.clear(); state.start = 0; if (find('allowUnwatched').checked && find('watchState').value === 'Started') find('watchState').value = 'All'; loadReport(); });
             find('deleteAcknowledge').addEventListener('change', confirmEnabled);
             find('confirmDelete').addEventListener('click', executeDeletion); find('cancelDelete').addEventListener('click', cancelDeletion);
-            find('retryPreview').addEventListener('click', function () { previewDeletion(deletion.ids, deletion.userId, deletion.allowUnwatched); });
+            find('retryPreview').addEventListener('click', function () { if (deletion.reviewId) openCleanupReview(deletion.reviewId); else previewDeletion(deletion.ids, deletion.userId, deletion.allowUnwatched); });
             find('viewDeletion').addEventListener('click', function () { if (!find('deleteDialog').open) find('deleteDialog').showModal(); pollDeletion(); });
             find('closeDelete').addEventListener('click', function () { find('deleteDialog').close(); if (!deletion.busy) { resetSelections(); loadReport(); pollUpdate(); } });
             find('deleteDialog').addEventListener('cancel', function (event) { event.preventDefault(); if (!deletion.busy) cancelDeletion(); });
@@ -452,15 +563,15 @@ define([], function () {
             api('Users').then(function (users) {
                 find('reportApp').hidden = false; find('adminError').hidden = true;
                 loadIntegrations();
-                users.forEach(function (user) { var option = document.createElement('option'); option.value = user.Id; text(option,user.Name + (user.IsDisabled ? ' (disabled)' : '')); find('userSelect').appendChild(option); });
-                loadReport();
+                users.forEach(function (user) { var option = document.createElement('option'); option.value = user.Id; text(option,user.Name + (user.IsDisabled ? ' (disabled)' : '')); find('userSelect').appendChild(option); find('cleanupUser').appendChild(option.cloneNode(true)); });
+                editCleanup(null); loadRetention(); retentionApi('Dashboard',{}).catch(function () {}); loadReport();
             }).catch(function () { find('adminError').hidden = false; find('reportApp').hidden = true; });
             pollUpdate();
         }
         view.addEventListener('viewshow', function () { state.active = true; init(); window.addEventListener('focus',focus); document.addEventListener('visibilitychange',focus); focus(); if (deletion.busy) { if (!find('deleteDialog').open) find('deleteDialog').showModal(); pollDeletion(); } });
         view.addEventListener('viewhide', function () {
             state.active = false; state.token++; state.titleToken++; deletion.request++;
-            clearTimeout(pollTimer); clearTimeout(filterTimer); clearTimeout(deletionTimer);
+            clearTimeout(pollTimer); clearTimeout(filterTimer); clearTimeout(deletionTimer); clearTimeout(retentionTimer);
             window.removeEventListener('focus',focus); document.removeEventListener('visibilitychange',focus);
             if (find('deleteDialog').open) find('deleteDialog').close();
             if (deletion.token && !deletion.busy && deletion.state === 'Ready') { deletionApi('Cancel', { Token: deletion.token }).catch(function () {}); deletion.state = 'Cancelled'; }

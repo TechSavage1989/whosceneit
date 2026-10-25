@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert/strict');
 
-let browser;
+let browser, testPage;
 let suiteCompleted = false;
 process.on('exit', () => {
   if (!suiteCompleted && !process.exitCode) {
@@ -14,13 +14,14 @@ process.on('exit', () => {
 (async () => {
   browser = await chromium.launch({headless:true, executablePath:process.env.WSI_CHROMIUM || undefined, args:['--no-sandbox']});
   const page = await browser.newPage({viewport:{width:1280,height:1000},acceptDownloads:true});
+  testPage=page;page.setDefaultTimeout(15000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.setContent('<body style="background:#171c20;color:#e8ecef;font-family:Arial,sans-serif">'+fs.readFileSync(path.join(__dirname,'../src/WhoSceneIt/Web/whosceneit.html'),'utf8')+'</body>');
   await page.evaluate(() => {
-    window.calls=[];window.update={InstalledVersion:'1.3.0',LatestVersion:'1.4.0',UpdateAvailable:true,Downloaded:false,Busy:false,RestartRequired:false,CanRestart:true,AwaitingDashboardVerification:true,Message:'An update is available.',Notes:['Example change.'],HasMoreNotes:false,ReleaseUrl:'https://github.com/TechSavage1989/whosceneit/releases/tag/v1.4.0'};
+    window.calls=[];window.update={InstalledVersion:'1.4.0',LatestVersion:'1.5.0',UpdateAvailable:true,Downloaded:false,Busy:false,RestartRequired:false,CanRestart:true,AwaitingDashboardVerification:true,Message:'An update is available.',Notes:['Example change.'],HasMoreNotes:false,ReleaseUrl:'https://github.com/TechSavage1989/whosceneit/releases/tag/v1.5.0'};
     const connection=()=>({Enabled:false,BaseUrl:'',HasApiKey:false,EmbyPathRoot:'',ArrPathRoot:'',AddImportExclusion:true});
     window.arrSettings={Sonarr:{...connection(),HasApiKey:true},Radarr:connection()};
-    window.deletionPlans={};window.deletionCounter=0;
+    window.deletionPlans={};window.deletionCounter=0;window.cleanupPolicyCounter=0;window.retention={ActorId:'admin',Settings:{Protected:[],Policies:[],Reviews:[],Runs:[],Holds:[]},Message:'Cleanup disabled until configured.'};
     const row=(id,name,type='Movie')=>({ItemId:id,UserId:'alice',UserName:'Alice',Name:name,Type:type,Year:2024,Status:type==='Series'?'Watched episodes':'Watched',WatchedCount:type==='Series'?4:1,InProgressCount:0,SavedPlayCount:1,LastPlayedUtc:'2025-01-02T10:00:00.0000000+00:00'});
     window.sampleRows=[row('10','Example Show','Series'),row('11','<img src=x onerror="window.injected=true">'),row('12','=HYPERLINK("test")'),...Array.from({length:202},(_,i)=>row(String(i+100),'Movie '+String(i).padStart(3,'0')))];
     const episode=(id,name,fields)=>({...row(id,name,'Episode'),SeriesName:'Example Show',Episode:'S01E'+id.slice(-2),RunTimeTicks:18000000000,PlaybackPositionTicks:0,RemainingTicks:0,PlaybackPercent:100,DeletableCount:1,...fields});
@@ -32,10 +33,35 @@ process.on('exit', () => {
         const list=(rows)=>({Items:rows.slice(Number(p.StartIndex||0),Number(p.StartIndex||0)+Number(p.Limit||100)),TotalRecordCount:rows.length});
         if(u.pathname.endsWith('/Users'))return [{Id:'alice',Name:'Alice'},{Id:'bob',Name:'Bob'}];
         if(u.pathname.endsWith('/Integrations')){
-          if(options.type==='POST')for(const name of ['Sonarr','Radarr']){const c=body[name],old=window.arrSettings[name];window.arrSettings[name]={Enabled:c.Enabled,BaseUrl:c.BaseUrl,EmbyPathRoot:c.EmbyPathRoot,ArrPathRoot:c.ArrPathRoot,AddImportExclusion:c.AddImportExclusion,HasApiKey:c.ClearApiKey?false:!!c.ApiKey||old.HasApiKey};}
+          if(options.type==='POST')for(const name of ['Sonarr','Radarr']){const c=body[name],old=window.arrSettings[name];window.arrSettings[name]={Enabled:c.Enabled,BaseUrl:c.BaseUrl,EmbyPathRoot:c.EmbyPathRoot,ArrPathRoot:c.ArrPathRoot,AddImportExclusion:c.AddImportExclusion,RemoveEmptySeries:c.RemoveEmptySeries,HasApiKey:c.ClearApiKey?false:!!c.ApiKey||old.HasApiKey};}
           return structuredClone(window.arrSettings);
         }
         if(u.pathname.endsWith('/Integrations/Test'))return {Success:true,Message:'Read-only fixture connection test passed. Settings were not saved.'};
+        if(u.pathname==='/WhoSceneIt/Retention')return structuredClone(window.retention);
+        if(u.pathname.endsWith('/Retention/Protection')){
+          if(window.protectionFailure)throw new Response(JSON.stringify({ResponseStatus:{Message:'Fixture protection state unavailable'}}),{status:500});
+          if(options.type==='POST'){
+            for(const id of body.ItemIds.split(',')){window.retention.Settings.Protected=window.retention.Settings.Protected.filter(x=>x.ItemId!==id);if(body.Protected){const row=window.sampleRows.concat(window.episodeRows).find(r=>r.ItemId===id)||{Name:'Example Show',Type:'Series'};window.retention.Settings.Protected.push({ItemId:id,Name:row.Name,Type:row.Type,Path:'/media/'+id});}}
+            return structuredClone(window.retention);
+          }
+          return p.ItemIds.split(',').map(id=>{const own=window.retention.Settings.Protected.find(x=>x.ItemId===id);const parent=id.startsWith('60')&&window.retention.Settings.Protected.find(x=>x.ItemId==='10');return {ItemId:id,NeverDelete:!!(own||parent),Explicit:!!own,SourceId:own?.ItemId,Reason:own||parent?'Never delete: '+(own||parent).Name:''};});
+        }
+        if(u.pathname.endsWith('/Retention/Policy')){
+          if(body.Policy.Enabled&&body.Policy.Action==='Automatic'&&!body.Confirmed)throw new Response('{}',{status:400});
+          const saved={...body.Policy,Id:body.Policy.Id||'policy-'+(++window.cleanupPolicyCounter),OwnerId:'admin',Revision:'fixture-revision',NextRunUtc:body.Policy.Enabled&&body.Policy.Schedule!=='Off'?'2026-10-26T03:30:00Z':null};
+          window.retention.Settings.Policies=window.retention.Settings.Policies.filter(x=>x.Id!==saved.Id).concat([saved]);return structuredClone(saved);
+        }
+        if(u.pathname.endsWith('/Retention/Policy/Remove')){window.retention.Settings.Policies=window.retention.Settings.Policies.filter(x=>x.Id!==body.Id);return structuredClone(window.retention);}
+        if(u.pathname.endsWith('/Retention/Evaluate')){const rule=window.retention.Settings.Policies.find(x=>x.Id===body.Id);window.retention.Settings.Reviews=[{Id:'review-1',PolicyId:rule.Id,Name:rule.Name,OwnerId:'admin',Trigger:'On demand',ItemIds:['604']}];return structuredClone(window.retention);}
+        if(u.pathname.endsWith('/Retention/Dismiss')){window.retention.Settings.Reviews=window.retention.Settings.Reviews.filter(x=>x.Id!==body.Id);return structuredClone(window.retention);}
+        if(u.pathname.endsWith('/Retention/Dashboard'))return structuredClone(window.retention);
+        if(u.pathname.endsWith('/Retention/Hold/Clear')){if(body.Confirmed!==true)throw new Response('{}',{status:400});window.retention.Settings.Holds=window.retention.Settings.Holds.filter(x=>x.RunId!==body.RunId||x.ItemId!==body.ItemId);return structuredClone(window.retention);}
+        if(u.pathname.endsWith('/Retention/Review')){
+          if(window.cleanupReviewFailure){window.cleanupReviewFailure=false;throw new Response(JSON.stringify({ResponseStatus:{Message:'Fixture cleanup review failed'}}),{status:500});}
+          const review=window.retention.Settings.Reviews.find(x=>x.Id===body.Id),rule=window.retention.Settings.Policies.find(x=>x.Id===review.PolicyId);
+          const plan={Token:'preview-'+(++window.deletionCounter),State:'Ready',Items:[{ItemId:'604',Name:'Rewatching episode',Type:'Episode',Paths:['/media/604.mkv'],WatchedBy:['Alice'],WatchNote:'Completed with a saved resume position.',State:'Ready'}],Ready:1,Total:1,Deleted:0,Failed:0,Skipped:0,Processing:0,Processed:0,Started:false,AllowUnwatched:false,AllowWatchedResume:rule.WatchMode!=='Watched',RuleName:rule.Name,Message:'Review cleanup rule targets.'};window.deletionPlans[plan.Token]=plan;return structuredClone(plan);
+        }
+
         if(u.pathname.endsWith('/UserReport')){
           if(window.reportFailure){if(window.reportFailureAsFetch)throw new Response(JSON.stringify(window.reportFailure.responseJSON),{status:window.reportFailure.status,headers:{'Content-Type':'application/json'}});throw structuredClone(window.reportFailure);}
           await new Promise(resolve=>setTimeout(resolve,p.UserId==='alice'?80:5));
@@ -284,6 +310,49 @@ process.on('exit', () => {
   await page.evaluate(()=>delete window.reportFailure);await get('refresh').click();await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();
   await get('titleTab').click();await get('reportStatus').filter({hasText:'2 matching users'}).waitFor();
   console.log('PASS report errors show safe native messages and HTTP status, preserve auth guidance, and never acknowledge failed report health');
+  const cleanupExecBefore=await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Execute')).length);
+  await get('protectTitle').click();await page.waitForFunction(()=>document.querySelector('[data-id=protectTitle]').textContent==='Remove never delete');
+  assert.equal(await get('deleteTitle').isEnabled(),false);await get('allowUnwatched').check();await get('reportStatus').filter({hasText:'2 matching users'}).waitFor();assert.equal(await get('deleteTitle').isEnabled(),false);
+  await get('userTab').click();await get('viewSelect').selectOption('Shows');await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();
+  await get('reportBody').getByRole('button',{name:'View episodes for Example Show',exact:true}).click();await get('reportStatus').filter({hasText:'5 matching titles'}).waitFor();
+  assert.equal(await get('reportBody').locator('[data-item-selection]').count(),0);assert.equal(await get('reportBody').locator('[data-protect-item="601"]').isEnabled(),false);assert.match(await get('reportBody').innerText(),/Protected by show/);
+  await get('retentionSettings').locator('summary').click();await get('protectedList').selectOption('10');await get('removeProtection').click();await get('reportBody').locator('[data-item-selection="601"]').waitFor();
+  await get('allowUnwatched').uncheck();await get('watchState').selectOption('Started');await get('clearSeries').click();await get('viewSelect').selectOption('Movies');await get('filter').fill('Partial Movie');await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();
+  await get('reportBody').locator('[data-protect-item="999"]').click();await page.waitForFunction(()=>document.querySelector('[data-protect-item="999"]').textContent==='Remove never delete');await get('allowUnwatched').check();await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();assert.equal(await get('reportBody').getByRole('button',{name:'Review deletion of Partial Movie',exact:true}).isEnabled(),false);
+  await get('reportBody').locator('[data-protect-item="999"]').click();await page.waitForFunction(()=>document.querySelector('[data-protect-item="999"]').textContent==='Never delete');await get('allowUnwatched').uncheck();
+  console.log('PASS never-delete controls protect shows and inherited episodes in every mode and can mark unfinished movies');
+  await get('filter').fill('Movie 00');await get('reportBody').getByRole('button',{name:/Review deletion of Movie 00/}).first().waitFor();
+  const protectIds=[await get('reportBody').locator('[data-item-selection]').nth(0).getAttribute('data-item-selection'),await get('reportBody').locator('[data-item-selection]').nth(1).getAttribute('data-item-selection')];
+  await get('reportBody').locator('[data-item-selection]').nth(0).check();await get('reportBody').locator('[data-item-selection]').nth(1).check();await get('protectSelected').click();
+  await page.waitForFunction(ids=>ids.every(id=>window.retention.Settings.Protected.some(p=>p.ItemId===id))&&document.querySelector('[data-id=selectionCount]').textContent==='0 selected',protectIds).catch(async error=>{console.error(JSON.stringify(await page.evaluate(()=>({protected:window.retention.Settings.Protected,selection:document.querySelector('[data-id=selectionCount]').textContent,calls:window.calls.filter(c=>c.path.includes('/Retention/Protection')&&c.method==='POST').slice(-3),message:document.querySelector('[data-id=cleanupStatus]').textContent}))));throw error;});
+  const protectCall=await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Retention/Protection')&&c.method==='POST').at(-1));assert.deepEqual(protectCall.body.ItemIds.split(',').sort(),protectIds.slice().sort());assert.equal(protectCall.body.Protected,true);
+  for(const id of protectIds){await get('protectedList').selectOption(id);await get('removeProtection').click();await page.waitForFunction(id=>!window.retention.Settings.Protected.some(p=>p.ItemId===id),id);}
+  await get('filter').fill('');await get('viewSelect').selectOption('Shows');await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();
+  assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Execute')).length),cleanupExecBefore);
+  console.log('PASS bulk protection is a separate persistent action and never submits media deletion');
+  if(!await get('integrationSettings').evaluate(el=>el.open))await get('integrationSettings').locator('summary').click();
+  assert.equal(await get('sonarrRemoveEmpty').isChecked(),false);await get('sonarrRemoveEmpty').check();await get('saveIntegrations').click();await get('integrationStatus').filter({hasText:'Settings saved'}).waitFor();await get('reloadIntegrations').click();await page.waitForFunction(()=>!document.querySelector('[data-id=saveIntegrations]').disabled);
+  assert.equal(await get('sonarrRemoveEmpty').isChecked(),true);assert.equal((await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Integrations')&&c.method==='POST').at(-1))).body.Sonarr.RemoveEmptySeries,true);await get('integrationSettings').locator('summary').click();
+  console.log('PASS Sonarr empty-show removal is off by default and saves independently of API-key edits');
+  assert.equal(await get('cleanupEnabled').isChecked(),false);assert.equal(await get('cleanupAction').inputValue(),'Review');assert.equal(await get('cleanupDays').inputValue(),'7');
+  await get('cleanupName').fill('Watched shows cleanup');await get('cleanupScope').selectOption('CompletedShows');await get('cleanupWatchMode').selectOption('Both');await get('cleanupDays').fill('0');await get('cleanupMaximum').fill('2');await get('cleanupAction').selectOption('Automatic');await get('cleanupEnabled').check();assert.equal(await get('saveCleanup').isEnabled(),false);
+  await get('cleanupAuthorize').check();assert.equal(await get('saveCleanup').isEnabled(),true);await get('cleanupSchedule').selectOption('Weekly');assert.equal(await get('cleanupAuthorize').isChecked(),false);assert.equal(await get('cleanupTimeField').isVisible(),true);assert.equal(await get('cleanupWeekdayField').isVisible(),true);assert.equal(await get('cleanupIntervalField').isVisible(),false);
+  await get('cleanupTime').fill('03:30');await get('cleanupWeekday').selectOption('3');for(const name of ['cleanupPlayback','cleanupWatched','cleanupStartup','cleanupDashboard'])await get(name).check();await get('cleanupAuthorize').check();await get('saveCleanup').click();await page.waitForFunction(()=>document.querySelector('[data-id=cleanupRule]').value==='policy-1');
+  assert.equal(await get('cleanupAuthorize').isChecked(),false);assert.equal(await get('saveCleanup').isEnabled(),false);
+  const cleanupSaved=await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Retention/Policy')).at(-1));assert.equal(cleanupSaved.body.Confirmed,true);assert.equal(cleanupSaved.body.Policy.WatchMode,'Both');assert.equal(cleanupSaved.body.Policy.Scope,'CompletedShows');assert.equal(cleanupSaved.body.Policy.TimeUtc,'03:30');assert.equal(cleanupSaved.body.Policy.OnPlaybackStopped,true);assert.equal(cleanupSaved.body.Policy.OnWatchedChanged,true);
+  console.log('PASS cleanup rule editor supports completed/resume scope, UTC schedules, triggers, and fresh unattended-deletion authorization');
+  await get('evaluateCleanup').click();await get('cleanupPrompt').waitFor({state:'visible'});assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Execute')).length),cleanupExecBefore);
+  await page.evaluate(()=>window.cleanupReviewFailure=true);await get('cleanupReviews').getByRole('button',{name:'Review media',exact:true}).click();await get('deletePhase').filter({hasText:'Preview failed'}).waitFor();await get('retryPreview').click();await get('deletePhase').filter({hasText:'Step 2 of 3'}).waitFor();
+  assert.match(await get('deleteScope').innerText(),/Rule: Watched shows cleanup/);assert.match(await get('deleteScope').innerText(),/including saved resume positions/);assert.match(await get('deleteItems').innerText(),/Completed with a saved resume position/);assert.equal(await get('deleteAcknowledge').isChecked(),false);assert.equal(await get('confirmDelete').isEnabled(),false);await get('deleteAcknowledge').check();assert.equal(await get('confirmDelete').isEnabled(),true);await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});await get('cleanupReviews').getByRole('button',{name:'Dismiss',exact:true}).click();await get('cleanupPrompt').waitFor({state:'hidden'});
+  assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Execute')).length),cleanupExecBefore);
+  console.log('PASS on-demand cleanup creates a read-only prompt and retry requires a fresh checkbox review with frozen resume scope');
+  await get('cleanupEnabled').uncheck();assert.equal(await get('saveCleanup').isEnabled(),true);await get('saveCleanup').click();await page.waitForFunction(()=>window.retention.Settings.Policies[0].Enabled===false&&!document.querySelector('[data-id=evaluateCleanup]').disabled);
+  assert.equal((await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Retention/Policy')).at(-1))).body.Confirmed,false);
+  await page.evaluate(()=>window.retention.Settings.Holds=[{RunId:'held-run',ItemId:'604',Name:'Rewatching episode',Fingerprint:'fixture'}]);await get('reloadCleanup').click();await get('cleanupHoldList').selectOption('held-run/604');assert.equal(await get('clearCleanupHold').isEnabled(),false);await get('cleanupHoldAuthorize').check();await get('clearCleanupHold').click();await page.waitForFunction(()=>window.retention.Settings.Holds.length===0);assert.equal((await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Retention/Hold/Clear')).at(-1))).body.Confirmed,true);
+  console.log('PASS rules can be disabled without new deletion consent and held attempts require explicit review authorization');
+  await page.evaluate(()=>window.protectionFailure=true);await get('refresh').click();await get('reportStatus').filter({hasText:'protection state unavailable'}).waitFor();assert.equal(await get('export').isEnabled(),false);assert.equal(await get('deleteSelected').isEnabled(),false);await page.evaluate(()=>window.protectionFailure=false);await get('refresh').click();await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();
+  if(process.env.WSI_RETENTION_SCREENSHOT)await get('retentionSettings').screenshot({path:process.env.WSI_RETENTION_SCREENSHOT});
+  console.log('PASS protection lookup failure disables report actions and recovers only after a successful refresh');
   assert.equal(await get('releaseLink').isVisible(),false);
   await get('downloadUpdate').click();await get('installUpdate').waitFor({state:'visible'});
   assert.equal(await get('restartWarning').isVisible(),true);
@@ -315,7 +384,7 @@ process.on('exit', () => {
   assert.deepEqual(errors,[]);
   console.log('PASS mobile layout and no browser exceptions');
   const stale=await browser.newPage();await stale.setContent('<div data-role="page"><p>Old cached dashboard</p></div>');
-  assert.equal(await page.locator('[data-role=page]').getAttribute('data-controller'),'__plugin/whosceneit-1.4.0.js');
+  assert.equal(await page.locator('[data-role=page]').getAttribute('data-controller'),'__plugin/whosceneit-1.5.0.js');
   await stale.evaluate(()=>{window.define=(deps,factory)=>{window.controller=factory();};});await stale.addScriptTag({path:path.join(__dirname,'../src/WhoSceneIt/Web/whosceneit.js')});
   await stale.evaluate(()=>window.controller(document.querySelector('[data-role=page]')));assert.match(await stale.locator('body').innerText(),/Reload this page to load the current deletion and synchronization controls/);await stale.close();
   console.log('PASS outdated cached HTML gets a reload notice and the dashboard uses a versioned controller');
@@ -331,5 +400,5 @@ process.on('exit', () => {
   }
   await browser.close();
   suiteCompleted = true;
-  console.log('RESULT ' + (process.argv.includes('--real-timers') ? 29 : 27) + ' browser checks passed');
-})().catch(async error=>{console.error(error);if(browser)await browser.close();process.exitCode=1;});
+  console.log('RESULT ' + (process.argv.includes('--real-timers') ? 36 : 34) + ' browser checks passed');
+})().catch(async error=>{console.error(error);if(testPage)try{console.error(JSON.stringify(await testPage.evaluate(()=>({selection:document.querySelector('[data-id=selectionCount]')?.textContent,report:document.querySelector('[data-id=reportStatus]')?.textContent,deleteDisabled:document.querySelector('[data-id=deleteSelected]')?.disabled,phase:document.querySelector('[data-id=deletePhase]')?.textContent,calls:window.calls?.slice(-6)}))));}catch{}if(browser)await browser.close();process.exitCode=1;});

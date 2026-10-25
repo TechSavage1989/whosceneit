@@ -1,4 +1,4 @@
-<div data-role="page" class="page type-interior pluginConfigurationPage" data-controller="__plugin/whosceneit-1.4.0.js">
+<div data-role="page" class="page type-interior pluginConfigurationPage" data-controller="__plugin/whosceneit-1.5.0.js">
   <style>
     .wsi { max-width: 1400px; margin: 0 auto; padding: 1.2em 1em 3em; }
     .wsi * { box-sizing: border-box; }
@@ -50,6 +50,10 @@
     .wsi-delete-list li { margin: .8em 0; overflow-wrap: anywhere; }
     .wsi-delete-list small { display: block; margin-top: .3em; opacity: .8; white-space: pre-wrap; }
     .wsi-delete-confirm { display: grid; gap: .6em; margin: 1em 0; }
+    .wsi [data-id="cleanupForm"] .wsi-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .wsi .wsi-fields .wsi-check { display: flex; align-items: flex-start; gap: .5em; }
+    @media(max-width:1100px) { .wsi [data-id="cleanupForm"] .wsi-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media(max-width:600px) { .wsi [data-id="cleanupForm"] .wsi-fields { grid-template-columns: 1fr; } }
     @media(max-width:600px) { .wsi {padding:.7em .5em 2em;} .wsi-panel {padding:.8em;} .wsi-fields {grid-template-columns:1fr;} }
   </style>
   <div data-role="content">
@@ -75,7 +79,7 @@
         <details data-id="integrationSettings" class="wsi-panel">
           <summary>Sonarr and Radarr synchronization</summary>
           <p data-id="integrationSummary" class="wsi-note">Loading synchronization settings...</p>
-          <p class="wsi-note">Enabled services must have one verified file match before media can be deleted. Matched entries are unmonitored before deletion. Sonarr keeps the series and episode listings; Radarr removes the movie entry. Deleting media affects every user.</p>
+          <p class="wsi-note">Enabled services must have one verified file match before media can be deleted. Matched entries are unmonitored before deletion. Sonarr can retain the show or remove its verified empty entry; Radarr removes the movie entry. Deleting media affects every user.</p>
           <section aria-label="Sonarr connection">
             <h3>Sonarr</h3>
             <label class="wsi-check"><input data-id="sonarrEnabled" data-arr-input type="checkbox">Synchronize episode deletions with Sonarr</label>
@@ -86,6 +90,8 @@
               <label>Sonarr path prefix (optional)<input data-id="sonarrArrRoot" data-arr-input type="text" placeholder="/tv" maxlength="4096"></label>
             </div>
             <label class="wsi-check"><input data-id="sonarrClearKey" data-arr-input type="checkbox">Clear the stored Sonarr API key when saving</label>
+            <label class="wsi-check"><input data-id="sonarrRemoveEmpty" data-arr-input type="checkbox">Remove the Sonarr show entry when no episode files remain in Sonarr or Emby</label>
+            <p class="wsi-note">Off: keep the show and unmonitor removed episodes. On: remove only a verified empty show entry, with additional file deletion disabled.</p>
             <button data-id="testSonarr" type="button" disabled>Test Sonarr connection</button>
           </section>
           <section aria-label="Radarr connection">
@@ -105,6 +111,51 @@
           <button data-id="saveIntegrations" type="button" class="wsi-primary" disabled>Save synchronization settings</button>
           <button data-id="reloadIntegrations" type="button">Reload saved settings</button>
           <p data-id="integrationStatus" role="status" aria-live="polite"></p>
+        </details>
+        <p data-id="cleanupPrompt" class="wsi-note" role="status" hidden></p>
+        <details data-id="retentionSettings" class="wsi-panel">
+          <summary>Never delete and automatic cleanup</summary>
+          <p class="wsi-note">Never delete applies to manual, bulk, and automatic cleanup in this plugin. Protecting a show includes its current and future episodes. Use each title's protection button below, or select watched rows and choose Never delete selected. Remove a show's protection here before changing an inherited episode protection.</p>
+          <div class="wsi-fields"><label>Protected titles<select data-id="protectedList"><option value="">No protected titles</option></select></label></div>
+          <button data-id="removeProtection" type="button" disabled>Remove selected protection</button>
+          <h3>Cleanup rules</h3>
+          <p class="wsi-note">Rules use the chosen user's saved completion flag. A show is complete only when all currently available episodes are marked watched. Resume mode includes completed items with saved positions; unfinished viewing for any user stays protected. All native permissions, playback, path, and configured service checks remain in effect.</p>
+          <div class="wsi-fields"><label>Saved rule<select data-id="cleanupRule"><option value="">New rule</option></select></label></div>
+          <form data-id="cleanupForm">
+            <div class="wsi-fields">
+              <label>Rule name<input data-id="cleanupName" maxlength="100" value="Watched media cleanup" required></label>
+              <label>Watch history user<select data-id="cleanupUser" required></select></label>
+              <label>Media scope<select data-id="cleanupScope"><option value="Both">Movies and individual episodes</option><option value="Movies">Movies only</option><option value="Episodes">Individual episodes</option><option value="CompletedShows">Episodes of fully watched shows</option></select></label>
+              <label>Completed state<select data-id="cleanupWatchMode"><option value="Watched">Fully watched, without resume</option><option value="Resume">Fully watched with resume only</option><option value="Both">Fully watched, with or without resume</option></select></label>
+              <label>Wait since last played (days)<input data-id="cleanupDays" type="number" min="0" max="3650" value="7" required><small>0 allows immediate eligibility. Unknown dates are excluded when a waiting period is set.</small></label>
+              <label>Maximum items per run<input data-id="cleanupMaximum" type="number" min="1" max="500" value="100" required></label>
+              <label>Action<select data-id="cleanupAction"><option value="Review">Prompt for review and confirmation</option><option value="Automatic">Delete automatically</option></select></label>
+              <label>Schedule<select data-id="cleanupSchedule"><option value="Off">No scheduled runs</option><option value="Interval">Every specified number of hours</option><option value="Daily">Daily at UTC time</option><option value="Weekly">Weekly at UTC time</option></select></label>
+              <label data-id="cleanupIntervalField">Interval (hours)<input data-id="cleanupHours" type="number" min="1" max="168" value="24" required></label>
+              <label data-id="cleanupTimeField">Scheduled time (UTC)<input data-id="cleanupTime" type="time" value="03:00" required></label>
+              <label data-id="cleanupWeekdayField">Weekday (UTC)<select data-id="cleanupWeekday"><option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></label>
+            </div>
+            <label class="wsi-check"><input data-id="cleanupEnabled" type="checkbox">Enable this rule's schedule and triggers</label>
+            <div class="wsi-fields">
+              <label class="wsi-check"><input data-id="cleanupPlayback" type="checkbox">After playback stops</label>
+              <label class="wsi-check"><input data-id="cleanupWatched" type="checkbox">After watched state changes</label>
+              <label class="wsi-check"><input data-id="cleanupStartup" type="checkbox">After Emby starts</label>
+              <label class="wsi-check"><input data-id="cleanupDashboard" type="checkbox">When this administrator opens the plugin</label>
+            </div>
+            <p class="wsi-note">Emby checks schedules every minute. Event triggers settle for 30 seconds and are limited to one evaluation per rule per 15 minutes. Item events evaluate those items, or their completed show. Review prompts appear here while this page is open. Evaluate now always prepares a review, even for an automatic rule.</p>
+            <label data-id="cleanupAuthorizeField" class="wsi-check"><input data-id="cleanupAuthorize" type="checkbox">I authorize this enabled rule to permanently delete matching media for every user and run the configured Sonarr/Radarr actions without another prompt.</label>
+            <div class="wsi-actions"><button data-id="saveCleanup" type="submit" class="wsi-primary" disabled>Save rule</button><button data-id="newCleanup" type="button">New rule</button><button data-id="evaluateCleanup" type="button" disabled>Evaluate now</button><button data-id="removeCleanup" type="button" disabled>Remove rule</button><button data-id="reloadCleanup" type="button">Refresh cleanup status</button></div>
+          </form>
+          <p data-id="cleanupStatus" role="status" aria-live="polite">Loading cleanup settings...</p>
+          <p data-id="cleanupNext" class="wsi-note"></p>
+          <h3>Pending review prompts</h3><div data-id="cleanupReviews"></div>
+          <h3>Recent cleanup results</h3><div data-id="cleanupRuns"></div>
+          <p data-id="cleanupHolds" class="wsi-note"></p>
+          <div data-id="cleanupHoldFields" hidden>
+          <div class="wsi-fields"><label>Held item<select data-id="cleanupHoldList"><option value="">Choose an automation hold</option></select></label></div>
+          <label class="wsi-check"><input data-id="cleanupHoldAuthorize" type="checkbox">I reviewed this item in Emby and the configured service and authorize future automatic cleanup attempts.</label>
+          <button data-id="clearCleanupHold" type="button" disabled>Clear selected automation hold</button>
+          </div>
         </details>
         <div class="wsi-tabs" role="tablist" aria-label="Report type">
           <button type="button" data-id="userTab" role="tab" aria-selected="true" aria-controls="wsi-user-panel">By user</button>
@@ -143,6 +194,8 @@
         <div class="wsi-actions" data-id="deleteActions" style="margin-top:1em">
           <span data-id="selectionCount">0 selected</span>
           <button data-id="clearSelection" type="button" disabled>Clear selection</button>
+          <button data-id="protectSelected" type="button" disabled>Never delete selected</button>
+          <button data-id="protectTitle" type="button" hidden>Never delete this title</button>
           <button data-id="deleteSelected" type="button" class="wsi-danger" disabled>Delete selected media...</button>
           <button data-id="deleteTitle" type="button" class="wsi-danger" hidden disabled>Delete watched media...</button>
           <button data-id="viewDeletion" type="button" hidden>View deletion progress</button>

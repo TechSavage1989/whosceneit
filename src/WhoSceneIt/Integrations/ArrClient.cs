@@ -73,7 +73,7 @@ namespace WhoSceneIt.Integrations
     public sealed class ArrRequestException : Exception { public ArrRequestException(string message) : base(message) { } }
     public sealed class ArrTestResult { public bool Success { get; set; } public string Message { get; set; } public string ApiVersion { get; set; } public string Version { get; set; } }
     public sealed class ArrSystemStatus { public string appName { get; set; } public string version { get; set; } }
-    public sealed class ArrSeries { public int id { get; set; } public string path { get; set; } }
+    public sealed class ArrSeries { public int tvdbId { get; set; } public int id { get; set; } public string path { get; set; } }
     public sealed class ArrMovie { public int id { get; set; } public int tmdbId { get; set; } public string path { get; set; } public bool monitored { get; set; } public ArrFile movieFile { get; set; } }
     public sealed class ArrFile { public int id { get; set; } public int seriesId { get; set; } public long size { get; set; } public string path { get; set; } public string relativePath { get; set; } }
     public sealed class ArrEpisode { public int id { get; set; } public int seriesId { get; set; } public int episodeFileId { get; set; } public int seasonNumber { get; set; } public int episodeNumber { get; set; } public bool monitored { get; set; } }

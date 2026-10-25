@@ -5,7 +5,7 @@ An administrator-only Emby Server plugin that answers two questions:
 - What movies and TV shows has this user watched?
 - Which users have watched this movie, TV show, or episode?
 
-Version 1.4.0 adds an explicit option for deleting partially watched and unwatched media, and replaces typed confirmation with a checkbox. Exact preview paths, native Emby protections, Sonarr/Radarr synchronization, reports, and updater behavior remain available. See VALIDATION.md for test boundaries.
+Version 1.5.0 adds persistent Never delete protection, cleanup rules with review prompts/schedules/triggers, completed-with-resume eligibility, and configurable removal of empty Sonarr show entries. Existing reports, manual deletion modes, synchronization, settings, and updater behavior remain available. See VALIDATION.md for test boundaries.
 
 ## Features
 
@@ -25,7 +25,7 @@ Emby Server 4.8 or newer is the intended target. The plugin is built against the
 
 ## Install
 
-If version 1.0.0 or 1.1.0 reports an empty "path" during installation, replace the DLL manually using the steps below. The already loaded old updater cannot apply its own path fix. Install the current 1.4.0 DLL directly; intermediate versions are unnecessary. Version 1.1.1 already contains the path fix and can use the normal updater. Keep the existing filename if you customized it.
+If version 1.0.0 or 1.1.0 reports an empty "path" during installation, replace the DLL manually using the steps below. The already loaded old updater cannot apply its own path fix. Install the current 1.5.0 DLL directly; intermediate versions are unnecessary. Version 1.1.1 already contains the path fix and can use the normal updater. Keep the existing filename if you customized it.
 
 1. Stop Emby Server.
 2. Find its Server Data Folder in the Emby dashboard. Open the plugins directory directly under that folder.
@@ -46,6 +46,24 @@ The user report includes titles currently visible to the selected user. It reads
 The default Started filter includes watched items and positive saved positions. Fully watched uses Emby's Played flag; Partially watched selects unfinished items with a saved position. Watched with resume includes possible rewatches and manual watched marks with a saved position, without claiming a second viewing occurred. Not started and All watch states can include unplayed episodes and users. Progress is the saved position relative to the current runtime, not a record of every scene viewed. Unknown durations stay unknown; a position at the end does not create a completion flag. Refresh report reads the latest saved data.
 
 A show appears when its episode states match the filter. Fully watched shows require every currently available episode to be marked watched; Partially watched also includes a show with some completed episodes and others unfinished. Counts use the full inventory, independently of the chosen filter. Choose View episodes beside a show or viewer to inspect that user's episodes, then Back to TV shows to clear the scope. The viewer report counts available episode files, including specials, rather than claiming that a user finished every episode ever released. Duplicate physical versions can affect these counts. Removed files and deleted users cannot be recovered from current user data. Dates are shown in your browser's time zone; CSV dates use UTC.
+
+## Never delete
+
+Use Never delete beside a report row, Never delete this title in By title, or Never delete selected for selected rows. A protected show also protects its current and future episode files. Protection applies to every deletion mode in this plugin, including the unfinished/unwatched option, bulk deletion, and cleanup rules. It does not depend on who watched the media.
+
+Open Never delete and automatic cleanup to manage protected titles. An episode protected by its show cannot remove that inherited protection; remove the show's protection explicitly from the protected list first. Exact paths also preserve protection when a file is reindexed under another library ID. These marks are plugin state; Emby's own controls and other applications retain their own deletion behavior. Back up Emby's DataPath/WhoSceneIt/retention.json and retention.json.bak with the server configuration. Unreadable or unsavable protection state blocks plugin deletion.
+
+## Cleanup rules
+
+Open Never delete and automatic cleanup. Select a watch-history user, media scope, and completed state: fully watched without resume, fully watched with resume only, or both. Movies and individual episodes can be cleaned separately, or choose episodes of fully watched shows. Full-show scope requires every currently available episode to have that user's saved Played flag. Newly available unwatched episodes block that show's cleanup. Rules never clear progress or infer completion from a position/count/date.
+
+The waiting period applies per item and defaults to seven days since its saved last-played date. Unknown dates are excluded when the waiting period is positive. A zero-day rule can include manually marked watched items without a known date. Batch limits range from 1 to 500, defaulting to 100. Completed-with-resume mode still preserves saved positions belonging to any user who has not completed that item. The broader unfinished/unwatched manual option is never enabled by automatic cleanup.
+
+Rules are disabled by default and default to Prompt for review and confirmation. Enable a rule and choose an interval of 1 to 168 hours, a daily UTC time, or a weekly UTC day/time. Optional triggers run after playback stops, watched state changes, Emby starts, or the rule owner opens the plugin. Emby checks schedules once per minute. Item events settle for at least 30 seconds, coalesce up to 500 IDs per rule, and observe a 15-minute cooldown. Completed-show events can include the other completed episodes of that show. Schedules run while the dashboard is closed. Review prompts appear on this plugin dashboard.
+
+Evaluate now always creates a review prompt, including for an automatic rule. Review media prepares a new exact-path/service preview; check the permanent-deletion box to execute it. Scheduled/triggered review rules only queue prompts. To enable unattended cleanup, choose Delete automatically, enable the rule, check its authorization box, and save. Changes require fresh authorization. Rules are owned by the signed-in administrator, whose native permissions are rechecked at execution. Save an edited/disabled rule or remove it to stop remaining queued items; an already executing item can finish.
+
+The same playback, visibility, permissions, path/fingerprint, root/shared-folder, and Sonarr/Radarr checks apply. Never delete always takes priority. Cleanup history shows results, and View progress / stop opens the active operation. Completed detail tokens remain available for ten minutes; durable summaries remain after that. Attempt records are persisted before mutations. Interrupted or uncertain attempts are not replayed after a restart and remain on automation hold. Inspect the item and configured service, then use a fresh manual preview or explicitly release the reviewed hold with its checkbox before allowing future automatic attempts. A plugin rollback does not recover deleted media.
 
 ## Delete watched media
 
@@ -75,7 +93,7 @@ Keys are saved in Emby's native plugin configuration and are never returned by t
 
 For an enabled service, the preview requires exactly one matching file path and matching file size. Sonarr also verifies episode numbering and all episodes associated with a shared file. A shared file containing episodes outside the selected Emby episode or numbered range is blocked. Ambiguous records, duplicate remote targets, missing matches, unavailable services, changed settings, and changed targets preserve media. Names alone are never used to choose a deletion target. Disabled connections are explicitly labelled Emby-only in the preview.
 
-After confirmation, the plugin verifies the remote target and unmonitors it, reads the monitoring state back, and rechecks Emby's native deletion guards. Emby performs the actual media deletion. The plugin then removes the matched Sonarr episode-file record or Radarr movie entry and verifies the record is absent. Sonarr retains its series and episode listings with the affected episodes unmonitored. It never deletes a series through this integration. Radarr is told not to delete additional files. Its optional import-list exclusion is requested when removing the movie; that setting does not prevent a later manual re-add.
+After confirmation, the plugin verifies the remote target and unmonitors it, reads the monitoring state back, and rechecks Emby's native deletion guards. Emby performs the actual media deletion. The plugin then removes the matched Sonarr episode-file record or Radarr movie entry and verifies the record is absent. Sonarr retains its series and episode listings with the affected episodes unmonitored by default. The separate Remove the Sonarr show entry option removes a matched series entry only after both Sonarr and native Emby have no episode files. It checks again immediately before one series DELETE with deleteFiles=false and verifies absence afterward. The option defaults off and appears in the frozen preview; changing it invalidates older previews. If files remain or native emptiness cannot be established, the show entry stays. Radarr is told not to delete additional files. Its optional import-list exclusion is requested when removing the movie; that setting does not prevent a later manual re-add.
 
 The UI shows Emby and external service results separately. If external cleanup fails after media deletion, the media remains deleted and the result reports a synchronization issue. If preparation/unmonitoring fails first, media deletion does not start for that item, although monitoring may already have changed. There is no cross-application transaction or media rollback. Read-back checks can verify a lost mutation receipt; mutations are not automatically replayed. Review partial failures in the matching service rather than repeating media deletion. Deleting the last series folder can also trigger Sonarr's own root-folder safeguards; those protections are not bypassed.
 

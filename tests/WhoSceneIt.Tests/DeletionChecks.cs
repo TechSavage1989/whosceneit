@@ -274,7 +274,7 @@ public sealed class NativeDeletionFixture
         });
         var host = Proxy.Create<IApplicationHost>((m, a) => m.Name == "get_IsStartupComplete" ? true : null);
         Users = users; Data = data; Library = library; Sessions = sessions; Host = host;
-        Backend = new EmbyDeletionBackend(users, data, library, sessions, host);
+        Backend = new EmbyDeletionBackend(users, data, library, sessions, host, _ => null);
     }
     private static IMediaSourceManager FileProtocolStub()
     {
@@ -313,7 +313,8 @@ public sealed class DeletionFixture : IDeletionBackend
 {
     private readonly string _root;
     private int _deletes;
-    public bool ResolveAllowUnwatched, DeleteAllowUnwatched;
+    public bool ResolveAllowUnwatched, DeleteAllowUnwatched, DeleteAllowWatchedResume;
+    public Action BeforeDelete;
     public List<bool> InspectionModes = new();
     public HashSet<string> Blocked = new();
     public string FailAfterDelete, Settings;
@@ -328,16 +329,16 @@ public sealed class DeletionFixture : IDeletionBackend
     public string FileFor(string id) => Path.Combine(_root, "movie-" + id + ".mkv");
     public string[] Resolve(string userId, string[] roots, bool allowUnwatched = false) { ResolveAllowUnwatched = allowUnwatched; return roots; }
     public void EnsureAvailable() { }
-    public DeletionInspection Inspect(string actorId, string userId, string id, bool allowUnwatched = false)
+    public DeletionInspection Inspect(string actorId, string userId, string id, bool allowUnwatched = false, bool allowWatchedResume = false)
     {
         InspectionModes.Add(allowUnwatched);
         var path = FileFor(id);
         return new DeletionInspection { Item = new DeletionItem { ItemId = id, Name = "Movie " + id, Type = "Movie", Paths = new[] { path }, WatchedBy = new[] { "Alice" }, State = Blocked.Contains(id) ? "Blocked" : "Ready", Message = Blocked.Contains(id) ? "Watch status, permission, or playback changed." : null },
             Fingerprint = File.Exists(path) ? Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))) : "missing" };
     }
-    public void Delete(string actorId, string userId, string id, string expected, bool allowUnwatched = false)
+    public void Delete(string actorId, string userId, string id, string expected, bool allowUnwatched = false, bool allowWatchedResume = false)
     {
-        DeleteAllowUnwatched = allowUnwatched;
+        DeleteAllowUnwatched = allowUnwatched; DeleteAllowWatchedResume = allowWatchedResume; BeforeDelete?.Invoke();
         Entered?.Set(); if (Release != null && !Release.Wait(5000)) throw new Exception("Test did not release deletion.");
         if (Inspect(actorId, userId, id, allowUnwatched).Fingerprint != expected) throw new IOException("Fixture changed.");
         Interlocked.Increment(ref _deletes); File.Delete(FileFor(id));

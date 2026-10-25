@@ -1,6 +1,22 @@
-# Who Scene It 1.4.0 - preview validation
+# Who Scene It 1.5.0 - preview validation
 
 Date: October 25, 2026.
+
+Version 1.5.0 adds persistent Never delete protection, cleanup rules, and optional empty Sonarr show removal. The user explicitly requested native automatic cleanup and publication. Rules remain disabled until configured; no real target server or user media is connected during development. Exact-source hosted CI, publication, and the public 1.4.0 upgrade check are pending.
+
+## Version 1.5.0 checks
+
+- Local Release builds have zero warnings/errors. The quick compiled suite passed 83 checks; hosted Windows/Linux must pass 84 including the existing real five-minute updater timer.
+- Fourteen new retention checks plus native inventory and pre-start failure coverage exercise persistent/global/inherited protection; exact path boundaries; reindexed files; late protection; completed-with-resume versus another user's unfinished progress; native completion/date/full-show inventory; corrupt/unwritable state; UTC boundaries; disabled/review defaults; checkbox authorization; real request-bound Admin/API-key rejection; rule ownership; fresh preview/journaling; schedule consumption; trigger coalescing/cooldowns; rule changes/disable; fresh watch-state rechecks; unknown native outcomes; restart recovery; and explicit hold release. All files are synthetic.
+- Three added Sonarr checks cover the opt-in empty-series mode, the default retained series, remote/native/incoming file preservation, deleteFiles=false, frozen setting changes, lost receipts without replay, and partial cleanup results. These use synthetic HTTP handlers, never real Sonarr/Radarr.
+- The complete local browser suite passed all 36 including real timers. New checks cover global/inherited protection, unfinished media marking, bulk protection without deletion, optional Sonarr setting persistence, rule editor UTC scope/triggers/authorization reset, read-only prompt/retry/checkbox flow, disabling rules, hold release, protection lookup failure, and mobile layout.
+- Persistence uses atomic retention.json replacement/backup. Pre-mutation journals retain uncertain attempts across restarts, with old in-memory operation tokens cleared. No native media or service mutation is automatically replayed after interruption. Rule changes and saved protection are revalidated before each item; a running item may finish.
+- Validation uses the real Emby SDK and temporary files/HTTP/browser fixtures. Actual Emby event delivery, server-native task timing/authentication, loaded DLL replacement, and real Sonarr/Radarr deletion remain unverified. Read-back checks do not create an atomic transaction across services; files arriving after the last emptiness check cannot be locked by the plugin, and Sonarr series deletion always disables additional file deletion.
+- Primary interface references checked during implementation: https://dev.emby.media/reference/pluginapi/MediaBrowser.Controller.Library.IUserDataManager.html, https://dev.emby.media/reference/pluginapi/MediaBrowser.Controller.Library.UserDataSaveEventArgs.html, https://dev.emby.media/reference/pluginapi/MediaBrowser.Controller.Session.ISessionManager.html, and Sonarr's own SeriesController DeleteSeries API. The compiler verifies the pinned official 4.8.0.80 SDK event shapes.
+- A local browser test sampled a stale row during refresh; the actual bulk request protected the correct two IDs. The test now waits for the matching report, and row actions are disabled while refreshing. Incomplete local processes are not counted as successful suites; both runners require completion markers. Failed/timed-out attempts are superseded only by a complete passing rerun.
+- After publication, independently verify all assets/tag/source/feed and exercise the actual public 1.4.0 updater with settings, custom filename, backup, protected-state preservation, pending health, and staging cleanup. Never publish the 1.5.1 test fixture.
+
+## Historical 1.4.0 validation
 
 Version 1.4.0 adds explicit unfinished/unwatched deletion scope and checkbox confirmation. The user directly requested these changes; default watch/resume protection remains. Exact-source hosted CI, publication, all public asset/source/feed checks, and the actual public 1.3.0-to-1.4.0 updater check passed. Exact source/tag: 33020fd765433302b45f5b487ed473e9bab41ac7, v1.4.0. Validation run: https://github.com/TechSavage1989/whosceneit/actions/runs/40230705080. Publication: https://github.com/TechSavage1989/whosceneit/actions/runs/40231340731.
 
