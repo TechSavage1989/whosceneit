@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>disable</Nullable><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/WhoSceneIt/WhoSceneIt.csproj" />
+    <PackageReference Include="MediaBrowser.Server.Core" Version="4.8.0.80" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,35 @@
+  Determining projects to restore...
+  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 229 ms).
+  WhoSceneIt -> <source>/test-artifacts/upgrade-fixture/WhoSceneIt.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.90
+  Determining projects to restore...
+  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 209 ms).
+  WhoSceneIt -> <source>/src/WhoSceneIt/bin/Release/netstandard2.0/WhoSceneIt.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.73
+PASS Manual watch flags are retained without inventing play counts or dates
+PASS Play counts and dates alone never imply completed viewing
+PASS Shows with identical names remain separate and repeated records do not inflate counts
+PASS A show viewer needs one qualifying episode, and complete means all available files
+PASS Episode ranges, title filtering, and unknown dates are handled
+PASS Every report and update route requires the native Admin role
+PASS Manifest rejects other repositories, versions, URLs, hashes, sizes, and app identities
+PASS DLL validation rejects a wrong digest, assembly version, other app, and executable payload
+PASS Previous DLL is replaced from another directory, one backup is retained, and settings survive
+PASS A replacement failure after the old target is removed restores its actual bytes
+PASS Successful assembly reload keeps staging until dashboard health is acknowledged
+PASS Startup, real concurrent checks, and manual cooldown share one request
+PASS Offline status is an error, and Retry-After blocks repeated manual checks
+PASS Complete update download, digest, staging, playback/scan guards, install, backup, and manual restart state
+PASS A bad downloaded digest never becomes installable
+PASS Real five-minute timer, two-minute focus gate, manual cooldown expiry, ETag, and HTTP 304
+RESULT 16 checks passed.

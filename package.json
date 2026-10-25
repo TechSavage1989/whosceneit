@@ -1,0 +1,7 @@
+{
+  "name": "whosceneit-validation",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": { "test:ui": "node tests/ui.smoke.cjs" },
+  "devDependencies": { "playwright": "1.62.1" }
+}

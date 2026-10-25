@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net8.0": {
+      "MediaBrowser.Server.Core": {
+        "type": "Direct",
+        "requested": "[4.8.0.80, )",
+        "resolved": "4.8.0.80",
+        "contentHash": "9ZZszM8pdG7IZkbKzQ9pcQs2N6fFKUA66QA28oFMDgY9SWVoX5Ng1fpSP+X0yhVF2Rn4HQFEycWd2epVjsCAqg==",
+        "dependencies": {
+          "MediaBrowser.Common": "4.8.0.80"
+        }
+      },
+      "MediaBrowser.Common": {
+        "type": "Transitive",
+        "resolved": "4.8.0.80",
+        "contentHash": "XH8bgfaiLtdJ+zjJMRtpx+B1p0oL3k9ofcuVTDh+HBKxZRYXBiomZ27tOy6ZoKhWLho8uNtr1dJq8nU+hAMepw=="
+      },
+      "whosceneit": {
+        "type": "Project"
+      }
+    }
+  }
+}

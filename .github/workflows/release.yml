@@ -1,0 +1,44 @@
+name: Publish approved Who Scene It release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Approved version matching the source project, for example 1.0.0
+        type: string
+        required: true
+      preview:
+        description: Mark as a preview/pre-release until native Emby validation is complete
+        type: boolean
+        default: true
+permissions:
+  contents: write
+  checks: read
+concurrency:
+  group: whosceneit-release
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build the exact approved source
+        run: |
+          dotnet restore src/WhoSceneIt/WhoSceneIt.csproj --locked-mode
+          dotnet build src/WhoSceneIt/WhoSceneIt.csproj -c Release --no-restore
+      - name: Package exact source and artifact hashes
+        run: python scripts/package.py
+      - name: Publish and verify assets before advancing the feed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ inputs.version }}
+          APP_PREVIEW: ${{ inputs.preview }}
+        run: python scripts/release.py --version "$APP_VERSION" --preview "$APP_PREVIEW"

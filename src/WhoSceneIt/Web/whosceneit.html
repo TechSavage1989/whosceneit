@@ -1,0 +1,98 @@
+<div data-role="page" class="page type-interior pluginConfigurationPage" data-controller="__plugin/whosceneit.js">
+  <style>
+    .wsi { max-width: 1400px; margin: 0 auto; padding: 1.2em 1em 3em; }
+    .wsi * { box-sizing: border-box; }
+    .wsi h1 { font-size: 1.8em; margin: 0 0 .25em; }
+    .wsi p { line-height: 1.55; }
+    .wsi .wsi-muted { opacity: .72; }
+    .wsi-tabs, .wsi-actions, .wsi-pager { display: flex; gap: .65em; flex-wrap: wrap; align-items: center; }
+    .wsi-tabs { margin: 1.5em 0 1em; }
+    .wsi button, .wsi input, .wsi select { font: inherit; color: inherit; border: 1px solid #80808080; border-radius: 5px; padding: .65em .85em; background: transparent; }
+    .wsi select option { color: #111; background: #fff; }
+    .wsi button { cursor: pointer; }
+    .wsi button:disabled { opacity: .45; cursor: default; }
+    .wsi button.wsi-primary, .wsi button[aria-selected="true"] { background: #23773d; border-color: #41965b; color: #fff; }
+    .wsi button:focus-visible, .wsi input:focus-visible, .wsi select:focus-visible { outline: 3px solid #63bd88; outline-offset: 2px; }
+    .wsi [hidden] { display: none !important; }
+    .wsi-panel { padding: 1.2em; border: 1px solid #80808055; border-radius: 8px; margin-bottom: 1em; }
+    .wsi-fields { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 1em; margin: 1em 0; }
+    .wsi-fields label { display: flex; flex-direction: column; gap: .45em; }
+    .wsi-check { display: flex; align-items: center; gap: .5em; margin: .8em 0; }
+    .wsi-check input { width: 1.1em; height: 1.1em; }
+    .wsi-tablewrap { overflow-x: auto; margin-top: 1em; }
+    .wsi table { width: 100%; border-collapse: collapse; text-align: left; }
+    .wsi th { font-size: .86em; opacity: .75; font-weight: 600; }
+    .wsi th, .wsi td { padding: .8em .65em; border-bottom: 1px solid #80808040; vertical-align: top; }
+    .wsi td:first-child { min-width: 210px; }
+    .wsi td small { display: block; margin-top: .3em; opacity: .7; }
+    .wsi .wsi-link { color: #63b685; text-decoration: underline; cursor: pointer; border: none; padding: 0; text-align: left; background: none; }
+    .wsi-pager { justify-content: flex-end; margin-top: 1em; }
+    .wsi-status { padding: .7em 0; min-height: 2.5em; }
+    .wsi-error { color: #ed9898; }
+    .wsi-title-results { display: grid; gap: .4em; margin-top: 1em; }
+    .wsi-title-results button { text-align: left; }
+    .wsi-title-results small { opacity: .7; margin-left: .8em; }
+    .wsi-update { border-left: 4px solid #4a9566; }
+    .wsi-update h2 { font-size: 1.05em; margin: 0 0 .65em; }
+    .wsi-update ul { margin: .7em 0; padding-left: 1.4em; }
+    .wsi-note { font-size: .9em; }
+    @media(max-width:600px) { .wsi {padding:.7em .5em 2em;} .wsi-panel {padding:.8em;} .wsi-fields {grid-template-columns:1fr;} }
+  </style>
+  <div data-role="content">
+    <main class="content-primary wsi">
+      <h1>Who Scene It</h1>
+      <p class="wsi-muted">Find watched titles by user, or find viewers of a movie, TV show, or episode.</p>
+      <section class="wsi-panel wsi-update" aria-label="Plugin updates">
+        <h2 data-id="updateHeading">Plugin updates</h2>
+        <div data-id="updateMessage" role="status">Checking update status...</div>
+        <ul data-id="releaseNotes" hidden></ul>
+        <p data-id="restartWarning" class="wsi-note" hidden>Save open work. Installing this update restarts Emby Server and briefly disconnects its clients.</p>
+        <div class="wsi-actions">
+          <button type="button" data-id="checkUpdate">Check for updates</button>
+          <button type="button" data-id="downloadUpdate" class="wsi-primary" hidden>Download</button>
+          <button type="button" data-id="installUpdate" class="wsi-primary" hidden>Install and restart</button>
+          <button type="button" data-id="restartServer" hidden>Restart Emby Server</button>
+          <a data-id="releaseLink" target="_blank" rel="noopener noreferrer" hidden>Read more</a>
+        </div>
+      </section>
+      <p class="wsi-note wsi-muted">Results use Emby's saved watch status. A title can be marked watched manually. Last played is the most recent saved playback date, not a complete viewing log. TV shows appear when at least one episode qualifies.</p>
+      <div data-id="adminError" class="wsi-error" role="alert" hidden>Sign in with an Emby administrator account to use Who Scene It.</div>
+      <div data-id="reportApp" hidden>
+        <div class="wsi-tabs" role="tablist" aria-label="Report type">
+          <button type="button" data-id="userTab" role="tab" aria-selected="true" aria-controls="wsi-user-panel">By user</button>
+          <button type="button" data-id="titleTab" role="tab" aria-selected="false" aria-controls="wsi-title-panel">By title</button>
+        </div>
+        <section id="wsi-user-panel" data-id="userPanel" role="tabpanel" class="wsi-panel">
+          <h2>What has this user watched?</h2>
+          <div class="wsi-fields">
+            <label>User<select data-id="userSelect" aria-label="User"></select></label>
+            <label>Show<select data-id="viewSelect"><option value="Titles">Movies and TV shows</option><option value="Movies">Movies</option><option value="Shows">TV shows</option><option value="Episodes">TV episodes</option></select></label>
+          </div>
+          <p class="wsi-note wsi-muted">Includes titles currently visible to the selected user. Use TV episodes for the individual episode list.</p>
+        </section>
+        <section id="wsi-title-panel" data-id="titlePanel" role="tabpanel" class="wsi-panel" hidden>
+          <h2>Who has watched this title?</h2>
+          <form data-id="titleSearchForm">
+            <div class="wsi-fields">
+              <label>Title<input data-id="titleSearch" type="search" maxlength="200" placeholder="Search your Emby library" required></label>
+              <label>Title type<select data-id="titleType"><option value="All">Movies and TV shows</option><option value="Movie">Movies</option><option value="Series">TV shows</option><option value="Episode">TV episodes</option></select></label>
+            </div>
+            <button type="submit" class="wsi-primary">Search titles</button>
+          </form>
+          <div data-id="titleResults" class="wsi-title-results" aria-live="polite"></div>
+          <div class="wsi-pager" data-id="titlePager" hidden><button type="button" data-id="titlePrev">Previous titles</button><span data-id="titlePageInfo"></span><button type="button" data-id="titleNext">More titles</button></div>
+          <p data-id="selectedTitle" hidden></p>
+        </section>
+        <div class="wsi-fields">
+          <label>Filter results<input data-id="filter" type="search" maxlength="200" placeholder="Title, show, episode, or username"></label>
+          <label>Sort by<select data-id="sort"><option value="LastPlayed">Last played, newest first</option><option value="Name">Name</option><option value="PlayCount">Saved play count</option><option value="WatchedCount">Watched count</option></select></label>
+        </div>
+        <label class="wsi-check"><input data-id="includeProgress" type="checkbox">Include in-progress titles</label>
+        <div class="wsi-actions"><button data-id="refresh" type="button" class="wsi-primary">Refresh report</button><button data-id="export" type="button" disabled>Export all matching rows to CSV</button></div>
+        <div data-id="reportStatus" class="wsi-status" role="status" aria-live="polite"></div>
+        <div class="wsi-tablewrap" data-id="tableWrap" hidden><table><thead data-id="reportHead"></thead><tbody data-id="reportBody"></tbody></table></div>
+        <div class="wsi-pager" data-id="pager" hidden><button type="button" data-id="prev">Previous</button><span data-id="pageInfo"></span><button type="button" data-id="next">Next</button></div>
+      </div>
+    </main>
+  </div>
+</div>

@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+node_modules/
+dist/
+test-artifacts/
+**/__pycache__/
+*.user
+*.suo
+*.partial
+*.log
+.DS_Store
