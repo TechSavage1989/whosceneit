@@ -3,19 +3,19 @@
   "AppId": "WhoSceneIt",
   "PluginId": "b6405a2e-52e6-4218-a014-00a46a65f1f8",
   "Repository": "TechSavage1989/whosceneit",
-  "Version": "1.1.0",
+  "Version": "1.1.1",
   "MinimumEmbyVersion": "4.8.0.0",
-  "ReleaseUrl": "https://github.com/TechSavage1989/whosceneit/releases/tag/v1.1.0",
+  "ReleaseUrl": "https://github.com/TechSavage1989/whosceneit/releases/tag/v1.1.1",
   "Notes": [
-    "Delete watched movies and episodes individually or in bulk.",
-    "Review exact paths and confirm before deleting shared media.",
-    "TV shows expand to watched episodes, with Emby permission and playback checks."
+    "Fixed update installation when Emby loads the plugin into memory.",
+    "Uses Emby's registered DLL path and preserves custom filenames.",
+    "Memory-loaded older versions need one manual DLL replacement."
   ],
   "HasMoreNotes": true,
   "Asset": {
     "FileName": "WhoSceneIt.dll",
-    "DownloadUrl": "https://github.com/TechSavage1989/whosceneit/releases/download/v1.1.0/WhoSceneIt.dll",
-    "Sha256": "2db640f20e5aca376a1d955a7ef8a8466bd60cddafeb7ca90b981f20fd9a55b6",
-    "SizeBytes": 126976
+    "DownloadUrl": "https://github.com/TechSavage1989/whosceneit/releases/download/v1.1.1/WhoSceneIt.dll",
+    "Sha256": "9c79efe59c167cc7667cfa0fb85926bb532090b3dabd0ae7fb80e31e09949aad",
+    "SizeBytes": 131584
   }
 }
