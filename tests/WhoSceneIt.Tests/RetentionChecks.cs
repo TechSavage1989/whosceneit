@@ -67,6 +67,26 @@ public static class RetentionChecks
             var now=DateTimeOffset.Parse("2026-10-25T03:00:00Z");var p=new CleanupPolicy{Enabled=true,Schedule="Daily",TimeUtc="03:00"};
             assert(CleanupSchedule.Next(p,now)==now.AddDays(1),"Daily schedule repeated the same occurrence.");p.Schedule="Weekly";p.Weekday=0;assert(CleanupSchedule.Next(p,now)==now.AddDays(7),"Weekly schedule repeated the same occurrence.");p.Schedule="Interval";p.IntervalHours=6;assert(CleanupSchedule.Next(p,now)==now.AddHours(6),"Interval schedule was wrong.");p.Enabled=false;assert(CleanupSchedule.Next(p,now)==null,"A disabled rule retained a schedule.");
         });
+        test("Saved schema-1 rules retain every setting and active schedules after a fresh coordinator starts",()=>
+        {
+            var f=new CleanupFixture(root);var directory=Path.Combine(root,"legacy-rules-"+Guid.NewGuid().ToString("N"));RetentionCompatibilityFixture.Write(directory);
+            var store=new RetentionStore(Path.Combine(directory,"retention.json"),new TestJson());RetentionCompatibilityFixture.AssertState(new TestJson(),store.Read());RetentionCompatibilityFixture.AssertFiles(directory);
+            var coordinator=new CleanupCoordinator(store,f.Catalog,f.Manager,()=>f.Now);var status=coordinator.Status();
+            assert(status.Settings.Policies.Length==3 && status.Message.Contains("2 enabled; 1 disabled") && status.Message.Contains("remain active"),"Restart reported existing enabled rules as disabled or reset the rule list.");
+            var originalAuto=new TestJson().SerializeToString(store.Read().Policies.Single(p=>p.Id=="legacy-auto"));var originalDisabled=new TestJson().SerializeToString(store.Read().Policies.Single(p=>p.Id=="legacy-disabled"));
+            coordinator.Tick();var state=store.Read();
+            assert(state.Reviews.Any(r=>r.PolicyId=="legacy-review" && r.ItemIds.SequenceEqual(new[]{"1","2","3"})) && f.Backend.Deletes==0,"The existing due review schedule did not run, or it silently became automatic deletion.");
+            assert(new TestJson().SerializeToString(state.Policies.Single(p=>p.Id=="legacy-auto"))==originalAuto && new TestJson().SerializeToString(state.Policies.Single(p=>p.Id=="legacy-disabled"))==originalDisabled,"Evaluating one restored schedule changed another saved rule.");
+        });
+        test("Unsupported schema and a missing primary retain existing rules and backups without resetting defaults",()=>
+        {
+            var directory=Path.Combine(root,"incompatible-rules-"+Guid.NewGuid().ToString("N"));RetentionCompatibilityFixture.Write(directory);var file=Path.Combine(directory,"retention.json");
+            var incompatible=RetentionCompatibilityFixture.Read().Replace("\"SchemaVersion\": 1","\"SchemaVersion\": 99");File.WriteAllText(file,incompatible);
+            var bad=new RetentionStore(file,new TestJson());Reject(()=>bad.Read());Reject(()=>bad.Change(s=>s.Policies=Array.Empty<CleanupPolicy>()));
+            assert(File.ReadAllText(file)==incompatible && File.ReadAllText(file+".bak")==RetentionCompatibilityFixture.Read()+"\n","An unsupported schema overwrote saved rules or their backup.");
+            File.Delete(file);var missing=new RetentionStore(file,new TestJson());Reject(()=>missing.Read());Reject(()=>missing.Change(s=>{}));
+            assert(!File.Exists(file) && File.ReadAllText(file+".bak")==RetentionCompatibilityFixture.Read()+"\n","Missing primary state was silently replaced by empty rules or an obsolete automatic backup.");
+        });
         test("Cleanup rules default to review and require fresh authorization for enabled automatic deletion",()=>
         {
             var f=new CleanupFixture(root);var p=f.Policy();assert(!p.Enabled && p.Action=="Review" && p.MinimumDays==7,"Defaults enabled unattended cleanup.");p.Enabled=true;p.Action="Automatic";Reject(()=>f.Coordinator.Save("admin",p,false));p=f.Coordinator.Save("admin",p,true);assert(p.OwnerId=="admin" && !string.IsNullOrEmpty(p.Revision),"The rule was not bound to the actual actor.");assert(f.Coordinator.Status().Message.Contains("saved and enabled"),"The status still reported disabled after enabling cleanup.");Reject(()=>f.Coordinator.Save("someone-else",p,true));

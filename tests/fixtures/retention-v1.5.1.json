@@ -1,0 +1,125 @@
+{
+  "SchemaVersion": 1,
+  "Protected": [
+    {
+      "ItemId": "420",
+      "Name": "Synthetic protected movie",
+      "Type": "Movie",
+      "Path": "/fixture/keep.mkv"
+    }
+  ],
+  "Policies": [
+    {
+      "Id": "legacy-review",
+      "Revision": "revision-from-1.5.1-review",
+      "OwnerId": "admin",
+      "Name": "Watched episodes review",
+      "Enabled": true,
+      "UserId": "alice",
+      "Scope": "Episodes",
+      "WatchMode": "Watched",
+      "MinimumDays": 30,
+      "MaximumItems": 25,
+      "Action": "Review",
+      "Schedule": "Weekly",
+      "IntervalHours": 12,
+      "TimeUtc": "03:45",
+      "Weekday": 6,
+      "OnPlaybackStopped": true,
+      "OnWatchedChanged": true,
+      "OnStartup": false,
+      "OnDashboard": true,
+      "NextRunUtc": "2026-10-24T03:45:00.0000000+00:00",
+      "LastEvaluatedUtc": "2026-10-10T12:00:00.0000000+00:00"
+    },
+    {
+      "Id": "legacy-auto",
+      "Revision": "revision-from-1.5.1-auto",
+      "OwnerId": "admin",
+      "Name": "Completed shows automatic",
+      "Enabled": true,
+      "UserId": "alice",
+      "Scope": "CompletedShows",
+      "WatchMode": "Both",
+      "MinimumDays": 14,
+      "MaximumItems": 10,
+      "Action": "Automatic",
+      "Schedule": "Interval",
+      "IntervalHours": 48,
+      "TimeUtc": "07:10",
+      "Weekday": 3,
+      "OnPlaybackStopped": true,
+      "OnWatchedChanged": true,
+      "OnStartup": true,
+      "OnDashboard": true,
+      "NextRunUtc": "2050-10-26T12:00:00.0000000+00:00",
+      "LastEvaluatedUtc": "2026-10-20T12:00:00.0000000+00:00"
+    },
+    {
+      "Id": "legacy-disabled",
+      "Revision": "revision-from-1.5.1-disabled",
+      "OwnerId": "bob",
+      "Name": "Disabled movie rule",
+      "Enabled": false,
+      "UserId": "bob",
+      "Scope": "Movies",
+      "WatchMode": "Resume",
+      "MinimumDays": 45,
+      "MaximumItems": 3,
+      "Action": "Review",
+      "Schedule": "Daily",
+      "IntervalHours": 6,
+      "TimeUtc": "09:05",
+      "Weekday": 2,
+      "OnPlaybackStopped": false,
+      "OnWatchedChanged": true,
+      "OnStartup": false,
+      "OnDashboard": true,
+      "NextRunUtc": null,
+      "LastEvaluatedUtc": null
+    }
+  ],
+  "Reviews": [
+    {
+      "Id": "legacy-prompt",
+      "PolicyId": "legacy-review",
+      "Revision": "revision-from-1.5.1-review",
+      "Name": "Watched episodes review",
+      "OwnerId": "admin",
+      "Trigger": "Schedule",
+      "CreatedUtc": "2026-10-20T03:45:00.0000000+00:00",
+      "ItemIds": [
+        "1",
+        "2"
+      ]
+    }
+  ],
+  "Holds": [
+    {
+      "RunId": "legacy-run",
+      "ItemId": "990",
+      "Path": "/fixture/held.mkv",
+      "Name": "Synthetic held item",
+      "Fingerprint": "legacy-fingerprint"
+    }
+  ],
+  "Runs": [
+    {
+      "Id": "legacy-run",
+      "OwnerId": "admin",
+      "PolicyId": "legacy-auto",
+      "Name": "Completed shows automatic",
+      "Trigger": "Schedule",
+      "StartedUtc": "2026-10-20T12:00:00.0000000+00:00",
+      "FinishedUtc": "2026-10-20T12:01:00.0000000+00:00",
+      "State": "Completed",
+      "Message": "Synthetic historical result",
+      "Token": null,
+      "Total": 3,
+      "Deleted": 2,
+      "Failed": 1,
+      "Skipped": 0,
+      "SyncFailed": 1
+    }
+  ]
+}

@@ -1,6 +1,18 @@
-# Who Scene It 1.5.1 - preview validation
+# Who Scene It 1.5.2 - preview validation
 
 Date: October 25, 2026.
+
+Version 1.5.2 adds a visible saved-rule list and verifies complete rule preservation across updates, restarts, health cleanup, and failed replacement rollback. Existing schema-1 rule fields are unchanged. Local Release builds passed with zero warnings/errors and all 86 quick compiled checks. All 42 browser checks passed, including real timers. Required exact-source hosted validation and publication are pending.
+
+## Version 1.5.2 checks
+
+- The frozen schema-1 fixture contains three complete rules: enabled review/automatic modes, a disabled foreign-owner rule, every eligibility/schedule/trigger setting, IDs/revisions/owners, next/last evaluation, protection, a pending review, an automation hold, and history. Full snapshots and both primary/backup files survive memory-loaded update installation, new-DLL deserialization, and dashboard-health cleanup. An injected replacement failure restores the DLL without changing rule files.
+- A newly constructed coordinator reports two enabled/one disabled saved rules accurately and runs the existing due review schedule without changing either other rule or starting automatic deletion. Unsupported schema and missing-primary-with-backup fixtures fail closed without replacing available saved data.
+- Browser checks cover the always-visible empty/populated lists, exact metadata for enabled/disabled/foreign-owner rules, literal HTML names, owner-only edit/evaluate routing, editor values and fresh consent, failed refresh retaining rules/input with disabled actions, and recovery with no policy save/reset. Existing reports/protection/deletion/synchronization, mobile layout, and updater tests also pass.
+- Persistence schema and rule fields are unchanged. The test-only next-patch DLL is 1.5.3, never a release asset. Post-publication checks pin actual public 1.5.1 and load the full fixture with both public versions.
+- Only SDK/temp-file/synthetic HTTP/browser fixtures run. Live Emby/Sonarr/Radarr deletion, native event delivery, and live loaded-DLL replacement remain unverified. No real user server or media is connected.
+
+## Historical 1.5.1 baseline
 
 Version 1.5.1 exposes unwatched media for individual and bulk Never delete protection without enabling unfinished deletion. All watch states are shown by default. Local Release builds passed with zero warnings/errors and all 84 quick compiled checks. All 39 browser checks passed, including real timers and timer cleanup. Exact-source hosted Windows/Linux each passed all 85 compiled checks, and Linux passed all 39 browser checks. Publication and independent asset/source/tag/feed/updater verification passed; no live user server or media is connected.
 
@@ -9,7 +21,7 @@ Version 1.5.1 exposes unwatched media for individual and bulk Never delete prote
 - Native SDK inventory tests cover wholly unwatched shows and scoped episodes under All and NotStarted filters, without adding a played/resumable query restriction or changing deletion eligibility. The real Admin protection endpoint can protect an unwatched movie without changing its flag or allowing opted-in deletion.
 - Browser tests show unwatched movies/shows by default, mark them individually and by page, and protect unwatched episodes in bulk while unfinished deletion remains off. Those protection flows issue no deletion request.
 - Mixed selections admit every unprotected watch state for protection; default deletion sends only eligible completed selection IDs. Existing cross-page selection, context resets, exact previews/checkbox confirmation, synchronization, rules, inherited protection, errors, CSV, mobile layout, and updater behavior also pass.
-- The 1.5.1 resource rejects cached older HTML missing the new help control. Current unpublished next-patch upgrade fixture: 1.5.2, never a release asset. The public-upgrade test pins actual public 1.5.0 for post-publication checks.
+- The 1.5.1 resource rejects cached older HTML missing the new help control. The historical 1.5.1 source's next-patch 1.5.2 fixture is not the actual 1.5.2 patch, and is never a release asset. The public-upgrade test pins actual public 1.5.0 for post-publication checks.
 - Tests use SDK, temporary-file, synthetic HTTP, and browser fixtures. Live Emby event delivery, native deletion, Sonarr/Radarr deletion, and loaded-DLL Windows replacement remain unverified.
 - Exact source/tag: 5dbdd281ec2eae24534a7254892609e097b8fd4f, v1.5.1. Hosted validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40238732732. Publication: https://github.com/TechSavage1989/whosceneit/actions/runs/40239366591. Both completed successfully.
 - Independently downloaded and verified all six public assets against API sizes/digests and SHA256SUMS, clean build metadata, all 61 source files/67 preview hashes, the immutable source tag, and exact canonical feed. Feed commit: 2472c50029e0d7182fe39c9bbd7e088afa101484. Public DLL: 275,968 bytes; SHA-256 2b41ba8bf41bca7b712c544fed3344839ffadbf43aa8d0fcb04f6805ec9c55a9. No existing release asset/tag was overwritten.

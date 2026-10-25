@@ -1,5 +1,14 @@
 # Changes
 
+## 1.5.2 - visible rules and update preservation
+
+- Added an always-visible saved-rule list with enabled/disabled status, action, owner, watch-history user, media/completion scope, waiting period, batch limit, schedules/triggers, next/last evaluation, and owner-only edit/evaluate actions.
+- Keep disabled and other-owner rules visible. Create rule opens the existing editor. Refresh is read-only and preserves unsaved input; failed refreshes retain the previous list and block stale actions.
+- Fixed the startup message so existing enabled rules are reported accurately after a restart or update. Rules retain the existing schema, IDs, revisions, owners, all settings, schedules, triggers, and enabled states.
+- Prevent missing primary state from silently becoming empty rules when a backup exists. Damaged/incompatible state and backups are retained for review; cleanup stops without resetting or automatically restoring old rules.
+- Added a frozen 1.5.1 rule-state compatibility fixture, exact full-state checks through install/reload/health cleanup, replacement-failure rollback preservation, restored schedule execution, and schema/backup guards. Public upgrade checks now load the same complete rule state with both old and new public binaries.
+- Retained prior reports, protection, deletion modes/consent, synchronization, and updater behavior. The dashboard uses a versioned 1.5.2 controller with old aliases and cached-HTML reload guidance.
+
 ## 1.5.1 - protect unwatched media
 
 - Show all watch states by default and label the unwatched-only filter clearly, so entirely unwatched movies, shows, and episodes are easy to find.

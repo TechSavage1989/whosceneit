@@ -18,7 +18,7 @@ process.on('exit', () => {
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.setContent('<body style="background:#171c20;color:#e8ecef;font-family:Arial,sans-serif">'+fs.readFileSync(path.join(__dirname,'../src/WhoSceneIt/Web/whosceneit.html'),'utf8')+'</body>');
   await page.evaluate(() => {
-    window.calls=[];window.update={InstalledVersion:'1.5.0',LatestVersion:'1.5.1',UpdateAvailable:true,Downloaded:false,Busy:false,RestartRequired:false,CanRestart:true,AwaitingDashboardVerification:true,Message:'An update is available.',Notes:['Example change.'],HasMoreNotes:false,ReleaseUrl:'https://github.com/TechSavage1989/whosceneit/releases/tag/v1.5.1'};
+    window.calls=[];window.update={InstalledVersion:'1.5.1',LatestVersion:'1.5.2',UpdateAvailable:true,Downloaded:false,Busy:false,RestartRequired:false,CanRestart:true,AwaitingDashboardVerification:true,Message:'An update is available.',Notes:['Example change.'],HasMoreNotes:false,ReleaseUrl:'https://github.com/TechSavage1989/whosceneit/releases/tag/v1.5.2'};
     const connection=()=>({Enabled:false,BaseUrl:'',HasApiKey:false,EmbyPathRoot:'',ArrPathRoot:'',AddImportExclusion:true});
     window.arrSettings={Sonarr:{...connection(),HasApiKey:true},Radarr:connection()};
     window.deletionPlans={};window.deletionCounter=0;window.cleanupPolicyCounter=0;window.retention={ActorId:'admin',Settings:{Protected:[],Policies:[],Reviews:[],Runs:[],Holds:[]},Message:'Cleanup disabled until configured.'};
@@ -37,7 +37,7 @@ process.on('exit', () => {
           return structuredClone(window.arrSettings);
         }
         if(u.pathname.endsWith('/Integrations/Test'))return {Success:true,Message:'Read-only fixture connection test passed. Settings were not saved.'};
-        if(u.pathname==='/WhoSceneIt/Retention')return structuredClone(window.retention);
+        if(u.pathname==='/WhoSceneIt/Retention'){if(window.retentionFailure)throw new Response(JSON.stringify({ResponseStatus:{Message:'Fixture saved rules unavailable'}}),{status:503});return structuredClone(window.retention);}
         if(u.pathname.endsWith('/Retention/Protection')){
           if(window.protectionFailure)throw new Response(JSON.stringify({ResponseStatus:{Message:'Fixture protection state unavailable'}}),{status:500});
           if(options.type==='POST'){
@@ -122,6 +122,10 @@ process.on('exit', () => {
   assert.equal(await get('reportBody').locator('tr').count(),100);
   assert.equal(await page.evaluate(()=>window.injected),undefined);
   console.log('PASS initial user report, paging, and safe title rendering');
+  await get('cleanupRuleSummary').filter({hasText:'No cleanup rules are saved'}).waitFor();assert.equal(await get('cleanupRuleList').isVisible(),true);assert.equal(await get('cleanupRulesTable').isVisible(),false);
+  assert.equal(await get('retentionSettings').evaluate(el=>el.open),false);await get('addCleanupRule').click();assert.equal(await get('retentionSettings').evaluate(el=>el.open),true);assert.equal(await get('cleanupRule').inputValue(),'');await get('retentionSettings').locator('summary').click();
+  assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Retention/Policy')).length),0);
+  console.log('PASS saved rules have a visible empty state and Create rule opens the editor without saving or enabling anything');
   assert.equal(await get('watchState').inputValue(),'All');
   assert.equal((await page.evaluate(()=>window.calls.find(c=>c.path.endsWith('/UserReport')))).params.WatchState,'All');
   const protectionDeleteBefore=await page.evaluate(()=>window.calls.filter(c=>c.path.includes('/Delete/')).length);
@@ -370,7 +374,23 @@ process.on('exit', () => {
   assert.equal(await get('cleanupAuthorize').isChecked(),false);assert.equal(await get('saveCleanup').isEnabled(),false);
   const cleanupSaved=await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Retention/Policy')).at(-1));assert.equal(cleanupSaved.body.Confirmed,true);assert.equal(cleanupSaved.body.Policy.WatchMode,'Both');assert.equal(cleanupSaved.body.Policy.Scope,'CompletedShows');assert.equal(cleanupSaved.body.Policy.TimeUtc,'03:30');assert.equal(cleanupSaved.body.Policy.OnPlaybackStopped,true);assert.equal(cleanupSaved.body.Policy.OnWatchedChanged,true);
   console.log('PASS cleanup rule editor supports completed/resume scope, UTC schedules, triggers, and fresh unattended-deletion authorization');
-  await get('evaluateCleanup').click();await get('cleanupPrompt').waitFor({state:'visible'});assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Execute')).length),cleanupExecBefore);
+  const policyWritesBeforeList=await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Retention/Policy')).length);
+  await page.evaluate(()=>{const p=window.retention.Settings.Policies[0];window.retention.Settings.Policies.push({...p,Id:'existing-disabled',Name:'Existing disabled movie rule',Enabled:false,Scope:'Movies',Action:'Review',WatchMode:'Watched',MinimumDays:45,MaximumItems:15,Schedule:'Interval',IntervalHours:12,NextRunUtc:null},{...p,Id:'other-owner',OwnerId:'bob',UserId:'bob',Name:'<img src=x onerror="window.ruleInjected=true">',Action:'Review',Schedule:'Daily',TimeUtc:'05:10'});});
+  await get('refreshCleanupRules').click();await get('cleanupRuleSummary').filter({hasText:'3 saved rule(s). 2 enabled; 1 disabled.'}).waitFor();
+  await get('retentionSettings').locator('summary').click();assert.equal(await get('cleanupRuleRows').locator('tr').count(),3);assert.equal(await get('cleanupRuleList').isVisible(),true);
+  const activeRule=get('cleanupRuleRows').locator('[data-cleanup-rule-id="policy-1"]'),disabledRule=get('cleanupRuleRows').locator('[data-cleanup-rule-id="existing-disabled"]'),foreignRule=get('cleanupRuleRows').locator('[data-cleanup-rule-id="other-owner"]');
+  assert.match(await activeRule.innerText(),/Enabled - Automatic deletion/);assert.match(await activeRule.innerText(),/Alice/);assert.match(await activeRule.innerText(),/Episodes of fully watched shows/);assert.match(await activeRule.innerText(),/Fully watched, with or without resume/);assert.match(await activeRule.innerText(),/0 day\(s\) since last played/);assert.match(await activeRule.innerText(),/Wednesday at 03:30 UTC/);assert.match(await activeRule.innerText(),/playback stops, watched state changes, Emby starts, owner opens plugin/);assert.match(await activeRule.innerText(),/Next scheduled:/);assert.match(await activeRule.innerText(),/Last evaluated:/);
+  assert.match(await disabledRule.innerText(),/Disabled - Review prompt/);assert.match(await disabledRule.innerText(),/45 day\(s\)/);assert.match(await disabledRule.innerText(),/Every 12 hour\(s\)/);assert.equal(await foreignRule.locator('button').count(),0);assert.match(await foreignRule.innerText(),/Owner: Bob/);assert.match(await foreignRule.innerText(),/Daily at 05:10 UTC/);assert.equal(await foreignRule.locator('img').count(),0);assert.equal(await page.evaluate(()=>window.ruleInjected),undefined);
+  if(process.env.WSI_RULES_SCREENSHOT)await get('cleanupRuleList').screenshot({path:process.env.WSI_RULES_SCREENSHOT});
+  await disabledRule.getByRole('button',{name:'Edit rule Existing disabled movie rule',exact:true}).click();assert.equal(await get('retentionSettings').evaluate(el=>el.open),true);assert.equal(await get('cleanupRule').inputValue(),'existing-disabled');assert.equal(await get('cleanupDays').inputValue(),'45');assert.equal(await get('cleanupEnabled').isChecked(),false);assert.equal(await get('cleanupAuthorize').isChecked(),false);
+  console.log('PASS every saved rule is clearly listed with status, ownership, user, criteria, schedule, triggers, and exact owner-only editor actions');
+  const rulesBeforeRefresh=await page.evaluate(()=>JSON.stringify(window.retention.Settings.Policies));await get('cleanupName').fill('Unsaved editor text');await page.evaluate(()=>window.retentionFailure=true);await get('refreshCleanupRules').click();await get('cleanupRuleSummary').filter({hasText:'Previously displayed rules are retained'}).waitFor();
+  assert.equal(await get('cleanupRuleRows').locator('tr').count(),3);assert.equal(await activeRule.getByRole('button',{name:'Edit rule Watched shows cleanup',exact:true}).isEnabled(),false);assert.equal(await get('saveCleanup').isEnabled(),false);assert.equal(await get('addCleanupRule').isEnabled(),false);assert.equal(await get('cleanupName').inputValue(),'Unsaved editor text');
+  await page.evaluate(()=>window.retentionFailure=false);await get('refreshCleanupRules').click();await get('cleanupRuleSummary').filter({hasText:'3 saved rule(s). 2 enabled; 1 disabled.'}).waitFor();assert.equal(await get('cleanupName').inputValue(),'Unsaved editor text');assert.equal(await get('cleanupRule').inputValue(),'existing-disabled');assert.equal(await page.evaluate(()=>JSON.stringify(window.retention.Settings.Policies)),rulesBeforeRefresh);assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Retention/Policy')).length),policyWritesBeforeList);
+  console.log('PASS refresh failures retain saved rules and unsaved editor input, block stale actions, and recover without resaving or resetting rules');
+  await activeRule.getByRole('button',{name:'Evaluate rule Watched shows cleanup',exact:true}).click();await get('cleanupPrompt').waitFor({state:'visible'});assert.equal((await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Retention/Evaluate')).at(-1))).body.Id,'policy-1');assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Execute')).length),cleanupExecBefore);
+  await activeRule.getByRole('button',{name:'Edit rule Watched shows cleanup',exact:true}).click();
+  await page.evaluate(()=>window.retention.Settings.Policies=window.retention.Settings.Policies.filter(p=>p.Id==='policy-1'));await get('refreshCleanupRules').click();await get('cleanupRuleSummary').filter({hasText:'1 saved rule(s). 1 enabled; 0 disabled.'}).waitFor();
   await page.evaluate(()=>window.cleanupReviewFailure=true);await get('cleanupReviews').getByRole('button',{name:'Review media',exact:true}).click();await get('deletePhase').filter({hasText:'Preview failed'}).waitFor();await get('retryPreview').click();await get('deletePhase').filter({hasText:'Step 2 of 3'}).waitFor();
   assert.match(await get('deleteScope').innerText(),/Rule: Watched shows cleanup/);assert.match(await get('deleteScope').innerText(),/including saved resume positions/);assert.match(await get('deleteItems').innerText(),/Completed with a saved resume position/);assert.equal(await get('deleteAcknowledge').isChecked(),false);assert.equal(await get('confirmDelete').isEnabled(),false);await get('deleteAcknowledge').check();assert.equal(await get('confirmDelete').isEnabled(),true);await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});await get('cleanupReviews').getByRole('button',{name:'Dismiss',exact:true}).click();await get('cleanupPrompt').waitFor({state:'hidden'});
   assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Execute')).length),cleanupExecBefore);
@@ -413,7 +433,7 @@ process.on('exit', () => {
   assert.deepEqual(errors,[]);
   console.log('PASS mobile layout and no browser exceptions');
   const stale=await browser.newPage();await stale.setContent('<div data-role="page"><p>Old cached dashboard</p></div>');
-  assert.equal(await page.locator('[data-role=page]').getAttribute('data-controller'),'__plugin/whosceneit-1.5.1.js');
+  assert.equal(await page.locator('[data-role=page]').getAttribute('data-controller'),'__plugin/whosceneit-1.5.2.js');
   await stale.evaluate(()=>{window.define=(deps,factory)=>{window.controller=factory();};});await stale.addScriptTag({path:path.join(__dirname,'../src/WhoSceneIt/Web/whosceneit.js')});
   await stale.evaluate(()=>window.controller(document.querySelector('[data-role=page]')));assert.match(await stale.locator('body').innerText(),/Reload this page to load the current deletion and synchronization controls/);await stale.close();
   console.log('PASS outdated cached HTML gets a reload notice and the dashboard uses a versioned controller');
@@ -429,5 +449,5 @@ process.on('exit', () => {
   }
   await browser.close();
   suiteCompleted = true;
-  console.log('RESULT ' + (process.argv.includes('--real-timers') ? 39 : 37) + ' browser checks passed');
+  console.log('RESULT ' + (process.argv.includes('--real-timers') ? 42 : 40) + ' browser checks passed');
 })().catch(async error=>{console.error(error);if(testPage)try{console.error(JSON.stringify(await testPage.evaluate(()=>({selection:document.querySelector('[data-id=selectionCount]')?.textContent,report:document.querySelector('[data-id=reportStatus]')?.textContent,deleteDisabled:document.querySelector('[data-id=deleteSelected]')?.disabled,phase:document.querySelector('[data-id=deletePhase]')?.textContent,calls:window.calls?.slice(-6)}))));}catch{}if(browser)await browser.close();process.exitCode=1;});

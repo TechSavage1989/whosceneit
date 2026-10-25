@@ -61,14 +61,16 @@ public static class PublishedUpgradeCheck
             Assert(File.ReadAllText(settings) == "preserve configuration" && Hash(Path.Combine(data, "rollback", "WhoSceneIt.dll")) == previousHash, "Bootstrap changed settings or the single backup.");
             Console.WriteLine("PASS Public " + expected + " manual bootstrap: actual memory-loaded entry point resolves the installed DLL, preserves settings/custom filename/backup, and cleans staging.");
             Console.WriteLine("Installed SHA-256: " + Hash(target));
-            const string patchedHash = "014f6825803704453e657edaf5521c66435894cf38274f730280f0abdf879a4d";
-            var patchedPrevious = await http.GetByteArrayAsync("https://github.com/TechSavage1989/whosceneit/releases/download/v1.5.0/WhoSceneIt.dll");
+            const string patchedHash = "2b41ba8bf41bca7b712c544fed3344839ffadbf43aa8d0fcb04f6805ec9c55a9";
+            var patchedPrevious = await http.GetByteArrayAsync("https://github.com/TechSavage1989/whosceneit/releases/download/v1.5.1/WhoSceneIt.dll");
             Assert(Convert.ToHexString(SHA256.HashData(patchedPrevious)).ToLowerInvariant() == patchedHash, "The previous patched updater failed its pinned digest.");
             string upgradeRoot, upgradeTarget, upgradeData, upgradeSettings;
-            var retentionFixture = json.SerializeToString(new WhoSceneIt.Retention.RetentionState { Protected = new[] { new WhoSceneIt.Retention.ProtectedMedia { ItemId = "420", Name = "Synthetic protected movie", Type = "Movie", Path = "/fixture/keep.mkv" } } });
+            var retentionFixture = RetentionCompatibilityFixture.Read();
             using (var upgradable = new MemoryPluginFixture(root, patchedPrevious, json))
             {
-                File.WriteAllText(Path.Combine(upgradable.Data, "retention.json"), retentionFixture);
+                RetentionCompatibilityFixture.Write(upgradable.Data);
+                var previousStore=Activator.CreateInstance(upgradable.Assembly.GetType("WhoSceneIt.Retention.RetentionStore"),Path.Combine(upgradable.Data,"retention.json"),json);
+                RetentionCompatibilityFixture.AssertState(json,Call(previousStore,"Read"));
                 upgradable.Register(); upgradable.CreateEntryPoint();
                 var manager = upgradable.Manager;
                 Call(manager, "ConfirmDashboardHealthy");
@@ -79,7 +81,7 @@ public static class PublishedUpgradeCheck
                 while (Get<bool>(Status(manager), "Busy") && DateTimeOffset.UtcNow < timeout) await Task.Delay(200);
                 Assert(Get<bool>(Status(manager), "Downloaded"), "The patched previous updater did not verify the public download.");
                 var installed = Call(manager, "Install");
-                Assert(Get<bool>(installed, "RestartRequired"), "Public 1.5.0 could not install the new DLL: " + Get<string>(installed, "Message"));
+                Assert(Get<bool>(installed, "RestartRequired"), "Public 1.5.1 could not install the new DLL: " + Get<string>(installed, "Message"));
                 Assert(Hash(upgradable.Target) == Hash(target), "The previous updater installed different public bytes.");
                 upgradeRoot = upgradable.Root; upgradeTarget = upgradable.Target; upgradeData = upgradable.Data; upgradeSettings = upgradable.Settings;
             }
@@ -90,7 +92,9 @@ public static class PublishedUpgradeCheck
             Assert(!File.Exists(Path.Combine(upgradeData, "pending-install.json")) && !File.Exists(Path.Combine(upgradeData, "downloaded.dll")), "Verified upgrade staging was not cleaned.");
             Assert(Hash(Path.Combine(upgradeData, "rollback", "WhoSceneIt.dll")) == patchedHash && File.ReadAllText(upgradeSettings) == "preserve configuration", "The public upgrade changed settings or rollback bytes.");
             Assert(File.ReadAllText(Path.Combine(upgradeData, "retention.json")) == retentionFixture, "The public upgrade changed never-delete/cleanup state.");
-            Console.WriteLine("PASS Published 1.5.0 to " + expected + ": actual memory-loaded entry points, real HTTPS feed/download, verified custom-target installation, backup, settings, never-delete/cleanup state, pending reload verification, and cleanup.");
+            var upgradedStore=Activator.CreateInstance(upgraded.Assembly.GetType("WhoSceneIt.Retention.RetentionStore"),Path.Combine(upgradeData,"retention.json"),json);
+            RetentionCompatibilityFixture.AssertState(json,Call(upgradedStore,"Read"));RetentionCompatibilityFixture.AssertFiles(upgradeData);
+            Console.WriteLine("PASS Published 1.5.1 to " + expected + ": actual memory-loaded entry points, real HTTPS feed/download, verified custom-target installation, rollback, configuration, all saved rule settings/schedules/triggers/enabled states, never-delete records and their backup, pending reload verification, and cleanup.");
             Console.WriteLine("Versions 1.0.0 and 1.1.0 need manual replacement once. No live Emby process was started or restarted.");
         }
         finally { try { Directory.Delete(root, true); } catch { } }

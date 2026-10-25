@@ -1,4 +1,4 @@
-<div data-role="page" class="page type-interior pluginConfigurationPage" data-controller="__plugin/whosceneit-1.5.1.js">
+<div data-role="page" class="page type-interior pluginConfigurationPage" data-controller="__plugin/whosceneit-1.5.2.js">
   <style>
     .wsi { max-width: 1400px; margin: 0 auto; padding: 1.2em 1em 3em; }
     .wsi * { box-sizing: border-box; }
@@ -113,12 +113,22 @@
           <p data-id="integrationStatus" role="status" aria-live="polite"></p>
         </details>
         <p data-id="cleanupPrompt" class="wsi-note" role="status" hidden></p>
+        <section class="wsi-panel" data-id="cleanupRuleList" aria-labelledby="wsi-cleanup-rules-title">
+          <h2 id="wsi-cleanup-rules-title">Saved cleanup rules</h2>
+          <p data-id="cleanupRuleSummary" role="status" aria-live="polite">Loading saved rules...</p>
+          <div class="wsi-tablewrap" data-id="cleanupRulesTable" hidden><table>
+            <thead><tr><th scope="col">Rule and status</th><th scope="col">Watch history and media</th><th scope="col">Eligibility</th><th scope="col">Schedule and triggers</th><th scope="col">Actions</th></tr></thead>
+            <tbody data-id="cleanupRuleRows"></tbody>
+          </table></div>
+          <div class="wsi-actions"><button type="button" data-id="addCleanupRule" disabled>Create rule</button><button type="button" data-id="refreshCleanupRules">Refresh rules</button></div>
+          <p class="wsi-note wsi-muted">Rules are saved on the server and retained across plugin updates and restarts. Schedule times use UTC; next and last evaluation dates use your browser time zone. Only a rule's owner can edit or evaluate it.</p>
+        </section>
         <details data-id="retentionSettings" class="wsi-panel">
           <summary>Never delete and automatic cleanup</summary>
           <p class="wsi-note">Never delete applies to manual, bulk, and automatic cleanup in this plugin. Protecting a show includes its current and future episodes. All watch states are shown by default, including unwatched titles. Use each title's protection button below, or select rows and choose Never delete selected. You do not need to allow unwatched deletion to protect unwatched media. Remove a show's protection here before changing an inherited episode protection.</p>
           <div class="wsi-fields"><label>Protected titles<select data-id="protectedList"><option value="">No protected titles</option></select></label></div>
           <button data-id="removeProtection" type="button" disabled>Remove selected protection</button>
-          <h3>Cleanup rules</h3>
+          <h3>Cleanup rule editor</h3>
           <p class="wsi-note">Rules use the chosen user's saved completion flag. A show is complete only when all currently available episodes are marked watched. Resume mode includes completed items with saved positions; unfinished viewing for any user stays protected. All native permissions, playback, path, and configured service checks remain in effect.</p>
           <div class="wsi-fields"><label>Saved rule<select data-id="cleanupRule"><option value="">New rule</option></select></label></div>
           <form data-id="cleanupForm">

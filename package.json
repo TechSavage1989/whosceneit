@@ -1,6 +1,6 @@
 {
   "name": "whosceneit-validation",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "private": true,
   "scripts": {
     "test:ui": "node tests/ui.smoke.cjs"

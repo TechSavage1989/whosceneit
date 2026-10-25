@@ -5,7 +5,7 @@ An administrator-only Emby Server plugin that answers two questions:
 - What movies and TV shows has this user watched?
 - Which users have watched this movie, TV show, or episode?
 
-Version 1.5.1 shows all watch states by default and lets unwatched movies, shows, and episodes be marked Never delete individually or in bulk, without enabling unwatched deletion. Persistent protection, cleanup rules, and optional empty Sonarr show removal remain available. Existing reports, manual deletion modes, synchronization, settings, and updater behavior remain available. See VALIDATION.md for test boundaries.
+Version 1.5.2 adds a visible saved-rule list and verifies that existing rules keep their settings, schedules, triggers, and enabled states through updates and restarts. All watch-state reports, Never delete protection, synchronization, and updater behavior remain available. See VALIDATION.md for test boundaries.
 
 ## Features
 
@@ -17,6 +17,7 @@ Version 1.5.1 shows all watch states by default and lets unwatched movies, shows
 - All watch states appear by default, including entirely unwatched movies, shows, and episodes. Search/filter controls, pagination, and CSV export include the matching progress details.
 - Individual and bulk watched-media deletion, with an exact-path preview, explicit confirmation, progress, cancellation, and Emby permission/playback checks.
 - Optional Sonarr/Radarr connection settings, read-only connection tests, path mapping, strict matching, unmonitoring, and separate synchronization results.
+- Visible saved-rule list with status, owner, watch-history user, eligibility, schedule, triggers, next/last evaluation, and owner actions.
 - Explicit, administrator-controlled plugin updates with SHA-256 and assembly validation, a rollback backup, and restart guards.
 
 ## Requirements
@@ -25,7 +26,7 @@ Emby Server 4.8 or newer is the intended target. The plugin is built against the
 
 ## Install
 
-If version 1.0.0 or 1.1.0 reports an empty "path" during installation, replace the DLL manually using the steps below. The already loaded old updater cannot apply its own path fix. Install the current 1.5.1 DLL directly; intermediate versions are unnecessary. Version 1.1.1 already contains the path fix and can use the normal updater. Keep the existing filename if you customized it.
+If version 1.0.0 or 1.1.0 reports an empty "path" during installation, replace the DLL manually using the steps below. The already loaded old updater cannot apply its own path fix. Install the current 1.5.2 DLL directly; intermediate versions are unnecessary. Version 1.1.1 already contains the path fix and can use the normal updater. Keep the existing filename if you customized it.
 
 1. Stop Emby Server.
 2. Find its Server Data Folder in the Emby dashboard. Open the plugins directory directly under that folder.
@@ -52,6 +53,14 @@ A show appears when its episode states match the filter. Fully watched shows req
 Use Never delete beside a report row, Never delete this title in By title, or Never delete selected for selected rows. Unwatched media is included by default; choose Unwatched (not started) to see only titles with no completion flag or saved progress. Select movies, shows, or scoped episodes individually or by page. Protection never requires the unfinished-deletion option. A protected show also protects its current and future episode files. Protection applies to every deletion mode in this plugin, including the unfinished/unwatched option, bulk deletion, and cleanup rules. It does not depend on who watched the media.
 
 Open Never delete and automatic cleanup to manage protected titles. An episode protected by its show cannot remove that inherited protection; remove the show's protection explicitly from the protected list first. Exact paths also preserve protection when a file is reindexed under another library ID. These marks are plugin state; Emby's own controls and other applications retain their own deletion behavior. Back up Emby's DataPath/WhoSceneIt/retention.json and retention.json.bak with the server configuration. Unreadable or unsavable protection state blocks plugin deletion.
+
+## Saved cleanup rules
+
+The Saved cleanup rules section is visible above the collapsed protection/editor panel. It lists every saved rule, including disabled rules and rules owned by other administrators. Each row shows its status and action, owner, watch-history user, media scope, completion criteria, waiting period, batch limit, schedule, event triggers, and next/last evaluation. Schedule times are UTC; evaluation dates use the browser time zone.
+
+Create rule opens the editor. Edit rule loads that exact saved rule; Evaluate now creates a fresh review prompt. Only the owner can edit/evaluate a rule. Refresh rules reads the current server state and does not save, remove, enable, or reset rules or overwrite unsaved editor input. If refresh fails, the last displayed rules stay visible with an error and actions remain blocked until a successful refresh.
+
+Updates replace the plugin DLL and leave retention.json and its atomic backup intact. Existing IDs, revisions, owners, criteria, schedules, triggers, and enabled/disabled states are retained; updates do not require rules to be recreated or reauthorized. Explicit edits to enabled automatic rules still require fresh checkbox authorization. A restart status now reflects saved rules instead of claiming cleanup is disabled. If state is damaged or incompatible, or the primary is missing while its backup exists, cleanup stops and retains the available files for review instead of creating empty defaults or activating an obsolete backup.
 
 ## Cleanup rules
 

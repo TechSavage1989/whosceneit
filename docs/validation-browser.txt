@@ -1,9 +1,10 @@
 npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
 
-> whosceneit-validation@1.5.1 test:ui
+> whosceneit-validation@1.5.2 test:ui
 > node tests/ui.smoke.cjs --real-timers
 
 PASS initial user report, paging, and safe title rendering
+PASS saved rules have a visible empty state and Create rule opens the editor without saving or enabling anything
 PASS all watch states are visible by default and an unwatched movie can be marked Never delete without enabling deletion
 PASS page selection protects an entirely unwatched show while watched-only deletion remains disabled and no deletion request is sent
 PASS synchronization settings keep stored keys masked, test unsaved connections read-only, save paths, and reload saved values
@@ -33,6 +34,8 @@ PASS never-delete controls protect shows and inherited episodes in every mode an
 PASS bulk protection is a separate persistent action and never submits media deletion
 PASS Sonarr empty-show removal is off by default and saves independently of API-key edits
 PASS cleanup rule editor supports completed/resume scope, UTC schedules, triggers, and fresh unattended-deletion authorization
+PASS every saved rule is clearly listed with status, ownership, user, criteria, schedule, triggers, and exact owner-only editor actions
+PASS refresh failures retain saved rules and unsaved editor input, block stale actions, and recover without resaving or resetting rules
 PASS on-demand cleanup creates a read-only prompt and retry requires a fresh checkbox review with frozen resume scope
 PASS rules can be disabled without new deletion consent and held attempts require explicit review authorization
 PASS protection lookup failure disables report actions and recovers only after a successful refresh
@@ -42,4 +45,4 @@ PASS mobile layout and no browser exceptions
 PASS outdated cached HTML gets a reload notice and the dashboard uses a versioned controller
 PASS real browser update-status polling timer
 PASS browser timers stop after leaving the plugin page
-RESULT 39 browser checks passed
+RESULT 42 browser checks passed

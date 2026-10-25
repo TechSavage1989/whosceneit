@@ -67,6 +67,7 @@ public static class PluginPathChecks
         await testAsync("Memory-load target discovery survives verified install, backup, new memory load, and cleanup", async () =>
         {
             using var fixture = new MemoryPluginFixture(root, File.ReadAllBytes(typeof(Plugin).Assembly.Location), json);
+            RetentionCompatibilityFixture.Write(fixture.Data);
             fixture.CreateEntryPoint(); fixture.Register();
             var version = AssemblyName.GetAssemblyName(candidate).Version.ToString(3);
             var manifest = new ReleaseManifest { SchemaVersion = 1, AppId = "WhoSceneIt", PluginId = UpdateIntegrity.PluginId, Repository = UpdateIntegrity.Repository,
@@ -84,6 +85,7 @@ public static class PluginPathChecks
             manager.Install(); assert(manager.Status().RestartRequired && resolutions == 1, "Installation did not use the runtime path provider.");
             assert(UpdateIntegrity.Hash(fixture.Target) == manifest.Asset.Sha256 && UpdateIntegrity.Hash(Path.Combine(fixture.Data, "rollback", "WhoSceneIt.dll")) == fixture.OriginalHash, "Installation or the single backup used the wrong path.");
             assert(File.ReadAllText(fixture.Settings) == "preserve configuration", "Installation changed settings.");
+            RetentionCompatibilityFixture.AssertFiles(fixture.Data);
             using var next = new MemoryPluginFixture(root, File.ReadAllBytes(candidate), json, fixture.Root);
             next.Register(); next.CreateEntryPoint();
             var status = next.Manager.GetType().GetMethod("Status").Invoke(next.Manager, null);
@@ -91,6 +93,8 @@ public static class PluginPathChecks
             assert((bool)status.GetType().GetProperty("AwaitingDashboardVerification").GetValue(status), "Staging was cleaned before dashboard health.");
             next.Manager.GetType().GetMethod("ConfirmDashboardHealthy").Invoke(next.Manager, null);
             assert(!File.Exists(Path.Combine(fixture.Data, "pending-install.json")) && !File.Exists(Path.Combine(fixture.Data, "downloaded.dll")), "Memory-load health acknowledgement did not clean staging.");
+            var store=Activator.CreateInstance(next.Assembly.GetType("WhoSceneIt.Retention.RetentionStore"),Path.Combine(fixture.Data,"retention.json"),json);
+            RetentionCompatibilityFixture.AssertState(json,store.GetType().GetMethod("Read").Invoke(store,null));RetentionCompatibilityFixture.AssertFiles(fixture.Data);
         });
     }
 }

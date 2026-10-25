@@ -13,6 +13,15 @@ Read this file and DEVELOPMENT_HANDOFF.md before editing. Then inspect the curre
 - Keep reports read-only. The user explicitly approved individual and bulk deletion of watched media and publication of the new build. Deletion must use Emby's native policy checks and library deletion API, an administrator-bound expiring preview, exact-path revalidation, explicit checkbox confirmation, and progress/error reporting. Never delete a TV show folder to implement watched-episode deletion. Never grant permissions or change watch state to make an item eligible. Every plugin endpoint must require Emby's native Admin role.
 - No server setup, Codex CLI automation, unattended workers, payment setup, or API-account setup. GitHub CI and an explicitly invoked release workflow are part of the requested build/release scope.
 
+## Version 1.5.2 rule list and preservation work
+
+- Prepared application 1.5.2; last published version is 1.5.1. The user requested clearly listed rules and that updates preserve existing rules. Ongoing source/release publication remains authorized. The user confirmed update detection works after the 1.5.1 feed check; no updater behavior change was needed.
+- Saved cleanup rules are visible outside the collapsed editor. List all rules, including disabled/other-owner entries. Only the owner may edit/evaluate. Show stored criteria, enabled state/action, user, schedule/triggers and next/last evaluation without saving or resetting anything. Refresh failures retain the prior list/input and block stale rule actions.
+- Keep retention schema 1 and all existing rule fields unchanged. DLL installation, rollback, reload and dashboard-health cleanup must preserve both retention.json and retention.json.bak. Do not recreate or disable existing automatic rules during an update. A missing primary with an existing backup must fail closed instead of creating empty rules or activating obsolete saved automation. Unsupported state must remain intact for review.
+- Startup status must count persisted rules, not claim cleanup is disabled when saved enabled rules exist. Preserve explicit edit authorization, native checks, holds, interrupted-run recovery, and schedule semantics.
+- Tests embed frozen tests/fixtures/retention-v1.5.1.json with every saved rule field, mixed owners/enabled states, protection/prompts/holds/history. Compare entire deserialized state across memory-loaded DLL upgrades. Verify a restored due review schedule still runs and an injected replacement failure retains rule files. The actual public 1.5.1 binary is pinned for post-publication validation.
+- Current unpublished next-patch fixture is 1.5.3. The historical 1.5.1 source's 1.5.2 fixture is not the real 1.5.2 release. Local validation passed 86 quick compiled checks and all 42 browser checks, including timers, with zero build warnings/errors. Hosted/public validation results are pending.
+
 ## Version 1.5.1 unwatched protection work
 
 - Published version 1.5.1. Local checks passed 84 quick compiled and 39 complete browser checks; exact-source hosted Windows/Linux each passed 85 compiled, with all 39 Linux browser checks. Publication, public assets/feed/source, and actual 1.5.0-to-1.5.1 updater checks passed. The user requested the ability to find and protect unwatched movies/shows/episodes. Ongoing public source and release publication remain authorized.
@@ -72,7 +81,7 @@ Use .NET SDK 8 or newer. The plugin must target netstandard2.0. Emby supplies it
     npm run test:ui -- --real-timers
     python scripts/package.py
 
-The C# test runner generates an unpublished next-patch DLL to exercise upgrades from the current version (1.5.2 for the 1.5.1 source). Never publish a test-artifacts fixture. Version 1.5.1 must be built from this source; never publish an upgrade-test fixture. The real timer test takes about five minutes. Browser tests use synthetic data and never connect to a user's Emby server. After publication, --published-upgrade reproduces the public 1.0.0 memory-loaded entry-point failure and one-time manual bootstrap, then exercises the actual public 1.5.0 memory-loaded updater installing the current release. It never starts Emby.
+The C# test runner generates an unpublished next-patch DLL to exercise upgrades from the current version (1.5.3 for the 1.5.2 source). Never publish a test-artifacts fixture. Version 1.5.2 must be built from this source; never publish an upgrade-test fixture. The real timer test takes about five minutes. Browser tests use synthetic data and never connect to a user's Emby server. After publication, --published-upgrade reproduces the public 1.0.0 memory-loaded entry-point failure and one-time manual bootstrap, then exercises the actual public 1.5.1 memory-loaded updater installing the current release, preserving complete saved-rule state and its backup. It never starts Emby.
 
 ## Updates and releases
 

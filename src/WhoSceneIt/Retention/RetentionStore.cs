@@ -29,12 +29,15 @@ namespace WhoSceneIt.Retention
             _file = file; _json = json;
             try
             {
+                // A backup proves state existed. Never replace a missing primary with empty rules.
+                // Restoring an older backup can enable obsolete automatic rules, so require review.
+                if (!File.Exists(file) && File.Exists(file + ".bak")) throw new InvalidDataException();
                 if (File.Exists(file) && new FileInfo(file).Length > 32 * 1024 * 1024) throw new InvalidDataException();
                 _state = File.Exists(file) ? json.DeserializeFromString<RetentionState>(File.ReadAllText(file)) : new RetentionState();
                 if (_state == null || _state.SchemaVersion != 1 || _state.Protected == null || _state.Policies == null || _state.Reviews == null || _state.Holds == null || _state.Runs == null) throw new InvalidDataException();
                 if (_state.Runs.Any(r => r.State == "Deleting" || r.Token != null)) Change(s => { foreach (var r in s.Runs) { if (r.State == "Deleting") { r.State = "Interrupted"; r.Message = "Emby restarted during cleanup. Stored targets remain on automation hold; no mutations will be replayed."; } r.Token = null; } });
             }
-            catch { _fault = "Cleanup/protection state could not be loaded. Restore retention.json from a known backup and restart Emby. Deletion is blocked."; }
+            catch { _fault = "Saved cleanup/protection state is missing, damaged, or incompatible. Existing files and backups were retained. Review and restore retention.json from a known backup, then restart Emby. Deletion is blocked; saved rules were not reset."; }
         }
         public static RetentionStore For(IApplicationPaths paths, IJsonSerializer json)
         {

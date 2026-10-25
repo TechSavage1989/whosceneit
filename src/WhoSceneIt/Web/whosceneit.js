@@ -2,14 +2,14 @@ define([], function () {
     'use strict';
     return function (view) {
         var find = function (name) { return view.querySelector('[data-id="' + name + '"]'); };
-        if (!find('integrationSettings') || !find('deletePhase') || !find('allowUnwatched') || !find('deleteScope') || !find('retentionSettings') || !find('watchStateHelp')) {
+        if (!find('integrationSettings') || !find('deletePhase') || !find('allowUnwatched') || !find('deleteScope') || !find('retentionSettings') || !find('watchStateHelp') || !find('cleanupRuleRows')) {
             var notice = document.createElement('p'); notice.textContent = 'Who Scene It was updated. Reload this page to load the current deletion and synchronization controls.'; view.prepend(notice); return;
         }
         var state = { mode: 'user', start: 0, total: 0, titleStart: 0, selected: null, series: null, token: 0, titleToken: 0, active: false, initialized: false, busy: false, exporting: false, reportHealthy: false };
         var pollTimer = null, filterTimer = null, deletionTimer = null;
         var selections = new Map(), selectionContext = '', currentRows = [];
         var integrationsLoaded = false, integrationBusy = false;
-        var retention = { settings:null, actor:null, flags:{}, editing:null, busy:false }, retentionTimer = null;
+        var retention = { settings:null, actor:null, users:[], flags:{}, editing:null, busy:false, running:false, failed:false }, retentionTimer = null;
         var deletion = { token: null, state: null, busy: false, submitting: false, ready: 0, request: 0, ids: [], userId: null, allowUnwatched: false };
         var pageSize = 100;
         function api(path, data, method) {
@@ -50,9 +50,12 @@ define([], function () {
         function cleanupControls() {
             var automatic = find('cleanupEnabled').checked && find('cleanupAction').value === 'Automatic';
             find('cleanupAuthorizeField').hidden = !automatic;
-            find('saveCleanup').disabled = !retention.settings || retention.busy || (automatic && !find('cleanupAuthorize').checked);
-            find('evaluateCleanup').disabled = !retention.editing || retention.busy;
-            find('removeCleanup').disabled = !retention.editing || retention.busy;
+            find('saveCleanup').disabled = !retention.settings || retention.busy || retention.failed || (automatic && !find('cleanupAuthorize').checked);
+            find('evaluateCleanup').disabled = !retention.editing || retention.busy || retention.failed || retention.running || deletion.busy;
+            find('removeCleanup').disabled = !retention.editing || retention.busy || retention.failed;
+            find('addCleanupRule').disabled = !retention.settings || retention.busy || retention.failed;
+            find('refreshCleanupRules').disabled = retention.busy;
+            view.querySelectorAll('[data-cleanup-rule-action]').forEach(function (button) { button.disabled = retention.busy || retention.failed || button.dataset.cleanupRuleAction === 'evaluate' && (retention.running || deletion.busy); });
             find('cleanupIntervalField').hidden = find('cleanupSchedule').value !== 'Interval';
             find('cleanupTimeField').hidden = ['Daily','Weekly'].indexOf(find('cleanupSchedule').value) < 0;
             find('cleanupWeekdayField').hidden = find('cleanupSchedule').value !== 'Weekly';
@@ -60,8 +63,46 @@ define([], function () {
             find('removeProtection').disabled = !find('protectedList').value || retention.busy;
             updateSelections();
         }
+        function ruleUser(id) {
+            var user = retention.users.find(function (u) { return u.Id === id; });
+            return user ? user.Name + (user.IsDisabled ? ' (disabled)' : '') : id === retention.actor ? 'Current administrator' : 'Unavailable user (' + id + ')';
+        }
+        function ruleSchedule(p) {
+            var schedule = p.Schedule === 'Interval' ? 'Every ' + p.IntervalHours + ' hour(s)' : p.Schedule === 'Daily' ? 'Daily at ' + p.TimeUtc + ' UTC' : p.Schedule === 'Weekly' ? ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][p.Weekday] + ' at ' + p.TimeUtc + ' UTC' : 'No scheduled runs';
+            var triggers = [];
+            [['OnPlaybackStopped','playback stops'],['OnWatchedChanged','watched state changes'],['OnStartup','Emby starts'],['OnDashboard','owner opens plugin']].forEach(function (pair) { if (p[pair[0]]) triggers.push(pair[1]); });
+            return schedule + (triggers.length ? '. Triggers: ' + triggers.join(', ') + '.' : '. No event triggers.');
+        }
+        function openRuleEditor(id) {
+            find('retentionSettings').open = true; editCleanup(id); find('cleanupName').focus();
+        }
+        function renderRuleList() {
+            var rules = retention.settings.Policies || [], enabled = rules.filter(function (p) { return p.Enabled; }).length;
+            text(find('cleanupRuleSummary'), rules.length ? rules.length + ' saved rule(s). ' + enabled + ' enabled; ' + (rules.length - enabled) + ' disabled.' : 'No cleanup rules are saved. Use Create rule to add one.');
+            find('cleanupRuleSummary').classList.remove('wsi-error');
+            find('cleanupRulesTable').hidden = !rules.length; find('cleanupRuleRows').replaceChildren();
+            rules.slice().sort(function (a,b) { return a.Name.localeCompare(b.Name); }).forEach(function (p) {
+                var row = document.createElement('tr'); row.dataset.cleanupRuleId = p.Id;
+                var name = cell(row, ''), strong = document.createElement('strong'); text(strong,p.Name); name.appendChild(strong);
+                var summary = document.createElement('small'); text(summary,(p.Enabled ? 'Enabled' : 'Disabled') + ' - ' + (p.Action === 'Automatic' ? 'Automatic deletion' : 'Review prompt')); name.appendChild(summary);
+                var owner = document.createElement('small'); text(owner,'Owner: ' + ruleUser(p.OwnerId)); name.appendChild(owner);
+                var scopes = {Both:'Movies and individual episodes',Movies:'Movies only',Episodes:'Individual episodes',CompletedShows:'Episodes of fully watched shows'};
+                var modes = {Watched:'Fully watched, without resume',Resume:'Fully watched with resume only',Both:'Fully watched, with or without resume'};
+                cell(row,ruleUser(p.UserId),scopes[p.Scope] || p.Scope);
+                cell(row,p.MinimumDays + ' day(s) since last played', (modes[p.WatchMode] || p.WatchMode) + '. Up to ' + p.MaximumItems + ' item(s) per run.');
+                var timing = cell(row,ruleSchedule(p)), next = document.createElement('small'); text(next,p.Enabled ? 'Next scheduled: ' + dateLabel(p.NextRunUtc) : 'Schedule and triggers are disabled.'); timing.appendChild(next);
+                var last = document.createElement('small'); text(last,'Last evaluated: ' + dateLabel(p.LastEvaluatedUtc)); timing.appendChild(last);
+                var actions = cell(row,'');
+                if (p.OwnerId === retention.actor) {
+                    var edit = document.createElement('button'); edit.type = 'button'; edit.dataset.cleanupRuleAction = 'edit'; text(edit,'Edit rule'); edit.setAttribute('aria-label','Edit rule ' + p.Name); edit.addEventListener('click',function () { if (!edit.disabled) openRuleEditor(p.Id); }); actions.appendChild(edit);
+                    var evaluate = document.createElement('button'); evaluate.type = 'button'; evaluate.dataset.cleanupRuleAction = 'evaluate'; text(evaluate,'Evaluate now'); evaluate.setAttribute('aria-label','Evaluate rule ' + p.Name); evaluate.addEventListener('click',function () { if (!evaluate.disabled) retentionAction('Evaluate',{Id:p.Id}); }); actions.appendChild(evaluate);
+                } else text(actions,'Sign in as the owner to edit or evaluate.');
+                find('cleanupRuleRows').appendChild(row);
+            });
+        }
         function editCleanup(id) {
             var p = retention.settings && retention.settings.Policies.find(function (p) { return p.Id === id; });
+            if (p && p.OwnerId !== retention.actor) return;
             retention.editing = p ? p.Id : null;
             find('cleanupRule').value = p ? p.Id : '';
             var defaults = { Name:'Watched media cleanup', UserId:find('userSelect').value, Scope:'Both', WatchMode:'Watched', MinimumDays:7, MaximumItems:100, Action:'Review', Schedule:'Off', IntervalHours:24, TimeUtc:'03:00', Weekday:0 };
@@ -73,8 +114,10 @@ define([], function () {
         }
         function renderRetention(result) {
             retention.settings = result.Settings;
+            retention.running = !!result.Busy; retention.failed = false;
             if (result.ActorId) retention.actor = result.ActorId;
             if (!retention.settings) throw new Error('Cleanup settings were not returned.');
+            renderRuleList();
             var selected = retention.editing || '', protection = find('protectedList').value;
             find('cleanupRule').replaceChildren(); var option = document.createElement('option'); option.value = ''; text(option, 'New rule'); find('cleanupRule').appendChild(option);
             (retention.settings.Policies || []).filter(function (p) { return p.OwnerId === retention.actor; }).forEach(function (p) { var o = document.createElement('option'); o.value = p.Id; text(o, p.Name + (p.Enabled ? ' (enabled)' : ' (disabled)')); find('cleanupRule').appendChild(o); });
@@ -100,7 +143,7 @@ define([], function () {
         function loadRetention() {
             if (!state.active) return Promise.resolve();
             clearTimeout(retentionTimer);
-            return api('Retention').then(function (result) { if (state.active) renderRetention(result); }).catch(function (error) { text(find('cleanupStatus'), errorText(error)); }).then(function () { if (state.active) retentionTimer = setTimeout(loadRetention,15000); });
+            return api('Retention').then(function (result) { if (state.active) renderRetention(result); }).catch(function (error) { if (!state.active) return; retention.failed = true; var message = 'Saved rules could not be refreshed. ' + errorText(error) + ' Previously displayed rules are retained; no rules were reset.'; text(find('cleanupStatus'),message); text(find('cleanupRuleSummary'),message); find('cleanupRuleSummary').classList.add('wsi-error'); cleanupControls(); }).then(function () { if (state.active) retentionTimer = setTimeout(loadRetention,15000); });
         }
         function retentionAction(path, data) {
             if (retention.busy) return Promise.resolve(); retention.busy = true; cleanupControls();
@@ -545,6 +588,8 @@ define([], function () {
             find('evaluateCleanup').addEventListener('click', function () { retentionAction('Evaluate',{Id:retention.editing}); });
             find('removeCleanup').addEventListener('click', function () { retentionAction('Policy/Remove',{Id:retention.editing}).then(function () { editCleanup(null); }); });
             find('reloadCleanup').addEventListener('click', loadRetention);
+            find('refreshCleanupRules').addEventListener('click', loadRetention);
+            find('addCleanupRule').addEventListener('click', function () { if (!find('addCleanupRule').disabled) openRuleEditor(null); });
             find('cleanupHoldList').addEventListener('change', function () { find('cleanupHoldAuthorize').checked = false; cleanupControls(); });
             find('cleanupHoldAuthorize').addEventListener('change', cleanupControls);
             find('clearCleanupHold').addEventListener('click', function () { if (find('clearCleanupHold').disabled) return; var value = find('cleanupHoldList').value.split('/'); retentionAction('Hold/Clear',{RunId:value[0],ItemId:value[1],Confirmed:find('cleanupHoldAuthorize').checked}); find('cleanupHoldAuthorize').checked = false; });
@@ -564,6 +609,7 @@ define([], function () {
             find('installUpdate').addEventListener('click', function () { updateAction('Install'); });
             find('restartServer').addEventListener('click', function () { updateAction('Restart'); });
             api('Users').then(function (users) {
+                retention.users = users;
                 find('reportApp').hidden = false; find('adminError').hidden = true;
                 loadIntegrations();
                 users.forEach(function (user) { var option = document.createElement('option'); option.value = user.Id; text(option,user.Name + (user.IsDisabled ? ' (disabled)' : '')); find('userSelect').appendChild(option); find('cleanupUser').appendChild(option.cloneNode(true)); });

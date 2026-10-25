@@ -130,8 +130,9 @@ try
         var dir=Path.Combine(root,"failure");Directory.CreateDirectory(dir);
         var target=Path.Combine(dir,"WhoSceneIt.dll");File.Copy(typeof(Plugin).Assembly.Location,target);
         var before=UpdateIntegrity.Hash(target);
+        RetentionCompatibilityFixture.Write(dir);
         try { UpdateInstaller.Install(candidate,target,Path.Combine(dir,"backup"),Manifest(),(staged,destination)=>{File.Delete(destination);throw new IOException("Injected replacement failure");}); }
-        catch(IOException) { Assert(UpdateIntegrity.Hash(target)==before,"Rollback did not restore the original DLL.");return; }
+        catch(IOException) { Assert(UpdateIntegrity.Hash(target)==before,"Rollback did not restore the original DLL.");RetentionCompatibilityFixture.AssertFiles(dir);return; }
         throw new Exception("The injected failure was not reached.");
     });
 

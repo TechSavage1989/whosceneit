@@ -16,7 +16,7 @@ namespace WhoSceneIt.Retention
         private readonly object _sync = new object();
         private readonly Dictionary<string, Signal> _signals = new Dictionary<string, Signal>();
         private int _busy;
-        private string _message = "Cleanup is disabled until an administrator saves an enabled rule.";
+        private string _message;
         private sealed class Signal { public DateTimeOffset Due; public bool Full; public HashSet<string> Items = new HashSet<string>(); public string Trigger; }
         public CleanupCoordinator(RetentionStore store, ICleanupCatalog catalog, DeletionManager deletion, Func<DateTimeOffset> now = null)
         { _store = store; _catalog = catalog; _deletion = deletion; _now = now ?? (() => DateTimeOffset.UtcNow); }
@@ -28,7 +28,11 @@ namespace WhoSceneIt.Retention
                 try { var live = _deletion.Status(run.OwnerId, run.Token); run.State = live.State; run.Message = live.Message; run.Total = live.Total; run.Deleted = live.Deleted; run.Failed = live.Failed; run.Skipped = live.Skipped; run.SyncFailed = live.SyncFailed; }
                 catch (ArgumentException) { run.State = "Needs review"; run.Token = null; run.Message = "The in-memory operation is unavailable. Stored automation holds remain in place."; }
             }
-            return new CleanupStatus { Settings = state, Busy = Volatile.Read(ref _busy) != 0 || _deletion.IsRunning, Message = _message };
+            var enabled = state.Policies.Count(p => p.Enabled);
+            var message = _message ?? (state.Policies.Length == 0 ? "No cleanup rules are saved. Create a rule to configure cleanup." :
+                state.Policies.Length + " saved cleanup rule(s). " + enabled + " enabled; " + (state.Policies.Length - enabled) + " disabled. " +
+                (enabled > 0 ? "Configured schedules and triggers remain active." : "No rules are enabled. Evaluate now still prepares a review."));
+            return new CleanupStatus { Settings = state, Busy = Volatile.Read(ref _busy) != 0 || _deletion.IsRunning, Message = message };
         }
         public CleanupPolicy Save(string actor, CleanupPolicy policy, bool confirmed)
         {
