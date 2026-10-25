@@ -3,19 +3,19 @@
   "AppId": "WhoSceneIt",
   "PluginId": "b6405a2e-52e6-4218-a014-00a46a65f1f8",
   "Repository": "TechSavage1989/whosceneit",
-  "Version": "1.3.0",
+  "Version": "1.4.0",
   "MinimumEmbyVersion": "4.8.0.0",
-  "ReleaseUrl": "https://github.com/TechSavage1989/whosceneit/releases/tag/v1.3.0",
+  "ReleaseUrl": "https://github.com/TechSavage1989/whosceneit/releases/tag/v1.4.0",
   "Notes": [
-    "Fixes deletion compatibility with newer Emby visibility APIs.",
-    "Optional Sonarr and Radarr synchronization with exact file matching.",
-    "Separate media and service results, masked settings, and read-only connection tests."
+    "Optional deletion of partially watched and unwatched media.",
+    "Checkbox confirmation replaces typing DELETE.",
+    "Frozen preview scope, native protections, and Sonarr/Radarr results retained."
   ],
   "HasMoreNotes": true,
   "Asset": {
     "FileName": "WhoSceneIt.dll",
-    "DownloadUrl": "https://github.com/TechSavage1989/whosceneit/releases/download/v1.3.0/WhoSceneIt.dll",
-    "Sha256": "2383314165e2ae609d9ff3a2ffe48482141bc16edf1e88246de015fbf387aaa0",
-    "SizeBytes": 196608
+    "DownloadUrl": "https://github.com/TechSavage1989/whosceneit/releases/download/v1.4.0/WhoSceneIt.dll",
+    "Sha256": "00591d2c6d3b5dda621e0e2049d3405b6465c8316a58fb6d652c93db079ca2a1",
+    "SizeBytes": 199680
   }
 }
