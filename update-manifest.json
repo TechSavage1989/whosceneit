@@ -3,19 +3,19 @@
   "AppId": "WhoSceneIt",
   "PluginId": "b6405a2e-52e6-4218-a014-00a46a65f1f8",
   "Repository": "TechSavage1989/whosceneit",
-  "Version": "1.0.0",
+  "Version": "1.1.0",
   "MinimumEmbyVersion": "4.8.0.0",
-  "ReleaseUrl": "https://github.com/TechSavage1989/whosceneit/releases/tag/v1.0.0",
+  "ReleaseUrl": "https://github.com/TechSavage1989/whosceneit/releases/tag/v1.1.0",
   "Notes": [
-    "Watched movies and TV shows by user.",
-    "Viewer reports by movie, show, or episode.",
-    "CSV exports and verified, administrator-controlled plugin updates."
+    "Delete watched movies and episodes individually or in bulk.",
+    "Review exact paths and confirm before deleting shared media.",
+    "TV shows expand to watched episodes, with Emby permission and playback checks."
   ],
   "HasMoreNotes": true,
   "Asset": {
     "FileName": "WhoSceneIt.dll",
-    "DownloadUrl": "https://github.com/TechSavage1989/whosceneit/releases/download/v1.0.0/WhoSceneIt.dll",
-    "Sha256": "e2f2e93ee1aa4e3d656bf373cbdc8b5e5fb7bdbca9a6f30dff9f4eb6995ed024",
-    "SizeBytes": 89088
+    "DownloadUrl": "https://github.com/TechSavage1989/whosceneit/releases/download/v1.1.0/WhoSceneIt.dll",
+    "Sha256": "2db640f20e5aca376a1d955a7ef8a8466bd60cddafeb7ca90b981f20fd9a55b6",
+    "SizeBytes": 126976
   }
 }
