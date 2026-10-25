@@ -15,7 +15,8 @@ namespace WhoSceneIt.Updates
         private readonly UpdateManager _manager;
         public UpdateEntryPoint(IApplicationPaths paths, IJsonSerializer json, IApplicationHost host, ILibraryManager library, ISessionManager sessions, ITaskManager tasks)
         {
-            _manager = new UpdateManager(Path.Combine(paths.DataPath, "WhoSceneIt"), typeof(Plugin).Assembly.Location, json, host, library, sessions, tasks: tasks);
+            _manager = new UpdateManager(Path.Combine(paths.DataPath, "WhoSceneIt"), null, json, host, library, sessions, null, tasks,
+                () => PluginPathResolver.Resolve(paths, host, typeof(Plugin).Assembly));
             UpdateManager.Instance = _manager;
         }
         public void Run() => _manager.Start();

@@ -6,7 +6,7 @@ Read this file and DEVELOPMENT_HANDOFF.md before editing. Then inspect the curre
 
 - Repository: https://github.com/TechSavage1989/whosceneit
 - The repository was public with only an initial README at commit c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5 when work began.
-- Latest maintained/published application: 1.1.0 preview, tag v1.1.0 at 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd. Hosted Windows/Linux CI passed 29 compiled checks each; Linux passed 15 browser checks. All six public assets/feed and the old 1.0.0 updater file transaction are verified with SDK host fixtures.
+- Latest maintained/published application: 1.1.0 preview, tag v1.1.0 at 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd. Hosted Windows/Linux CI passed 29 compiled checks each; Linux passed 15 browser checks. All six public assets/feed and an explicit-target file transaction were verified. The user subsequently reported the actual updater entry point fails with an empty installation path; 1.1.1 repairs this and needs a one-time manual bootstrap on affected old installations.
 - User-confirmed working baseline: 1.0.0, tag v1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. The user confirmed it works on October 25, 2026. Version 1.1.0 adds the explicitly requested media deletion feature.
 - Public source publication and release publication require the user's explicit approval. A repository URL alone does not override that instruction. Do not change visibility, create credentials, or embed tokens.
 - Preserve the stable assembly name and installed filename WhoSceneIt.dll and plugin ID b6405a2e-52e6-4218-a014-00a46a65f1f8 across versions. Use the assembly's actual installed location for updates so custom filenames survive.
@@ -24,10 +24,11 @@ Use .NET SDK 8 or newer. The plugin must target netstandard2.0. Emby supplies it
     npm run test:ui -- --real-timers
     python scripts/package.py
 
-The C# test runner generates an unpublished next-patch DLL to exercise upgrades from the current version (1.1.1 for the 1.1.0 source). Never publish that fixture. The real timer test takes about five minutes. Browser tests use synthetic data and never connect to a user's Emby server. After publication, the explicit --published-upgrade test mode exercises the actual published 1.0.0 updater against the current public feed using SDK host fixtures; it never starts Emby.
+The C# test runner generates an unpublished next-patch DLL to exercise upgrades from the current version (1.1.2 for the 1.1.1 source). Never publish a test-artifacts fixture. Version 1.1.1 must be built from the actual patched source, not the old 1.1.0 source's same-numbered fixture. The real timer test takes about five minutes. Browser tests use synthetic data and never connect to a user's Emby server. After publication, --published-upgrade reproduces the public 1.0.0 memory-loaded entry-point failure, then checks the one-time manual bootstrap into the published patch. It never starts Emby.
 
 ## Updates and releases
 
+- User-reported 1.0.0-to-1.1.0 installation failed because the entry point used an empty Assembly.Location. Emby may load DLL bytes into memory. The previous explicit-target fixture missed this. Keep the patched lazy target provider and PluginPathResolver: prefer matching native IPlugin.AssemblyFilePath, then a unique matching DLL in PluginsPath, and reject wrong/duplicate/shadow-cache targets. Affected old installations need a manual DLL replacement once; do not claim a feed change repairs already loaded old code.
 - Feed: https://raw.githubusercontent.com/TechSavage1989/whosceneit/main/update-manifest.json
 - Use three-part release versions, four-part matching assembly/file versions, and immutable vMAJOR.MINOR.PATCH tags. Never replace assets under a published version.
 - The server-owned timer checks on startup and every five minutes. Browser focus checks require two minutes since the last attempt; manual checks have a 30-second cooldown. Preserve single-flight, ETags, cached results, backoff, and Retry-After behavior.

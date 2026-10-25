@@ -1,80 +1,68 @@
 using System.Reflection;
-using System.Runtime.Loader;
 using System.Security.Cryptography;
-using MediaBrowser.Common;
-using MediaBrowser.Controller.Library;
-using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Serialization;
 using WhoSceneIt;
+using WhoSceneIt.Updates;
 
-// Explicit post-publication check only. Never starts Emby or contacts services
-// other than the approved GitHub repository and its asset CDN.
+// Explicit post-publication check. Uses real GitHub transport and real plugin
+// entry points loaded from bytes, without starting an Emby server.
 public static class PublishedUpgradeCheck
 {
     public static async Task Run(IJsonSerializer json)
     {
         const string previousHash = "e2f2e93ee1aa4e3d656bf373cbdc8b5e5fb7bdbca9a6f30dff9f4eb6995ed024";
         var expected = typeof(Plugin).Assembly.GetName().Version.ToString(3);
-        var root = Path.Combine(Path.GetTempPath(), "WhoSceneIt-published-upgrade-" + Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(Path.GetTempPath(), "WhoSceneIt-published-bootstrap-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         void Assert(bool condition, string message) { if (!condition) throw new Exception(message); }
         string Hash(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
         object Call(object value, string name, params object[] arguments) => value.GetType().GetMethod(name).Invoke(value, arguments);
         object Status(object manager) => Call(manager, "Status");
         T Get<T>(object value, string property) => (T)value.GetType().GetProperty(property).GetValue(value);
-        using var previousContext = new IsolatedPlugin();
-        using var nextContext = new IsolatedPlugin();
-        object previousManager = null, nextManager = null;
         try
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("WhoSceneIt-Published-Upgrade-Check");
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("WhoSceneIt-Published-MemoryLoad-Check");
             var previous = await http.GetByteArrayAsync("https://github.com/TechSavage1989/whosceneit/releases/download/v1.0.0/WhoSceneIt.dll");
-            Assert(previous.Length < 16 * 1024 * 1024 && Convert.ToHexString(SHA256.HashData(previous)).ToLowerInvariant() == previousHash, "The published previous DLL failed its pinned digest.");
-            var target = Path.Combine(root, "CustomWhoSceneIt.dll"); File.WriteAllBytes(target, previous);
-            var configuration = Path.Combine(root, "configuration.xml"); File.WriteAllText(configuration, "preserve existing configuration");
-            var data = Path.Combine(root, "data"); Directory.CreateDirectory(data);
-            var host = Proxy.Create<IApplicationHost>((m, a) => m.Name switch { "get_IsStartupComplete" => true, "get_ApplicationVersion" => new Version(4, 8, 11, 0), _ => null });
-            var library = Proxy.Create<ILibraryManager>((m, a) => null);
-            var sessions = Proxy.Create<ISessionManager>((m, a) => m.Name == "get_Sessions" ? Array.Empty<SessionInfo>() : null);
-            object Manager(Assembly assembly) => Activator.CreateInstance(assembly.GetType("WhoSceneIt.Updates.UpdateManager"), data, target, json, host, library, sessions, null, null);
-            var oldAssembly = previousContext.LoadPlugin(previous);
-            previousManager = Manager(oldAssembly);
-            Assert(Get<string>(Status(previousManager), "InstalledVersion") == "1.0.0", "The previous updater did not load its original version.");
-            await (Task)Call(previousManager, "CheckAsync", "manual");
-            var checkedStatus = Status(previousManager);
-            Assert(Get<bool>(checkedStatus, "UpdateAvailable") && Get<string>(checkedStatus, "LatestVersion") == expected, "The published feed did not offer the expected release: " + Get<string>(checkedStatus, "Message"));
-            Call(previousManager, "BeginDownload");
-            var timeout = DateTimeOffset.UtcNow.AddSeconds(90);
-            while (Get<bool>(Status(previousManager), "Busy") && DateTimeOffset.UtcNow < timeout) await Task.Delay(200);
-            Assert(Get<bool>(Status(previousManager), "Downloaded"), "Real asset download did not verify: " + Get<string>(Status(previousManager), "Message"));
-            var result = Call(previousManager, "Install");
-            Assert(Get<bool>(result, "RestartRequired"), "The previous updater did not stage/install the new release: " + Get<string>(result, "Message"));
-            Assert(Hash(Path.Combine(data, "rollback", "WhoSceneIt.dll")) == previousHash, "Rollback did not retain the previous published DLL.");
-            Assert(File.Exists(Path.Combine(data, "pending-install.json")) && File.Exists(Path.Combine(data, "downloaded.dll")), "Installation lost its pending health-verification files.");
-            ((IDisposable)previousManager).Dispose(); previousManager = null;
-            var newAssembly = nextContext.LoadPlugin(File.ReadAllBytes(target));
-            Assert(newAssembly.GetName().Version.ToString(3) == expected, "The installed public DLL has the wrong version.");
-            nextManager = Manager(newAssembly);
-            Assert(Get<bool>(nextManager, "StartupVerified") && Get<bool>(Status(nextManager), "AwaitingDashboardVerification"), "The new assembly did not verify its pending install.");
-            Call(nextManager, "ConfirmDashboardHealthy");
-            Assert(!File.Exists(Path.Combine(data, "pending-install.json")) && !File.Exists(Path.Combine(data, "downloaded.dll")), "Confirmed reload did not clean owned staging files.");
-            Assert(File.ReadAllText(configuration) == "preserve existing configuration" && Directory.GetFiles(Path.Combine(data, "rollback")).Length == 1, "Configuration or rollback retention changed.");
-            Console.WriteLine("PASS Published 1.0.0 to " + expected + ": real HTTPS feed/download, digest, staging, installation, custom filename, backup, settings, isolated assembly reload, and cleanup.");
+            Assert(Convert.ToHexString(SHA256.HashData(previous)).ToLowerInvariant() == previousHash, "The previous published DLL failed its pinned digest.");
+            string target, data, settings, installationRoot;
+            byte[] published;
+            using (var broken = new MemoryPluginFixture(root, previous, json))
+            {
+                broken.Register(); broken.CreateEntryPoint();
+                Assert(broken.Assembly.Location == "", "The old plugin was not loaded from bytes.");
+                var manager = broken.Manager;
+                await (Task)Call(manager, "CheckAsync", "manual");
+                Assert(Get<bool>(Status(manager), "UpdateAvailable") && Get<string>(Status(manager), "LatestVersion") == expected,
+                    "The public feed did not offer the expected patch: " + Get<string>(Status(manager), "Message"));
+                Call(manager, "BeginDownload");
+                var timeout = DateTimeOffset.UtcNow.AddSeconds(90);
+                while (Get<bool>(Status(manager), "Busy") && DateTimeOffset.UtcNow < timeout) await Task.Delay(200);
+                Assert(Get<bool>(Status(manager), "Downloaded"), "The real public patch download failed: " + Get<string>(Status(manager), "Message"));
+                var stopped = Call(manager, "Install");
+                Assert(!Get<bool>(stopped, "RestartRequired") && Get<string>(stopped, "Message").Contains("path", StringComparison.OrdinalIgnoreCase), "The old entry point did not reproduce the reported install failure.");
+                Assert(Hash(broken.Target) == previousHash, "The failed old install changed the target.");
+                Console.WriteLine("PASS Negative control: public 1.0.0 loaded from bytes reproduces the empty-path installation failure after a verified real download.");
+                published = File.ReadAllBytes(Path.Combine(broken.Data, "downloaded.dll"));
+                Assert(AssemblyName.GetAssemblyName(Path.Combine(broken.Data, "downloaded.dll")).Version.ToString(3) == expected, "The downloaded patch has the wrong version.");
+                target = broken.Target; data = broken.Data; settings = broken.Settings; installationRoot = broken.Root;
+            }
+            // Simulates the documented one-time manual replacement with Emby stopped.
+            // The broken old plugin cannot execute the new path resolver itself.
+            Directory.CreateDirectory(Path.Combine(data, "rollback"));
+            File.Copy(target, Path.Combine(data, "rollback", "WhoSceneIt.dll"), true);
+            File.WriteAllBytes(target, published);
+            using var fixedPlugin = new MemoryPluginFixture(root, published, json, installationRoot);
+            fixedPlugin.Register(); fixedPlugin.CreateEntryPoint();
+            Assert(fixedPlugin.Resolve() == target, "The public patch entry point did not resolve its registered custom filename.");
+            Assert(Get<bool>(fixedPlugin.Manager, "StartupVerified"), "The new memory-loaded entry point did not start.");
+            Call(fixedPlugin.Manager, "ConfirmDashboardHealthy");
+            Assert(!File.Exists(Path.Combine(data, "downloaded.dll")) && !File.Exists(Path.Combine(data, "pending-install.json")), "Bootstrap health acknowledgement left owned staging files.");
+            Assert(File.ReadAllText(settings) == "preserve configuration" && Hash(Path.Combine(data, "rollback", "WhoSceneIt.dll")) == previousHash, "Bootstrap changed settings or the single backup.");
+            Console.WriteLine("PASS Public " + expected + " manual bootstrap: actual memory-loaded entry point resolves the installed DLL, preserves settings/custom filename/backup, and cleans staging.");
             Console.WriteLine("Installed SHA-256: " + Hash(target));
-            Console.WriteLine("This check uses SDK host fixtures; it does not start or restart a live Emby server.");
+            Console.WriteLine("Older installed versions need the manual replacement once. No live Emby process was started or restarted.");
         }
-        finally
-        {
-            (previousManager as IDisposable)?.Dispose(); (nextManager as IDisposable)?.Dispose();
-            try { Directory.Delete(root, true); } catch { }
-        }
-    }
-    private sealed class IsolatedPlugin : AssemblyLoadContext, IDisposable
-    {
-        public IsolatedPlugin() : base(isCollectible: true) { }
-        public Assembly LoadPlugin(byte[] data) { using var stream = new MemoryStream(data); return LoadFromStream(stream); }
-        protected override Assembly Load(AssemblyName name) => name.Name == "WhoSceneIt" ? null : Default.Assemblies.FirstOrDefault(assembly => assembly.GetName().Name == name.Name);
-        public void Dispose() => Unload();
+        finally { try { Directory.Delete(root, true); } catch { } }
     }
 }

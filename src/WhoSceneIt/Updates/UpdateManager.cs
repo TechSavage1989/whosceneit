@@ -31,6 +31,7 @@ namespace WhoSceneIt.Updates
         private readonly ITaskManager _tasks;
         private readonly string _root;
         private readonly string _target;
+        private readonly Func<string> _targetProvider;
         private readonly Version _installed;
         private Timer _timer;
         private UpdateCache _cache;
@@ -45,8 +46,11 @@ namespace WhoSceneIt.Updates
         public bool StartupVerified { get; private set; }
 
         public UpdateManager(string root, string target, IJsonSerializer json, IApplicationHost host, ILibraryManager library, ISessionManager sessions, HttpMessageHandler handler = null, ITaskManager tasks = null)
+            : this(root, target, json, host, library, sessions, handler, tasks, null) { }
+
+        public UpdateManager(string root, string target, IJsonSerializer json, IApplicationHost host, ILibraryManager library, ISessionManager sessions, HttpMessageHandler handler, ITaskManager tasks, Func<string> targetProvider)
         {
-            _root = root; _target = target; _json = json; _host = host; _library = library; _sessions = sessions; _tasks = tasks;
+            _root = root; _target = target; _targetProvider = targetProvider; _json = json; _host = host; _library = library; _sessions = sessions; _tasks = tasks;
             _installed = typeof(Plugin).Assembly.GetName().Version;
             Directory.CreateDirectory(root);
             _cache = Read<UpdateCache>("update-cache.json") ?? new UpdateCache();
@@ -69,6 +73,13 @@ namespace WhoSceneIt.Updates
         }
 
         private string PathFor(string name) => Path.Combine(_root, name);
+        private string GetInstalledTarget()
+        {
+            var target = _targetProvider == null ? _target : _targetProvider();
+            if (string.IsNullOrWhiteSpace(target) || !Path.IsPathRooted(target))
+                throw new InvalidOperationException("The installed Who Scene It DLL path is unavailable. Stop Emby Server and replace the existing plugin DLL manually. No installed files were changed.");
+            return Path.GetFullPath(target);
+        }
         private T Read<T>(string file) where T : class
         {
             try { return File.Exists(PathFor(file)) ? _json.DeserializeFromFile<T>(PathFor(file)) : null; }
@@ -235,9 +246,10 @@ namespace WhoSceneIt.Updates
                 _installing = true; _busy = true; _message = "Installing verified update...";
                 var release = _cache.Manifest;
                 UpdateIntegrity.ValidateManifest(release, _host.ApplicationVersion);
-                var transaction = new InstallTransaction { Version = release.Version, Sha256 = release.Asset.Sha256, SizeBytes = release.Asset.SizeBytes, PreviousVersion = _installed.ToString(3), PreviousSha256 = UpdateIntegrity.Hash(_target) };
+                var target = GetInstalledTarget();
+                var transaction = new InstallTransaction { Version = release.Version, Sha256 = release.Asset.Sha256, SizeBytes = release.Asset.SizeBytes, PreviousVersion = _installed.ToString(3), PreviousSha256 = UpdateIntegrity.Hash(target) };
                 Save("pending-install.json", transaction);
-                try { UpdateInstaller.Install(PathFor("downloaded.dll"), _target, PathFor("rollback"), release); }
+                try { UpdateInstaller.Install(PathFor("downloaded.dll"), target, PathFor("rollback"), release); }
                 catch { File.Delete(PathFor("pending-install.json")); throw; }
                 _host.NotifyPendingRestart(); _restartRequired = true; _downloaded = false;
                 _message = _host.CanSelfRestart ? "Update installed. Restarting Emby Server..." : "Update installed. Restart Emby Server using its normal controls.";
@@ -277,7 +289,7 @@ namespace WhoSceneIt.Updates
                 try
                 {
                     if (UpdateIntegrity.ParseVersion(pending.Version) != _installed) throw new InvalidDataException("The expected plugin version did not load.");
-                    UpdateIntegrity.ValidateBinary(_target, pending.Version, pending.Sha256, pending.SizeBytes);
+                    UpdateIntegrity.ValidateBinary(GetInstalledTarget(), pending.Version, pending.Sha256, pending.SizeBytes);
                     StartupVerified = true;
                     _message = "Who Scene It " + _installed.ToString(3) + " loaded. Waiting for the administrator dashboard to respond before cleanup.";
                 }

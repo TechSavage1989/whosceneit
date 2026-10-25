@@ -1,21 +1,21 @@
   Determining projects to restore...
-  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 255 ms).
+  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 207 ms).
   WhoSceneIt -> <source>/test-artifacts/upgrade-fixture/WhoSceneIt.dll
 
 Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:01.86
+Time Elapsed 00:00:01.63
   Determining projects to restore...
-  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 205 ms).
+  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 221 ms).
   WhoSceneIt -> <source>/src/WhoSceneIt/bin/Release/netstandard2.0/WhoSceneIt.dll
 
 Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:01.72
+Time Elapsed 00:00:01.62
 PASS Manual watch flags are retained without inventing play counts or dates
 PASS Play counts and dates alone never imply completed viewing
 PASS Shows with identical names remain separate and repeated records do not inflate counts
@@ -31,6 +31,11 @@ PASS Startup, real concurrent checks, and manual cooldown share one request
 PASS Offline status is an error, and Retry-After blocks repeated manual checks
 PASS Complete update download, digest, staging, playback/scan guards, install, backup, and manual restart state
 PASS A bad downloaded digest never becomes installable
+PASS Memory-loaded Emby entry point reproduces the old empty path and resolves registered custom filenames
+PASS Memory-load fallback finds one matching plugin DLL and rejects duplicate installations
+PASS Path discovery rejects wrong applications, versions, missing targets, and shadow-cache paths
+PASS Emby may register plugin attributes after entry-point construction
+PASS Memory-load target discovery survives verified install, backup, new memory load, and cleanup
 PASS Deletion previews are non-destructive and identify blocked media
 PASS Deletion rejects invalid selections, wrong administrators, and missing confirmation
 PASS Confirmed single and bulk deletions use real files and replay only once
@@ -44,4 +49,4 @@ PASS Native Emby adapter rechecks watch status, playback, deletion support, and 
 PASS Native Emby delete uses file-deletion options only after a matching path preview
 PASS Background update checks do not interrupt media deletion
 PASS An active media deletion blocks plugin installation and restart
-RESULT 28 checks passed.
+RESULT 33 checks passed.

@@ -2,16 +2,26 @@
 
 ## Current state
 
-- Latest maintained/published version: 1.1.0 preview; assembly/file version: 1.1.0.0.
+- Current candidate: 1.1.1 preview; assembly/file version: 1.1.1.0. Latest published version before this patch: 1.1.0. Publication and exact-source hosted CI for 1.1.1 are pending.
 - User-confirmed baseline: 1.0.0. The user reported "it works great" on October 25, 2026, then requested individual and bulk watched-media deletion and publication of the next build. The new deletion feature is not yet user-confirmed.
 - Repository: https://github.com/TechSavage1989/whosceneit; public. No visibility or credential changes were made.
 - Exact 1.1.0 source/tag: 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd, v1.1.0. The release build metadata records that source and a clean working tree.
 - Release: https://github.com/TechSavage1989/whosceneit/releases/tag/v1.1.0. Six public assets were downloaded and verified, including the source and complete preview ZIPs. Never replace this tag or its assets.
 - Published WhoSceneIt.dll: 126,976 bytes; SHA-256 2db640f20e5aca376a1d955a7ef8a8466bd60cddafeb7ca90b981f20fd9a55b6.
 - Live feed: https://raw.githubusercontent.com/TechSavage1989/whosceneit/main/update-manifest.json, verified to match the public 1.1.0 manifest/version/digest.
-- Stable assembly/filename: WhoSceneIt.dll; plugin ID: b6405a2e-52e6-4218-a014-00a46a65f1f8. Use the assembly's actual installed location so customized filenames survive updates.
+- Stable assembly/filename: WhoSceneIt.dll; plugin ID: b6405a2e-52e6-4218-a014-00a46a65f1f8. Emby can load DLL bytes into memory, so Assembly.Location may be empty. Resolve the native registered installation path lazily and preserve customized filenames.
 - Local branch: codex/whosceneit-publication, tracking origin/main. Main additionally contains the verified publication handoff; the immutable release tag identifies the application source.
 - Prior 1.0.0 source: 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. Original repository baseline was only a README at c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5.
+
+## Version 1.1.1 installation-path repair
+
+The user supplied an installed 1.0.0 dashboard screenshot with available 1.1.0 and the error "The value cannot be an empty string. (Parameter 'path')". UpdateEntryPoint passed Assembly.Location to the installer. Byte-loaded assemblies have an empty location. The earlier public upgrade fixture supplied a valid target directly, so it verified transport and file replacement but missed the actual entry-point failure.
+
+PluginPathResolver now prefers matching IApplicationHost.Plugins / IPlugin.AssemblyFilePath metadata, then a unique matching DLL in PluginsPath. It validates the installed assembly identity/version, preserves custom filenames, and rejects missing, duplicate, wrong-version, and shadow-cache targets. The entry point supplies a lazy provider so later Emby attribute registration is supported. The original UpdateManager constructor is preserved. Reports and deletion behavior are unchanged.
+
+Affected 1.0.0 and 1.1.0 installations need one manual replacement: stop Emby, replace the existing plugin DLL with the official 1.1.1 DLL, preserve any customized filename, and start Emby. Do not add a second DLL beside the old one. Settings are retained by preserving the plugin identity/configuration. Advancing the feed cannot repair code already loaded by the old updater.
+
+Local Release builds have zero warnings/errors. All 33 quick compiled checks pass, including five new memory-loaded entry-point cases and the existing deletion/update checks. The real-timer hosted suite should run 34 checks; it has not yet run for this candidate. New cases reproduce the old empty-path failure, test native registered/custom filenames, fallback ambiguity, wrong targets, late registration, actual installation/backup/settings preservation, new memory loading, and health cleanup. The rewritten public check reproduces the exact public 1.0.0 failure before simulating the manual bootstrap into the published patch; it must run after publication. No Emby process or real user library is used.
 
 ## Approved project scope
 
@@ -51,9 +61,9 @@ Hosted validation for exact release source 1d1d221b2b5fbc6e6f4ef0cebac8880115e09
 
 Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/40178653703 completed successfully, verified draft/public assets, and advanced/verified the feed. All six public downloads were independently size/hash-checked. All 41 source files match the tagged source; all 47 preview content hashes pass.
 
-The actual public 1.0.0 updater passed a 1.0.0-to-1.1.0 test with real GitHub HTTPS feed/download, hash verification, staging, custom target filename, atomic replacement, one backup, configuration preservation, isolated new-assembly loading, and cleanup. Installed digest matched the published 1.1.0 DLL. This uses SDK host fixtures and does not start or restart Emby. See docs/validation-published-upgrade.txt.
+The historical public 1.0.0-to-1.1.0 test passed real GitHub HTTPS transport and file replacement with an explicitly supplied target. It bypassed UpdateEntryPoint and did not establish that Emby supplied a usable installation path. The user screenshot disproved that assumption. See the 1.1.1 repair and revised post-publication check above; retain the old output only as historical file-transaction evidence.
 
-The regular test runner creates an unpublished next-patch 1.1.1 fixture for the 1.1.0 source. Never publish that fixture. Browser fixtures contain synthetic data only. Native SDK fixture protocol/service stubs are test infrastructure, not a running Emby server.
+The current test runner creates an unpublished next-patch 1.1.2 fixture for the 1.1.1 source. The old 1.1.0 source generated a test-only 1.1.1 fixture; it is not the patched release and must never be published. Never publish that fixture. Browser fixtures contain synthetic data only. Native SDK fixture protocol/service stubs are test infrastructure, not a running Emby server.
 
 Negative controls: historical Windows run 40174933095 missed its timer request under the redundant five-minute wall-clock gate. The corrected real timer passes on both platforms. A local run restoring the broad update Busy guard reproduced interruption of deletion by a background check; the corrected IsInstalling guard passes that same test.
 
@@ -83,4 +93,4 @@ Negative controls: historical Windows run 40174933095 missed its timer request u
 - A bad plugin that cannot load cannot execute its own rollback. Stop Emby and restore the single rollback DLL manually when needed; no external watchdog exists.
 - Real Emby/filesystem errors can leave media partially deleted. The UI states this explicitly. Folder layouts containing other library media or merged versions can require Emby's controls. Confirmed jobs are not automatically replayed after an Emby restart.
 - Saved watch flags/counts cannot reconstruct deleted history or reliably distinguish manual/imported marks from playback. Current user access, resumable thresholds, current episode files/specials/versions, and deleted users limit report completeness. Series-only manual marks do not fabricate episode data.
-- The actual public update transport/file transaction is verified with SDK fixtures. Native Emby process restart and deletion on a real library are not verified. Actual cross-volume target filesystems are not separately characterized.
+- Historical public transport/file replacement used an explicit target; affected old byte-loaded updaters cannot install this patch automatically. Native Emby process restart and deletion on a real library are not verified. Actual cross-volume target filesystems are not separately characterized.

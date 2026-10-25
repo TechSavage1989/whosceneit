@@ -5,7 +5,7 @@ An administrator-only Emby Server plugin that answers two questions:
 - What movies and TV shows has this user watched?
 - Which users have watched this movie, TV show, or episode?
 
-Version 1.1.0 is published at https://github.com/TechSavage1989/whosceneit/releases/tag/v1.1.0 and adds individual and bulk deletion of watched media. The user confirmed version 1.0.0 works; the new deletion feature still needs confirmation in a real Emby library. See VALIDATION.md before installation.
+Version 1.1.1 fixes update installation when Emby loads the plugin from bytes and provides no assembly file location. It includes the individual and bulk deletion features from 1.1.0. The user confirmed 1.0.0 reports work; real-library deletion and native Emby restart still need validation. See VALIDATION.md before installation.
 
 ## Features
 
@@ -21,6 +21,8 @@ Version 1.1.0 is published at https://github.com/TechSavage1989/whosceneit/relea
 Emby Server 4.8 or newer is the intended target. The plugin is built against the official 4.8.0.80 SDK and targets netstandard2.0. Actual compatibility with your Emby version and platform still needs an installation test. This is not a Jellyfin plugin. An Emby administrator account is required; no new API account or API key is needed.
 
 ## Install
+
+If version 1.0.0 or 1.1.0 reports an empty "path" during installation, replace the DLL manually using the steps below. The already loaded old updater cannot apply its own path fix. Install 1.1.1 directly; an intermediate 1.1.0 installation is unnecessary. Keep the existing filename if you customized it.
 
 1. Stop Emby Server.
 2. Find its Server Data Folder in the Emby dashboard. Open the plugins directory directly under that folder.
@@ -55,6 +57,8 @@ The progress view lists deleted, blocked/skipped, and failed items. Stop after c
 ## Updates
 
 The trusted repository is https://github.com/TechSavage1989/whosceneit. The update feed is the repository's main/update-manifest.json file. Release assets are published and verified before this feed advances to the new version.
+
+Update installation resolves Emby's registered plugin AssemblyFilePath when the assembly itself has no file location. If host metadata is not yet available, it finds one matching DLL in Emby's plugins directory. Custom filenames are preserved; duplicate/mismatched targets stop installation instead of choosing a file arbitrarily. Paths are resolved when needed, including after restart, so late startup registration does not leave an empty cached target.
 
 The plugin checks in the background at server startup and every five minutes. Returning to the plugin page/window triggers a check if at least two minutes have passed. Manual checks have a 30-second cooldown. Conditional requests and backoff reduce repeated traffic. A failed/offline check reports failure and preserves any cached result without claiming to be current.
 

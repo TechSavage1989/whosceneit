@@ -208,6 +208,7 @@ try
         Assert(!manager.Status().Downloaded && manager.Status().Message.Contains("failed"),"Bad download was accepted.");
     });
 
+    await PluginPathChecks.Run(root, candidate, json, Test, TestAsync, Assert);
     await DeletionChecks.Run(root, Test, TestAsync, Assert);
     await TestAsync("Background update checks do not interrupt media deletion", async () =>
     {

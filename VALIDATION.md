@@ -1,8 +1,18 @@
-# Who Scene It 1.1.0 - preview validation
+# Who Scene It 1.1.1 - preview validation
 
 Date: October 25, 2026.
 
-The user confirmed 1.0.0 works. Version 1.1.0 adds explicitly confirmed individual/bulk media deletion. It is published at https://github.com/TechSavage1989/whosceneit/releases/tag/v1.1.0, with successful hosted CI, public assets/feed, and an actual published-updater file-transaction check. Automated live Emby deletion/restart validation remains incomplete.
+The user confirmed 1.0.0 reports work, then reported an empty installation-path error while updating to 1.1.0. Version 1.1.1 repairs byte-loaded plugin path discovery and retains individual/bulk deletion. Local validation is complete; exact-source hosted CI and publication are pending. Affected older installations require one manual DLL replacement. Automated live Emby deletion/restart validation remains incomplete.
+
+## Version 1.1.1 checks
+
+- Release build: zero compiler warnings/errors; 33 local compiled checks passed. The five-minute hosted option adds one check, for 34 expected on each platform. Hosted results for this patch are pending.
+- Actual DLLs loaded using AssemblyLoadContext.LoadFromStream have an empty Assembly.Location. The previous Hash(Location) code reproduces ArgumentException with parameter path, matching the user screenshot.
+- Actual memory-loaded Plugin and UpdateEntryPoint instances use native SDK SetAttributes and host plugin metadata. They resolve the registered custom filename, support attributes registered after entry-point construction, and support a bare filename under PluginsPath.
+- Unique plugins-directory fallback succeeds; duplicate WhoSceneIt installations, wrong assembly identity/version, missing files, and shadow-cache locations are rejected. Negative cases preserve target bytes.
+- A lazy path provider is used by real download/staging/replacement with injected HTTP. The exact custom target is replaced, the old DLL and settings are preserved, and a newly memory-loaded entry point verifies the pending digest/version before dashboard acknowledgement cleans staging.
+- The revised explicit public check must be run after publication. It uses the real public 1.0.0 entry point loaded from bytes to reproduce the failed install, then simulates the documented manual bootstrap into the new public DLL. It does not claim the broken old updater can install its own fix.
+- No browser UI changed. The required hosted Linux job reruns all 15 browser checks, including real timers.
 
 ## Completed checks
 
@@ -29,13 +39,13 @@ The original 1.0.0 run passed all 16 compiled checks and nine browser checks. Cu
 - Native 4.8 SDK objects with injected host/library/user services verify watched-series expansion, administrator policy, content-deletion permission, active playback, native CanDelete, shared-folder/library-root protection, and the actual DeleteOptions passed to ILibraryManager. The SDK protocol service uses a typed test stub because its ReadOnlySpan method cannot be handled by DispatchProxy. No real Emby media/library is used.
 - An active file-deletion fixture blocks actual updater Install and Restart calls until the operation finishes. Background feed checks remain allowed during deletion. A negative-control run restored the previous broad Busy guard and reproduced the failure under an actual in-flight check; the corrected guard passes the same test. Native playback matching is checked with numeric and GUID item IDs.
 - Updater timing negative control: the previous documentation/release-tool commit's Windows job failed the real timer check at https://github.com/TechSavage1989/whosceneit/actions/runs/40174933095. Its five-minute timer also applied a second full five-minute wall-clock cooldown, allowing an early tick to be dropped for the next interval. Version 1.1.0 retains the server-owned five-minute timer and uses the short cross-trigger cooldown for that callback; focus gating and Retry-After/backoff are unchanged. Final hosted real-timer validation passed on both platforms for the corrected source.
-- The explicit --published-upgrade mode passed after publication: real public 1.0.0-to-1.1.0 feed/download, digest, staging, installation, custom filename, backup, preserved configuration, isolated assembly reload, and cleanup. See docs/validation-published-upgrade.txt. It loads the exact public 1.0.0 DLL with a pinned SHA-256 and exercises its updater against the public current feed and asset, then checks isolated new-assembly reload and cleanup. This is not an Emby process restart.
+- The historical --published-upgrade mode passed public 1.0.0-to-1.1.0 transport and file replacement with a target path supplied directly to UpdateManager. It bypassed the actual entry point, so it missed the empty Assembly.Location failure reported by the user. It did not verify native Emby upgrade behavior. The current helper is rewritten to reproduce this defect and check the one-time manual bootstrap after patch publication.
 
 Historical 1.0.0 hosted GitHub Actions validation passed on the exact released source commit 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a: https://github.com/TechSavage1989/whosceneit/actions/runs/40174051730. Windows and Linux each passed all 16 compiled checks, including real timers, actual filesystem rollback, and settings preservation. Linux passed all nine browser checks, including real browser polling and cleanup. Release builds reported zero compiler warnings and errors.
 
 ## Update test boundary
 
-The regular 1.1.0 fixture upgrades a copied current DLL to an unpublished test-only next-patch 1.1.1 DLL. HTTP responses are injected into the real updater; it performs real parsing, hashing, assembly inspection, staging, replacement, backup, and cleanup. No download is silently authorized by opening a page. The separate post-publication mode uses real GitHub HTTPS transport and the published previous updater.
+The regular 1.1.1 fixture upgrades a copied current DLL to an unpublished test-only next-patch 1.1.2 DLL. The old source's 1.1.1 fixture is not this patched application and must never be published. HTTP responses are injected into the real updater; it performs real parsing, hashing, assembly inspection, staging, replacement, backup, and cleanup. No download is silently authorized by opening a page. The separate post-publication mode uses real GitHub HTTPS transport and actual memory-loaded entry points, with a negative control for the previous updater and explicit manual bootstrap for the patch.
 
 The actual .NET timer runs for approximately five minutes; browser timer checks run for approximately one minute. Fake-clock checks are not presented as substitutes for these runs.
 
@@ -46,7 +56,7 @@ The actual .NET timer runs for approximately five minutes; browser timer checks 
 - Enforcement of Emby's running authentication filter for anonymous and non-admin users.
 - Native Emby restart, visible dashboard reconnection, and behavior when a loaded DLL is locked by Windows.
 - Docker/NAS supervision, platform permissions, and crash recovery from a DLL that prevents the plugin from loading.
-- A native Emby process upgrade/restart/reconnect. The actual public 1.0.0-to-1.1.0 transport/file transaction and isolated assembly reload passed using SDK host fixtures.
+- A native Emby process upgrade/restart/reconnect. The historical public 1.0.0-to-1.1.0 file fixture supplied a target directly and missed the actual path failure. Old byte-loaded installations need manual replacement once.
 - Actual cross-volume target filesystems. The installer explicitly copies staging into the target directory before atomic replacement; local tests use separate directories on one filesystem.
 
 ## Blocked native integration test
@@ -71,4 +81,4 @@ build-metadata.json identifies the source commit and DLL digest. CONTENTS_SHA256
 - Six public assets independently downloaded and size/SHA-256 verified. All 41 source ZIP files match the exact tagged source; all 47 preview content hashes pass. Build metadata matches that source and records a clean tree.
 - WhoSceneIt.dll: 126,976 bytes, SHA-256 2db640f20e5aca376a1d955a7ef8a8466bd60cddafeb7ca90b981f20fd9a55b6.
 - The public main feed matches the 1.1.0 release manifest, URL, version, and digest. Neither published release/tag was overwritten.
-- The exact published 1.0.0 updater passed real HTTPS download and installation of 1.1.0 into an isolated temporary target, then new-assembly verification/cleanup. No real user media was deleted, and no live Emby restart was performed.
+- The exact public 1.0.0 updater passed real HTTPS download and file replacement into an explicitly supplied temporary target. This historical fixture bypassed UpdateEntryPoint and missed the byte-loaded empty-path defect. No real user media was deleted and no live Emby restart was performed.

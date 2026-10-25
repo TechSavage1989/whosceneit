@@ -1,5 +1,14 @@
 # Changes
 
+## 1.1.1 - updater installation path fix
+
+- Fixed the empty-path installation error when Emby loads the plugin DLL from bytes.
+- Uses Emby's registered plugin path, with a unique matching-DLL fallback, while preserving custom filenames and rejecting ambiguous/mismatched targets.
+- Resolves the path when installing and checking a restarted plugin, rather than caching an unavailable assembly location at startup.
+- Added actual memory-loaded entry-point tests, the old empty-path negative control, and install/reload/backup/settings/cleanup checks.
+- Memory-loaded versions 1.0.0 and 1.1.0 require one manual DLL replacement to receive this fix. The prior explicit-path updater fixture did not test the failing entry point.
+- Preserved watched reports, individual/bulk media deletion, update checks, and safety controls.
+
 ## 1.1.0 - media deletion preview
 
 - Added individual and bulk deletion of watched movies and TV episodes, from both report views.
