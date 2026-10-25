@@ -1,5 +1,5 @@
 PASS Negative control: public 1.0.0 loaded from bytes reproduces the empty-path installation failure after a verified real download.
-PASS Public 1.4.0 manual bootstrap: actual memory-loaded entry point resolves the installed DLL, preserves settings/custom filename/backup, and cleans staging.
-Installed SHA-256: 00591d2c6d3b5dda621e0e2049d3405b6465c8316a58fb6d652c93db079ca2a1
-PASS Published 1.3.0 to 1.4.0: actual memory-loaded entry points, real HTTPS feed/download, verified custom-target installation, backup, settings, pending reload verification, and cleanup.
+PASS Public 1.5.0 manual bootstrap: actual memory-loaded entry point resolves the installed DLL, preserves settings/custom filename/backup, and cleans staging.
+Installed SHA-256: 014f6825803704453e657edaf5521c66435894cf38274f730280f0abdf879a4d
+PASS Published 1.4.0 to 1.5.0: actual memory-loaded entry points, real HTTPS feed/download, verified custom-target installation, backup, settings, never-delete/cleanup state, pending reload verification, and cleanup.
 Versions 1.0.0 and 1.1.0 need manual replacement once. No live Emby process was started or restarted.
