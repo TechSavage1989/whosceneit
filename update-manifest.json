@@ -3,19 +3,19 @@
   "AppId": "WhoSceneIt",
   "PluginId": "b6405a2e-52e6-4218-a014-00a46a65f1f8",
   "Repository": "TechSavage1989/whosceneit",
-  "Version": "1.5.1",
+  "Version": "1.5.2",
   "MinimumEmbyVersion": "4.8.0.0",
-  "ReleaseUrl": "https://github.com/TechSavage1989/whosceneit/releases/tag/v1.5.1",
+  "ReleaseUrl": "https://github.com/TechSavage1989/whosceneit/releases/tag/v1.5.2",
   "Notes": [
-    "Browse all watch states by default, including unwatched movies, shows, and episodes.",
-    "Mark unwatched media Never delete individually or in bulk without enabling unwatched deletion.",
-    "Mixed selections retain watched-only deletion unless the unfinished-deletion option is enabled."
+    "Visible saved-rule list with status, user, eligibility, schedules, triggers, and owner actions.",
+    "Existing cleanup rules, enabled states, schedules, and protection are preserved across updates and restarts.",
+    "Correct startup status and preservation checks for missing or incompatible rule data."
   ],
   "HasMoreNotes": true,
   "Asset": {
     "FileName": "WhoSceneIt.dll",
-    "DownloadUrl": "https://github.com/TechSavage1989/whosceneit/releases/download/v1.5.1/WhoSceneIt.dll",
-    "Sha256": "2b41ba8bf41bca7b712c544fed3344839ffadbf43aa8d0fcb04f6805ec9c55a9",
-    "SizeBytes": 275968
+    "DownloadUrl": "https://github.com/TechSavage1989/whosceneit/releases/download/v1.5.2/WhoSceneIt.dll",
+    "Sha256": "3dd26e7e993da36fe1fe6f539c1164880f9feccbc2c2774fc51eb107097cde9a",
+    "SizeBytes": 283648
   }
 }
