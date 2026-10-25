@@ -1,21 +1,21 @@
   Determining projects to restore...
-  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 202 ms).
+  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 199 ms).
   WhoSceneIt -> <source>/test-artifacts/upgrade-fixture/WhoSceneIt.dll
 
 Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:01.77
+Time Elapsed 00:00:01.74
   Determining projects to restore...
-  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 287 ms).
+  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 236 ms).
   WhoSceneIt -> <source>/src/WhoSceneIt/bin/Release/netstandard2.0/WhoSceneIt.dll
 
 Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:02.09
+Time Elapsed 00:00:01.86
 PASS Manual watch flags are retained without inventing play counts or dates
 PASS Play counts and dates alone never imply completed viewing
 PASS Shows with identical names remain separate and repeated records do not inflate counts
@@ -37,6 +37,7 @@ PASS Watch-state filters distinguish started, watched, partial, rewatching, and 
 PASS Show completion counts all episodes while preserving partial and rewatch counts
 PASS Viewer filtering includes not-started users only when requested
 PASS Episode ordering is numeric and progress sorting places unknown durations last
+PASS Unscoped reports retain the SDK's empty ancestor list for every report view
 PASS Native reports read below-threshold saved progress and keep the full series inventory
 PASS Native progress reports reject invalid status and episode scopes
 PASS Memory-loaded Emby entry point reproduces the old empty path and resolves registered custom filenames
@@ -58,4 +59,4 @@ PASS Saved partial playback and rewatches for any user block native media deleti
 PASS Native Emby delete uses file-deletion options only after a matching path preview
 PASS Background update checks do not interrupt media deletion
 PASS An active media deletion blocks plugin installation and restart
-RESULT 42 checks passed.
+RESULT 43 checks passed.

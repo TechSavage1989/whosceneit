@@ -51,11 +51,13 @@ namespace WhoSceneIt
             }
             // Read saved positions directly, including positions below Emby's resumable threshold.
             // Full episode inventories also keep series completion denominators accurate.
-            var candidates = _library.GetItemList(new InternalItemsQuery(user)
+            var query = new InternalItemsQuery(user)
             {
-                Recursive = true, IsVirtualItem = false, IncludeItemTypes = types,
-                AncestorIds = seriesId.HasValue ? new[] { seriesId.Value } : null
-            });
+                Recursive = true, IsVirtualItem = false, IncludeItemTypes = types
+            };
+            // Preserve the SDK's empty ancestor array for an unscoped report.
+            if (seriesId.HasValue) query.AncestorIds = new[] { seriesId.Value };
+            var candidates = _library.GetItemList(query);
             var records = candidates.GroupBy(x => x.InternalId).Select(x => x.First()).Select(item => Read(user, item));
             var rows = ReportBuilder.FilterAndSort(ReportBuilder.ForUser(records, view, request.IncludeInProgress, watchState), request.SearchTerm, sort).ToArray();
             var summary = Summarize(user);

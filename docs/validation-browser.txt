@@ -1,6 +1,6 @@
 
-> whosceneit-validation@1.2.0 test:ui
-> node tests/ui.smoke.cjs --real-timers
+> whosceneit-validation@1.2.1 test:ui
+> node tests/ui.smoke.cjs
 
 PASS initial user report, paging, and safe title rendering
 PASS CSV includes every page and neutralizes formula-like titles
@@ -17,8 +17,7 @@ PASS partial filter and CSV preserve episode scope, position, duration, and rema
 PASS rewatch filter retains prior completion while disabling media deletion
 PASS all, completed, and not-started filters work and clearing episode scope returns to shows
 PASS viewer drilldown keeps the chosen user and show together
+PASS report errors show safe native messages and HTTP status, preserve auth guidance, and never acknowledge failed report health
 PASS explicit download and install controls, restart warning, and hidden empty Read more
 PASS real browser focus events and listener cleanup without duplicate subscriptions
 PASS mobile layout and no browser exceptions
-PASS real browser update-status polling timer
-PASS browser timers stop after leaving the plugin page

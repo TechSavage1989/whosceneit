@@ -2,6 +2,8 @@
 
 ## Current state
 
+- Current candidate: 1.2.1. Exact-source hosted validation, publication, and public upgrade verification are pending. The 1.2.0 screenshot shows a loaded plugin and failed report request; its new report features are not user-confirmed.
+
 - Latest maintained/published version: 1.2.0 preview; assembly/file version: 1.2.0.0.
 - User-confirmed baseline: 1.0.0 reports. Later deletion, updater repair, and watch-progress features are covered by SDK/browser tests but are not yet user-confirmed in a real Emby library.
 - Repository: https://github.com/TechSavage1989/whosceneit; public. No visibility or credential changes were made.
@@ -12,6 +14,14 @@
 - Stable assembly/filename: WhoSceneIt.dll; plugin ID: b6405a2e-52e6-4218-a014-00a46a65f1f8. Native installed-path discovery preserves customized filenames. Versions 1.0.0/1.1.0 need manual replacement once; the public 1.1.1 updater successfully installed 1.2.0 using actual memory-loaded entry points in SDK fixtures.
 - Local branch: main, tracking origin/main. Main holds current verification notes; immutable release tags identify application source.
 - Previous immutable sources: 1.1.1 at c29b1b94644168ec2ce63e359735fd244528fc3f; 1.1.0 at 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd; 1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. Original repository baseline: c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5.
+
+## Version 1.2.1 report-query repair
+
+The user's 1.2.0 screenshot shows the new UI and installed version, but UserReport fails with the old generic message. A verified regression was found in the new query: the SDK initializes AncestorIds to an empty long array, but the unscoped 1.2.0 query overwrites it with null. The new test fails against that source and verifies default preservation for Titles, Movies, Shows, and Episodes after correction. Scoped episodes still pass the selected series ID. The previous fixture did not inspect the unscoped array.
+
+The patch creates the query with native defaults and only assigns AncestorIds for a validated show scope. Browser errors now show ResponseStatus.Message and HTTP status through textContent, omit stack traces and returned HTML, and retain authorization guidance. Loading/failed reports reset reportHealthy, and failure clears stale selections. A browser fixture covers JSON errors, non-JSON gateway errors, authorization failures, false health acknowledgement prevention, and successful retry. No watch data or settings are changed.
+
+Local validation passed 43 compiled checks and 19 quick browser checks. Hosted validation must run 44 compiled checks on each platform and 21 Linux browser checks including real timers. The post-publication helper now uses the pinned public 1.2.0 updater to install 1.2.1 in a temporary plugins directory; it must run after the new public feed/assets exist. The screenshot does not expose the server exception, and no live Emby process is used in these checks. The SDK-default repair is verified; confirmation against the user's report remains pending.
 
 ## Version 1.2.0 watch progress
 
@@ -77,7 +87,7 @@ Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/4
 
 The historical public 1.0.0-to-1.1.0 test passed real GitHub HTTPS transport and file replacement with an explicitly supplied target. It bypassed UpdateEntryPoint and did not establish that Emby supplied a usable installation path. The user screenshot disproved that assumption. See the 1.1.1 repair and revised post-publication check above; retain the old output only as historical file-transaction evidence.
 
-The current test runner creates an unpublished next-patch 1.2.1 fixture for the 1.2.0 source. The old 1.1.0 source generated a test-only 1.1.1 fixture; it is not the patched release and must never be published. Never publish that fixture. Browser fixtures contain synthetic data only. Native SDK fixture protocol/service stubs are test infrastructure, not a running Emby server.
+The current test runner creates an unpublished next-patch 1.2.2 fixture for the 1.2.1 source. The old 1.2.0 source's same-numbered 1.2.1 fixture is not this patch and must never be published. The old 1.1.0 source generated a test-only 1.1.1 fixture; it is not the patched release and must never be published. Never publish that fixture. Browser fixtures contain synthetic data only. Native SDK fixture protocol/service stubs are test infrastructure, not a running Emby server.
 
 Negative controls: historical Windows run 40174933095 missed its timer request under the redundant five-minute wall-clock gate. The corrected real timer passes on both platforms. A local run restoring the broad update Busy guard reproduced interruption of deletion by a background check; the corrected IsInstalling guard passes that same test.
 

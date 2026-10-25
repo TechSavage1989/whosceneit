@@ -1,0 +1,29 @@
+PASS Manual watch flags are retained without inventing play counts or dates
+PASS Play counts and dates alone never imply completed viewing
+PASS Shows with identical names remain separate and repeated records do not inflate counts
+PASS A show viewer needs one qualifying episode, and complete means all available files
+PASS Episode ranges, title filtering, and unknown dates are handled
+PASS Every report and update route requires the native Admin role
+PASS Manifest rejects other repositories, versions, URLs, hashes, sizes, and app identities
+PASS DLL validation rejects a wrong digest, assembly version, other app, and executable payload
+PASS Previous DLL is replaced from another directory, one backup is retained, and settings survive
+PASS A replacement failure after the old target is removed restores its actual bytes
+PASS Successful assembly reload keeps staging until dashboard health is acknowledged
+PASS Startup, real concurrent checks, and manual cooldown share one request
+PASS Offline status is an error, and Retry-After blocks repeated manual checks
+PASS Complete update download, digest, staging, playback/scan guards, install, backup, and manual restart state
+PASS A bad downloaded digest never becomes installable
+PASS Episode progress keeps completion, partial playback, and rewatches separate
+PASS Missing, negative, and overrun durations never fabricate completed viewing
+PASS Watch-state filters distinguish started, watched, partial, rewatching, and not started
+PASS Show completion counts all episodes while preserving partial and rewatch counts
+PASS Viewer filtering includes not-started users only when requested
+PASS Episode ordering is numeric and progress sorting places unknown durations last
+SDK default ancestors null: False
+Unhandled exception. System.Exception: An unscoped report replaced Emby's empty ancestor array with null.
+   at Program.<<Main>$>g__Assert|0_1(Boolean condition, String message) in <source>/tests/WhoSceneIt.Tests/Program.cs:line 24
+   at ProgressChecks.<>c__DisplayClass0_0.<Run>b__8() in <source>/tests/WhoSceneIt.Tests/ProgressChecks.cs:line 74
+   at Program.<>c__DisplayClass0_0.<<Main>$>g__Test|2(String name, Action action) in <source>/tests/WhoSceneIt.Tests/Program.cs:line 25
+   at ProgressChecks.Run(Action`2 test, Action`2 assert) in <source>/tests/WhoSceneIt.Tests/ProgressChecks.cs:line 65
+   at Program.<Main>$(String[] args) in <source>/tests/WhoSceneIt.Tests/Program.cs:line 211
+   at Program.<Main>(String[] args)

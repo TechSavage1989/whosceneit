@@ -13,6 +13,11 @@ Read this file and DEVELOPMENT_HANDOFF.md before editing. Then inspect the curre
 - Keep reports read-only. The user explicitly approved individual and bulk deletion of watched media and publication of the new build. Deletion must use Emby's native policy checks and library deletion API, an administrator-bound expiring preview, exact-path revalidation, explicit DELETE confirmation, and progress/error reporting. Never delete a TV show folder to implement watched-episode deletion. Never grant permissions or change watch state to make an item eligible. Every plugin endpoint must require Emby's native Admin role.
 - No server setup, Codex CLI automation, unattended workers, payment setup, or API-account setup. GitHub CI and an explicitly invoked release workflow are part of the requested build/release scope.
 
+## Report-query repair
+
+- Current candidate: 1.2.1. The user's screenshot confirms 1.2.0 is loaded but its report request fails. The 1.2.0 unscoped report sets AncestorIds to null instead of retaining the SDK's default empty array. Preserve native collection defaults; set AncestorIds only for a validated show scope. The SDK regression test catches the old code. The screenshot does not show a native stack trace, so do not claim another server cause is excluded.
+- Display structured Emby errors and HTTP status safely as plain text, retain 401/403 guidance, and never acknowledge dashboard health from an unsuccessful or stale report. Keep test coverage for normal and show-scoped queries.
+
 ## Watch-progress behavior
 
 - Published version: 1.2.0. The user explicitly requested episode full/partial detection, related features, and publication. Read saved Played, PlaybackPositionTicks, and RunTimeTicks without changing them. A saved position alone never implies completion or a proven rewatch. Keep unknown durations unknown, complete show denominators, scoped episode drilldowns, and watch-state filtering before paging/export.
@@ -29,7 +34,7 @@ Use .NET SDK 8 or newer. The plugin must target netstandard2.0. Emby supplies it
     npm run test:ui -- --real-timers
     python scripts/package.py
 
-The C# test runner generates an unpublished next-patch DLL to exercise upgrades from the current version (1.2.1 for the 1.2.0 source). Never publish a test-artifacts fixture. Version 1.1.1 must be built from the actual patched source, not the old 1.1.0 source's same-numbered fixture. The real timer test takes about five minutes. Browser tests use synthetic data and never connect to a user's Emby server. After publication, --published-upgrade reproduces the public 1.0.0 memory-loaded entry-point failure and one-time manual bootstrap, then exercises the actual public 1.1.1 memory-loaded updater installing the current release. It never starts Emby.
+The C# test runner generates an unpublished next-patch DLL to exercise upgrades from the current version (1.2.2 for the 1.2.1 source). Never publish a test-artifacts fixture. Version 1.1.1 must be built from the actual patched source, not the old 1.1.0 source's same-numbered fixture. The real timer test takes about five minutes. Browser tests use synthetic data and never connect to a user's Emby server. After publication, --published-upgrade reproduces the public 1.0.0 memory-loaded entry-point failure and one-time manual bootstrap, then exercises the actual public 1.2.0 memory-loaded updater installing the current release. It never starts Emby.
 
 ## Updates and releases
 

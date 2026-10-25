@@ -62,6 +62,17 @@ public static class ProgressChecks
             assert(string.Join(",", ReportBuilder.FilterAndSort(rows, null, "Episode").Select(r => r.ItemId)) == "2,20,100", "Episode 100 was sorted before episode 20.");
             assert(string.Join(",", ReportBuilder.FilterAndSort(rows, null, "Progress").Select(r => r.ItemId)) == "2,100,20", "Progress sorting mishandled missing durations.");
         });
+        test("Unscoped reports retain the SDK's empty ancestor list for every report view", () =>
+        {
+            var defaults = new InternalItemsQuery();
+            assert(defaults.AncestorIds != null && defaults.AncestorIds.Length == 0, "The SDK's native ancestor default changed.");
+            foreach (var view in new[] { "Titles", "Movies", "Shows", "Episodes" })
+            {
+                var fixture = new ProgressServiceFixture();
+                fixture.Service.Get(new GetWatchInspectorUserReport { UserId = "alice", View = view, WatchState = "Started" });
+                assert(fixture.LastQuery.AncestorIds != null && fixture.LastQuery.AncestorIds.SequenceEqual(defaults.AncestorIds), "An unscoped report replaced Emby's empty ancestor array with null.");
+            }
+        });
         test("Native reports read below-threshold saved progress and keep the full series inventory", () =>
         {
             var fixture = new ProgressServiceFixture();

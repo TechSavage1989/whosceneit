@@ -13,7 +13,13 @@ define([], function () {
         function text(node, value) { node.textContent = value == null ? '' : String(value); }
         function errorText(error) {
             if (error && (error.status === 401 || error.status === 403)) return 'Administrator access is required. Sign in again with an administrator account.';
-            return 'The request failed. Check your connection and Emby Server logs, then try again.';
+            var result = error && error.responseJSON;
+            if (!result && error && error.responseText) { try { result = JSON.parse(error.responseText); } catch (_) {} }
+            var response = result && (result.ResponseStatus || result.responseStatus);
+            var message = response && (response.Message || response.message) || result && (result.Message || result.message);
+            var code = error && error.status ? ' (HTTP ' + error.status + ')' : '';
+            if (typeof message === 'string' && message.trim()) return 'Emby request failed' + code + ': ' + message.trim().slice(0, 1200);
+            return 'The request failed' + code + '. Check your connection and Emby Server logs, then try again.';
         }
         function status(message, error) { text(find('reportStatus'), message); find('reportStatus').classList.toggle('wsi-error', !!error); }
         function deletionApi(action, data, method) {
@@ -159,7 +165,7 @@ define([], function () {
             var token = ++state.token, path = state.mode === 'user' ? 'UserReport' : 'Viewers';
             var context = JSON.stringify([state.mode, find('userSelect').value, find('viewSelect').value, find('filter').value.trim(), find('watchState').value, state.series && state.series.Id, state.selected && state.selected.Id]);
             if (context !== selectionContext) { selectionContext = context; selections.clear(); }
-            state.busy = true; find('export').disabled = true; status('Loading report...');
+            state.busy = true; state.reportHealthy = false; find('export').disabled = true; status('Loading report...');
             updateSelections();
             return api(path, reportParams(state.start, pageSize)).then(function (result) {
                 if (token !== state.token || !state.active) return;
@@ -167,7 +173,7 @@ define([], function () {
                 state.reportHealthy = true;
                 if (!result.Items.length && state.start > 0 && result.TotalRecordCount > 0) { state.start = Math.floor((result.TotalRecordCount - 1) / pageSize) * pageSize; return loadReport(); }
                 renderReport(result);
-            }).catch(function (error) { if (token === state.token && state.active) { state.busy = false; clearReport(); status(errorText(error), true); } });
+            }).catch(function (error) { if (token === state.token && state.active) { state.busy = false; state.reportHealthy = false; selections.clear(); clearReport(); status(errorText(error), true); } });
         }
         function showSelected() {
             find('selectedTitle').hidden = !state.selected;

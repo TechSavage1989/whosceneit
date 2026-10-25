@@ -1,6 +1,17 @@
-# Who Scene It 1.2.0 - preview validation
+# Who Scene It 1.2.1 - preview validation
 
 Date: October 25, 2026.
+
+The 1.2.1 candidate repairs an unscoped report-query regression and adds useful error details. Exact-source hosted CI, publication, and public upgrade verification are pending. The supplied screenshot contains a generic failed-request message rather than a server exception; the exact live stack trace has not been observed.
+
+## Version 1.2.1 checks
+
+- Negative control: Emby's 4.8 SDK creates AncestorIds as an empty array. The 1.2.0 normal report replaces it with null and fails the new regression assertion. See docs/validation-report-query-negative.txt. This detects an invalid query-default change; it does not execute a native Emby database query or claim to reproduce the unseen live exception.
+- Corrected local Release build has zero warnings/errors and passes all 43 quick compiled checks. The new case covers default ancestor arrays in Titles, Movies, Shows, and Episodes. Existing tests retain scoped series IDs, watch progress, updater, and deletion behavior. Hosted real-timer validation must pass 44 checks on each platform.
+- Nineteen quick browser checks pass. The new case exercises structured native error messages and HTTP status as safe text, literal HTML that never executes, omitted stack traces, non-JSON error fallback, 403 guidance, failed-report health prevention, and successful recovery. Hosted Linux must pass 21 checks including real timers.
+- After publication, run the public 1.2.0-to-1.2.1 memory-loaded entry-point installation/health/cleanup check, including the legacy 1.0.0 failure/manual-bootstrap negative control. This does not start or restart live Emby.
+
+## Historical 1.2.0 validation
 
 Version 1.2.0 adds episode watch progress and related controls. Exact-source hosted CI, publication, all public assets/feed, and the public previous-version upgrade check passed. Live Emby deletion/restart testing remains outside the completed SDK/browser checks.
 

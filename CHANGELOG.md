@@ -1,5 +1,14 @@
 # Changes
 
+## 1.2.1 - report query repair
+
+- Preserved Emby's native empty ancestor-ID array for reports without a selected show. Version 1.2.0 incorrectly set it to null; the new SDK-default regression test fails on that code and passes after the repair.
+- Show-scoped episode reports still use their selected series ID. Added coverage for unscoped Titles, Movies, Shows, and Episodes queries.
+- Report failures now show the server's message and HTTP status as plain text, without rendering returned HTML or stack traces. Administrator access guidance is preserved.
+- Failed or loading reports no longer acknowledge dashboard health using an earlier successful report, and failed requests clear stale media selections.
+- Retained watch progress, filtering, CSV export, media-deletion protections, settings, and updater behavior.
+- The screenshot did not expose the server exception. This patch fixes the verified query-default regression and exposes the underlying message if another server error remains.
+
 ## 1.2.0 - episode watch progress
 
 - Added watched, partial, not-started, all-state, and watched-with-resume filters. Started items appear together by default; existing API callers retain IncludeInProgress behavior when WatchState is omitted.
