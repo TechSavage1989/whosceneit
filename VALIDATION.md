@@ -2,7 +2,7 @@
 
 Date: October 25, 2026.
 
-Version 1.5.2 adds a visible saved-rule list and verifies complete rule preservation across updates, restarts, health cleanup, and failed replacement rollback. Existing schema-1 rule fields are unchanged. Local Release builds passed with zero warnings/errors and all 86 quick compiled checks. All 42 browser checks passed, including real timers. Required exact-source hosted validation and publication are pending.
+Version 1.5.2 adds a visible saved-rule list and verifies complete rule preservation across updates, restarts, health cleanup, and failed replacement rollback. Existing schema-1 rule fields are unchanged. Local Release builds passed with zero warnings/errors and all 86 quick compiled checks. All 42 browser checks passed, including real timers. Exact-source hosted Windows/Linux each passed all 87 compiled checks; Linux passed all 42 browser checks. Publication and independent public asset/source/tag/feed/complete-rule-state upgrade verification all passed.
 
 ## Version 1.5.2 checks
 
@@ -10,7 +10,10 @@ Version 1.5.2 adds a visible saved-rule list and verifies complete rule preserva
 - A newly constructed coordinator reports two enabled/one disabled saved rules accurately and runs the existing due review schedule without changing either other rule or starting automatic deletion. Unsupported schema and missing-primary-with-backup fixtures fail closed without replacing available saved data.
 - Browser checks cover the always-visible empty/populated lists, exact metadata for enabled/disabled/foreign-owner rules, literal HTML names, owner-only edit/evaluate routing, editor values and fresh consent, failed refresh retaining rules/input with disabled actions, and recovery with no policy save/reset. Existing reports/protection/deletion/synchronization, mobile layout, and updater tests also pass.
 - Persistence schema and rule fields are unchanged. The test-only next-patch DLL is 1.5.3, never a release asset. Post-publication checks pin actual public 1.5.1 and load the full fixture with both public versions.
-- Only SDK/temp-file/synthetic HTTP/browser fixtures run. Live Emby/Sonarr/Radarr deletion, native event delivery, and live loaded-DLL replacement remain unverified. No real user server or media is connected.
+- Only SDK/temp-file/synthetic HTTP/browser fixtures run. Live Emby/Sonarr/Radarr deletion, native event delivery, and live loaded-DLL replacement remain unverified.
+- Exact source/tag: 8379e23ce8a55f5d596d2a33961f1b2001468316, v1.5.2. Hosted validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40240801915. Publication: https://github.com/TechSavage1989/whosceneit/actions/runs/40241415852. Both completed successfully.
+- Independently verified all six public downloads against API sizes/digests and SHA256SUMS, clean build metadata, exact tag/source, all 63 source files/69 preview hashes, and canonical feed. Feed commit: 80c1192a39ca3003771da1d8c6ba265b00a30614. Public DLL: 283,648 bytes; SHA-256 3dd26e7e993da36fe1fe6f539c1164880f9feccbc2c2774fc51eb107097cde9a. Prior release tags/assets remain immutable.
+- The pinned actual public 1.5.1 binary and new public 1.5.2 binary both loaded the frozen complete saved-rule state. The actual previous memory-loaded updater used real HTTPS feed/download to install exact new public bytes. All IDs, revisions, ownership, eligibility, schedules, triggers, enabled flags, protection, prompts, holds, history, and both state-file bytes were preserved, along with custom filename, configuration, rollback, pending-health verification, and staging cleanup. The legacy 1.0.0 failure/manual-bootstrap control also passed. See docs/validation-published-upgrade.txt. No live Emby process was started or restarted. No real user server or media is connected.
 
 ## Historical 1.5.1 baseline
 
