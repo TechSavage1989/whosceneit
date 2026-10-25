@@ -21,7 +21,7 @@ manifest = {
     "SchemaVersion": 1, "AppId": "WhoSceneIt", "PluginId": "b6405a2e-52e6-4218-a014-00a46a65f1f8",
     "Repository": repository, "Version": version, "MinimumEmbyVersion": "4.8.0.0",
     "ReleaseUrl": release_root + "tag/v" + version,
-    "Notes": ["Fixes deletion compatibility with newer Emby visibility APIs.", "Optional Sonarr and Radarr synchronization with exact file matching.", "Separate media and service results, masked settings, and read-only connection tests."],
+    "Notes": ["Optional deletion of partially watched and unwatched media.", "Checkbox confirmation replaces typing DELETE.", "Frozen preview scope, native protections, and Sonarr/Radarr results retained."],
     "HasMoreNotes": True,
     "Asset": {"FileName": "WhoSceneIt.dll", "DownloadUrl": release_root + "download/v" + version + "/WhoSceneIt.dll", "Sha256": sha, "SizeBytes": len(data)}
 }

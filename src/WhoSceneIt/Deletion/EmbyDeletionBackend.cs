@@ -32,7 +32,7 @@ namespace WhoSceneIt.Deletion
             var manager = UpdateManager.Instance;
             if (manager != null && (manager.IsInstalling || manager.Status().RestartRequired)) throw new InvalidOperationException("Finish the plugin update or restart before deleting media.");
         }
-        public string[] Resolve(string userId, string[] rootIds)
+        public string[] Resolve(string userId, string[] rootIds, bool allowUnwatched = false)
         {
             var user = string.IsNullOrEmpty(userId) ? null : _users.GetUserById(userId) ?? throw new ArgumentException("The selected user no longer exists.");
             var ids = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
@@ -44,7 +44,7 @@ namespace WhoSceneIt.Deletion
                 {
                     var episodes = _library.GetItemList(new InternalItemsQuery(user) { Recursive = true, IsVirtualItem = false,
                         IncludeItemTypes = new[] { "Episode" }, AncestorIds = new[] { id } });
-                    var matching = episodes.Where(e => WatchedUsers(user, e).Any()).Select(e => Id(e)).ToArray();
+                    var matching = episodes.Where(e => allowUnwatched || WatchedUsers(user, e).Any()).Select(e => Id(e)).ToArray();
                     foreach (var child in matching) ids.Add(child);
                     if (matching.Length == 0) ids.Add(value); // Show why an empty/non-watched series is blocked.
                 }
@@ -53,7 +53,7 @@ namespace WhoSceneIt.Deletion
             }
             return ids.ToArray();
         }
-        public DeletionInspection Inspect(string actorId, string userId, string itemId)
+        public DeletionInspection Inspect(string actorId, string userId, string itemId, bool allowUnwatched = false)
         {
             var entry = new DeletionItem { ItemId = itemId, Name = "Unavailable item " + itemId };
             DeletionInspection Block(string reason) { entry.State = "Blocked"; entry.Message = reason; return new DeletionInspection { Item = entry }; }
@@ -66,14 +66,17 @@ namespace WhoSceneIt.Deletion
             if (item is Episode episode) entry.Detail = episode.SeriesName + " - " + ReportBuilder.EpisodeLabel(new TitleSummary
                 { SeasonNumber = episode.ParentIndexNumber, EpisodeNumber = episode.IndexNumber, EpisodeNumberEnd = episode.IndexNumberEnd });
             if (!(item is Movie || item is Episode) || item.IsFolder || item.IsVirtualItem || !item.IsFileProtocol)
-                return Block("Only local movie and episode media can be deleted. TV shows expand to watched episodes only.");
+                return Block("Only local movie and episode media can be deleted. TV shows expand into the eligible episode files, not the show folder.");
             var selectedUser = string.IsNullOrEmpty(userId) ? null : _users.GetUserById(userId);
             if (!string.IsNullOrEmpty(userId) && selectedUser == null) return Block("The selected user no longer exists.");
             var watched = WatchedUsers(selectedUser, item).ToArray();
             entry.WatchedBy = watched.Select(u => u.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToArray();
-            if (watched.Length == 0) return Block("This item is not marked watched for the selected report. In-progress media is preserved.");
+            if (!allowUnwatched && watched.Length == 0) return Block("This item is not marked watched for the selected report. Enable the unfinished/unwatched deletion option and prepare a new preview to include it.");
             var resuming = _users.GetUserList(new UserQuery()).Where(u => WatchProgress.HasResume(_data.GetUserData(u, item)?.PlaybackPositionTicks ?? 0L)).Select(u => u.Name).ToArray();
-            if (resuming.Length > 0) return Block("Saved playback positions exist for: " + string.Join(", ", resuming) + ". This media is preserved, including possible rewatches.");
+            entry.WatchNote = (watched.Length == 0 ? "Not marked watched for the selected report. " : "") +
+                (resuming.Length > 0 ? "Saved playback positions exist for: " + string.Join(", ", resuming) + ". " : "") +
+                (allowUnwatched ? "This preview explicitly allows unfinished and unwatched media." : "Fully watched media only; saved progress is protected.");
+            if (!allowUnwatched && resuming.Length > 0) return Block("Saved playback positions exist for: " + string.Join(", ", resuming) + ". This media is preserved, including possible rewatches.");
             // This user-scoped query is available in both 4.8 and current Emby.
             // The old two-argument FilterItemsToIdsForUser no longer exists in newer servers.
             if (selectedUser != null && !_library.GetItemList(new InternalItemsQuery(selectedUser) { ItemIds = new[] { item.InternalId },
@@ -106,10 +109,10 @@ namespace WhoSceneIt.Deletion
                 MediaPath = item.Path, MediaSize = File.Exists(item.Path) ? new FileInfo(item.Path).Length : (long?)null,
                 SeasonNumber = item.ParentIndexNumber, EpisodeNumber = item.IndexNumber, EpisodeNumberEnd = (item as Episode)?.IndexNumberEnd };
         }
-        public void Delete(string actorId, string userId, string itemId, string expectedFingerprint)
+        public void Delete(string actorId, string userId, string itemId, string expectedFingerprint, bool allowUnwatched = false)
         {
             EnsureAvailable();
-            var current = Inspect(actorId, userId, itemId);
+            var current = Inspect(actorId, userId, itemId, allowUnwatched);
             if (current.Item.State != "Ready" || current.Fingerprint != expectedFingerprint) throw new InvalidOperationException(current.Item.Message ?? "The media or deletion paths changed after confirmation.");
             var item = _library.GetItemById(long.Parse(itemId, CultureInfo.InvariantCulture));
             _library.DeleteItem(item, new DeleteOptions { DeleteFileLocation = true, DeleteFromExternalProvider = false, CollectionFolders = _library.GetCollectionFolders(item) }, true);

@@ -1,21 +1,21 @@
   Determining projects to restore...
-  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 216 ms).
+  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 238 ms).
   WhoSceneIt -> <source>/test-artifacts/upgrade-fixture/WhoSceneIt.dll
 
 Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:01.79
+Time Elapsed 00:00:01.85
   Determining projects to restore...
-  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 199 ms).
+  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 297 ms).
   WhoSceneIt -> <source>/src/WhoSceneIt/bin/Release/netstandard2.0/WhoSceneIt.dll
 
 Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:01.69
+Time Elapsed 00:00:02.09
 PASS Manual watch flags are retained without inventing play counts or dates
 PASS Play counts and dates alone never imply completed viewing
 PASS Shows with identical names remain separate and repeated records do not inflate counts
@@ -48,6 +48,7 @@ PASS Memory-load target discovery survives verified install, backup, new memory 
 PASS Deletion previews are non-destructive and identify blocked media
 PASS Deletion rejects invalid selections, wrong administrators, and missing confirmation
 PASS Confirmed single and bulk deletions use real files and replay only once
+PASS Deletion freezes the watch-state option and requires explicit checkbox confirmation
 PASS Deletion rechecks changed files, watch status, and playback before removing media
 PASS Deletion reports partial failures without claiming a rollback
 PASS Cancellation stops remaining deletions and concurrent jobs cannot start
@@ -56,6 +57,7 @@ PASS Native Emby series selection expands only watched episodes and removes dupl
 PASS Native deletion respects revoked admin access and rejects non-media folders
 PASS Native Emby adapter rechecks watch status, playback, deletion support, and shared folders
 PASS Saved partial playback and rewatches for any user block native media deletion
+PASS Unfinished and unwatched native deletion is opt-in and retains every non-watch guard
 PASS Native deletion preserves user visibility without the removed two-argument SDK method
 PASS Native Emby delete uses file-deletion options only after a matching path preview
 PASS Native deletion service binds the authenticated administrator request before read-only preview
@@ -78,4 +80,4 @@ PASS Sonarr cleanup preserves a replacement file appearing after native deletion
 PASS Connection checks support Sonarr v5, preserve URL bases, reject redirects, and never disclose keys
 PASS Path mapping respects Windows, UNC, POSIX case, path boundaries, and traversal rejection
 PASS Native plugin settings persist keys, preserve blank keys, clear explicitly, and block edits during deletion
-RESULT 62 checks passed.
+RESULT 64 checks passed.

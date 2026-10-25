@@ -1,18 +1,31 @@
-# Who Scene It 1.3.0 - preview validation
+# Who Scene It 1.4.0 - preview validation
 
 Date: October 25, 2026.
 
-Version 1.3.0 replaces the legacy Emby visibility method and adds optional Sonarr/Radarr synchronization. Hosted exact-source validation, publication, and public upgrade verification are pending. The new screenshot identifies the SDK mismatch; no live Emby or Sonarr/Radarr deletion success is claimed.
+Version 1.4.0 adds explicit unfinished/unwatched deletion scope and checkbox confirmation. The user directly requested these changes; default watch/resume protection remains. Exact-source hosted CI, publication, and public upgrade verification are pending.
+
+## Version 1.4.0 checks
+
+- Local quick compiled validation passed 64 checks with zero warnings/errors. The hosted real-timer suite must pass 65 on Windows and Linux.
+- New tests verify the option is false by default and frozen independently of mutable response DTOs, then passed to expansion, inspections, and deletion. Missing/false checkbox acknowledgement cannot start a job. The service passes the explicit mode and confirmation to native code.
+- Native SDK fixtures allow unwatched/saved-position media only when opted in, preserve watch data, include all available show episodes, and retain playback, deletion permission/support, visibility, and root-folder guards. Original default saved-progress and revalidation checks remain.
+- Local Chromium passed all 29 checks including real timers; exact-source hosted browser validation remains pending. New cases cover partially watched and not-started selection only when opted in, healthy empty-viewer show previews, clear/reset behavior, frozen-scope display, unchecked acknowledgement, removed typed input, boolean execution payloads, and versioned/stale controls.
+- Sonarr/Radarr integration, native SDK compatibility, report/updater checks, and exact-path previews remain covered. All tests use synthetic data/temp files or explicitly pinned public release transport. Live Emby/Sonarr/Radarr deletion remains unverified.
+- After publication, verify all 1.4.0 assets/tag/source/feed and run the actual public 1.3.0 updater against 1.4.0. Never publish the test-only 1.4.1 fixture.
+
+## Historical 1.3.0 validation
+
+Version 1.3.0 replaces the legacy Emby visibility method and adds optional Sonarr/Radarr synchronization. Hosted exact-source validation, publication, asset/feed verification, and the actual public 1.2.2-to-1.3.0 updater check passed. Source deedd7b16d85e3644db9aaedb771b9d0f530e736; validation run 40224437428; publication run 40225059244. The new screenshot identifies the SDK mismatch; no live Emby or Sonarr/Radarr deletion success is claimed.
 
 ## Version 1.3.0 checks
 
-- Local quick compiled validation passes 62 checks with zero warnings/errors. The hosted real-timer suite must pass 63 checks on each platform before publication.
+- Local quick compiled validation passes 62 checks with zero warnings/errors. Hosted Windows/Linux each passed all 63 checks with real timers.
 - Negative control: restoring the removed two-argument visibility call causes MissingMethodException in the native SDK fixture. The repaired exact-item user query passes and still rejects inaccessible items. The fixture simulates the unavailable legacy method; it does not start a newer Emby process. See docs/validation-deletion-compatibility-negative.txt. Current reference: https://dev.emby.media/reference/pluginapi/MediaBrowser.Controller.Library.ILibraryManager.html.
 - Thirteen integration checks cover disabled/read-only preview; exact file path and size; unmonitor-before-native-delete ordering; Sonarr shared-file ranges and retained series; native/remote/settings revalidation; lost receipts without replay; partial results; replacement-file preservation; API versions/URL bases/redirects; key masking; Windows/UNC/POSIX mapping; and actual native XML save/reload with blank-key preservation, explicit clearing, and running-operation exclusion.
-- Local Chromium passed 26 checks including real timers during development. New browser cases exercise connection settings, masked keys, unsaved read-only tests, persistence/reload, exact preview service actions, independent media/synchronization outcomes, literal HTML error text, mobile settings, and stale cached HTML. Hosted Linux must pass all 26 on the exact release source.
+- Local Chromium passed 26 checks including real timers during development. New browser cases exercise connection settings, masked keys, unsaved read-only tests, persistence/reload, exact preview service actions, independent media/synchronization outcomes, literal HTML error text, mobile settings, and stale cached HTML. Hosted Linux passed all 26 on the exact release source.
 - All new routes require native Admin; only POST can save/test integration settings. Preview never changes monitoring or media. Configured missing/ambiguous/unreachable targets block the item; disabled connections explicitly remain Emby-only. API keys stay in native configuration and are absent from response views and artifacts.
 - Sonarr and Radarr tests use synthetic HTTP handlers; native deletion tests use temporary files and SDK interfaces. There is no claim of a live authentication pipeline, actual external app behavior, or real-library deletion. Cross-app partial failures cannot restore media. Sonarr root-folder safeguards are not bypassed.
-- After publication, verify all assets/source/tag/feed and run the real public 1.2.2-to-1.3.0 memory-loaded updater check. The next-patch 1.3.1 DLL is test-only and must never be published.
+- All six public assets, 54 source files/60 preview hashes, tag, metadata, and canonical feed were independently verified. The 196,608-byte public DLL hash is 2383314165e2ae609d9ff3a2ffe48482141bc16edf1e88246de015fbf387aaa0. Actual public 1.2.2-to-1.3.0 memory-loaded installation/settings/backup/health/cleanup passed. The next-patch 1.3.1 DLL remains test-only.
 
 ## Historical 1.2.2 validation
 

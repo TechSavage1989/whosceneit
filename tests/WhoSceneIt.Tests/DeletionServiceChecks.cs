@@ -43,14 +43,18 @@ public static class DeletionServiceChecks
         await testAsync("Real deletion service preview, confirmation, polling, and replay preserve the native contract", async () =>
         {
             var f = Fixture();
-            var preview = (DeletionStatus)f.Service.Post(new PreviewDeletion { UserId = "alice", ItemIds = "1" });
-            try { f.Service.Post(new ExecuteDeletion { Token = preview.Token, Confirmation = "wrong" }); throw new Exception("Missing typed confirmation was accepted."); } catch (ArgumentException) { }
-            var started = (DeletionStatus)f.Service.Post(new ExecuteDeletion { Token = preview.Token, Confirmation = "DELETE" });
+            f.Native.Played = false; f.Native.Position = 100;
+            var guarded = (DeletionStatus)f.Service.Post(new PreviewDeletion { UserId = "alice", ItemIds = "1" });
+            assert(guarded.Ready == 0 && !guarded.AllowUnwatched, "The service implicitly enabled unfinished deletion.");
+            var preview = (DeletionStatus)f.Service.Post(new PreviewDeletion { UserId = "alice", ItemIds = "1", AllowUnwatched = true });
+            assert(preview.Ready == 1 && preview.AllowUnwatched, "The service did not pass the explicit watch-state option to the native adapter.");
+            try { f.Service.Post(new ExecuteDeletion { Token = preview.Token, Confirmed = false }); throw new Exception("Missing checkbox confirmation was accepted."); } catch (ArgumentException) { }
+            var started = (DeletionStatus)f.Service.Post(new ExecuteDeletion { Token = preview.Token, Confirmed = true });
             assert(started.Started, "Confirmation was not acknowledged.");
             var limit = DateTimeOffset.UtcNow.AddSeconds(5); DeletionStatus done;
             do { await Task.Delay(10); done = (DeletionStatus)f.Service.Get(new GetDeletionStatus { Token = preview.Token }); } while (done.State == "Deleting" && DateTimeOffset.UtcNow < limit);
             assert(done.State == "Completed" && done.Deleted == 1 && done.Processed == 1 && done.Processing == 0 && f.Native.NativeDeletes == 1 && !File.Exists(f.Native.Movie.Path), "The service did not report actual native deletion completion.");
-            f.Service.Post(new ExecuteDeletion { Token = preview.Token, Confirmation = "DELETE" });
+            f.Service.Post(new ExecuteDeletion { Token = preview.Token, Confirmed = true });
             assert(f.Native.NativeDeletes == 1, "A replay deleted again.");
             f.SetAuth(new AuthorizationInfo { User = new User { InternalId = 6, Policy = new MediaBrowser.Model.Users.UserPolicy { IsAdministrator = true } } });
             try { f.Service.Get(new GetDeletionStatus { Token = preview.Token }); throw new Exception("Another actor could read the plan."); } catch (ArgumentException) { }
@@ -62,7 +66,7 @@ public static class DeletionServiceChecks
             var manager = new DeletionManager(backend); var preview = manager.Preview("admin", "user", new[] { "1", "2" });
             try
             {
-                manager.Execute("admin", preview.Token, "DELETE");
+                manager.Execute("admin", preview.Token, true);
                 assert(await Task.Run(() => entered.Wait(3000)), "The worker did not start.");
                 var running = manager.Status("admin", preview.Token);
                 assert(running.Started && running.Processing == 1 && running.CurrentItemName == "Movie 1" && running.Ready == 1 && running.Processed == 0, "In-flight progress was inaccurate.");
@@ -84,8 +88,8 @@ public static class DeletionServiceChecks
     private sealed class FailingInspectionBackend : IDeletionBackend
     {
         public void EnsureAvailable() { }
-        public string[] Resolve(string user, string[] ids) => ids;
-        public DeletionInspection Inspect(string actor, string user, string id) => id == "2" ? throw new IOException("Fixture path unavailable") : new() { Item = new() { ItemId = id, Name = "Fixture media", Paths = new[] { "/synthetic/one.mkv" } }, Fingerprint = "fixture" };
-        public void Delete(string actor, string user, string id, string fingerprint) => throw new Exception("A preview must never delete.");
+        public string[] Resolve(string user, string[] ids, bool allowUnwatched = false) => ids;
+        public DeletionInspection Inspect(string actor, string user, string id, bool allowUnwatched = false) => id == "2" ? throw new IOException("Fixture path unavailable") : new() { Item = new() { ItemId = id, Name = "Fixture media", Paths = new[] { "/synthetic/one.mkv" } }, Fingerprint = "fixture" };
+        public void Delete(string actor, string user, string id, string fingerprint, bool allowUnwatched = false) => throw new Exception("A preview must never delete.");
     }
 }

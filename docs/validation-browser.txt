@@ -1,6 +1,6 @@
 npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
 
-> whosceneit-validation@1.3.0 test:ui
+> whosceneit-validation@1.4.0 test:ui
 > node tests/ui.smoke.cjs --real-timers
 
 PASS initial user report, paging, and safe title rendering
@@ -16,10 +16,13 @@ PASS report scope and filter changes clear stale bulk selections
 PASS show grouping and stale-request suppression during user changes
 PASS title selection and users who watched a show
 PASS title view previews watched episode media without deleting a TV show folder
+PASS opting in previews all show episodes even when no viewers completed the title
+PASS partially watched deletion is opt-in, resets selections, and needs only the confirmation checkbox
 PASS in-progress-only titles have no selection checkbox and cannot be deleted
 PASS show drilldown scopes the episode list and displays saved progress without inventing durations
 PASS partial filter and CSV preserve episode scope, position, duration, and remaining time
 PASS rewatch filter retains prior completion while disabling media deletion
+PASS unwatched episodes stay protected by default and become selectable only for an opted-in preview
 PASS all, completed, and not-started filters work and clearing episode scope returns to shows
 PASS viewer drilldown keeps the chosen user and show together
 PASS report errors show safe native messages and HTTP status, preserve auth guidance, and never acknowledge failed report health
@@ -29,4 +32,4 @@ PASS mobile layout and no browser exceptions
 PASS outdated cached HTML gets a reload notice and the dashboard uses a versioned controller
 PASS real browser update-status polling timer
 PASS browser timers stop after leaving the plugin page
-RESULT 26 browser checks passed
+RESULT 29 browser checks passed

@@ -239,7 +239,7 @@ try
         Assert(manager.Status().Downloaded, "Upgrade fixture did not download.");
         try
         {
-            deletion.Execute("admin", preview.Token, "DELETE"); Assert(await Task.Run(() => entered.Wait(3000)), "Deletion did not start.");
+            deletion.Execute("admin", preview.Token, true); Assert(await Task.Run(() => entered.Wait(3000)), "Deletion did not start.");
             manager.Install(); Assert(!manager.Status().RestartRequired && manager.Status().Message.Contains("media deletion"), "Installation ran during deletion.");
             manager.Restart(); Assert(manager.Status().Message.Contains("media deletion"), "Restart was not blocked during deletion.");
         }

@@ -1,4 +1,4 @@
-<div data-role="page" class="page type-interior pluginConfigurationPage" data-controller="__plugin/whosceneit-1.3.0.js">
+<div data-role="page" class="page type-interior pluginConfigurationPage" data-controller="__plugin/whosceneit-1.4.0.js">
   <style>
     .wsi { max-width: 1400px; margin: 0 auto; padding: 1.2em 1em 3em; }
     .wsi * { box-sizing: border-box; }
@@ -138,6 +138,8 @@
           <label>Sort by<select data-id="sort"><option value="LastPlayed">Last played, newest first</option><option value="Name">Name</option><option value="PlayCount">Saved play count</option><option value="WatchedCount">Watched count</option><option value="Progress">Progress, highest first</option><option value="Episode">Episode order</option></select></label>
         </div>
         <div class="wsi-actions"><button data-id="refresh" type="button" class="wsi-primary">Refresh report</button><button data-id="export" type="button" disabled>Export all matching rows to CSV</button></div>
+        <label class="wsi-check"><input data-id="allowUnwatched" type="checkbox">Allow deletion of partially watched and unwatched media</label>
+        <p class="wsi-note wsi-muted">Off by default. When enabled, saved progress for any user no longer prevents deletion, and selected shows include all available episodes. Active playback, permissions, and file checks still apply. Use All watch states or Not started to find unwatched titles.</p>
         <div class="wsi-actions" data-id="deleteActions" style="margin-top:1em">
           <span data-id="selectionCount">0 selected</span>
           <button data-id="clearSelection" type="button" disabled>Clear selection</button>
@@ -153,14 +155,14 @@
       <dialog data-id="deleteDialog" class="wsi-delete" aria-labelledby="wsi-delete-title">
         <h2 id="wsi-delete-title">Review media deletion</h2>
         <p data-id="deletePhase" role="status" aria-live="polite">Step 1 of 3: Prepare preview</p>
+        <p data-id="deleteScope" class="wsi-note"></p>
         <p class="wsi-error">This permanently deletes the listed media from Emby and its storage for every user. Enabled Sonarr/Radarr actions are listed per item below. It cannot be undone by this plugin. Emby may also remove the listed folders and their contents.</p>
         <p data-id="deleteContinuation" class="wsi-note" hidden>Confirmed deletions continue if you leave this page. Keep it open to monitor progress or stop the remaining items.</p>
         <p data-id="deleteSummary" role="status" aria-live="polite"></p>
         <div data-id="deleteProgressArea" hidden><progress data-id="deleteProgress" max="1" value="0" style="width:100%;max-width:none" aria-label="Deletion progress"></progress><p data-id="deleteProgressText" role="status" aria-live="polite"></p></div>
         <ol data-id="deleteItems" class="wsi-delete-list"></ol>
         <div data-id="deleteConfirmFields" class="wsi-delete-confirm">
-          <label class="wsi-check"><input type="checkbox" data-id="deleteAcknowledge">I reviewed the paths and service actions and understand this removes media for everyone.</label>
-          <label>Type DELETE to confirm <input data-id="deleteWord" type="text" autocomplete="off" spellcheck="false" maxlength="6"></label>
+          <label class="wsi-check"><input type="checkbox" data-id="deleteAcknowledge">I confirm permanent deletion of the listed media for every user and the service actions shown above.</label>
         </div>
         <div class="wsi-actions">
           <button data-id="confirmDelete" type="button" class="wsi-danger" disabled>Delete confirmed media</button>

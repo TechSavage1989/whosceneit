@@ -1,5 +1,14 @@
 # Changes
 
+## 1.4.0 - optional unfinished deletion and checkbox confirmation
+
+- Added an off-by-default option to include partially watched, unwatched, and watched-with-resume media. Selected shows include all available eligible episodes when opted in; ordinary previews retain completed-only behavior and saved-progress protection.
+- Freeze the watch-state choice with the administrator-bound preview and retain it for expansion, revalidation, execution, status, and retries. Never change watch flags to make media eligible.
+- Retained active/paused playback, visibility, permissions, paths/fingerprints, folder protections, and Sonarr/Radarr matching and synchronization in both modes. Previews display the selected mode and saved-progress notes.
+- Replaced typed DELETE input with one unchecked permanent-deletion acknowledgement and the delete button. Execute requires an explicit Confirmed=true; a missing/false acknowledgement never starts deletion. Each new/retried preview resets confirmation.
+- Clear selections when changing the option, allow all-state title previews even with no completed viewers, and keep failed-report actions disabled. The dashboard uses a 1.4.0 controller while retaining older aliases for reload guidance.
+- Added frozen-mode, checkbox, default-protection, opt-in series/episode, and native-guard regression coverage. Existing report, updater, and external-service features are retained.
+
 ## 1.3.0 - Emby deletion compatibility and Sonarr/Radarr synchronization
 
 - Replaced the removed two-argument FilterItemsToIdsForUser call with an exact-item, user-scoped native query. Selected-user visibility and content restrictions remain enforced. A regression fixture rejects the legacy method and catches the old implementation.

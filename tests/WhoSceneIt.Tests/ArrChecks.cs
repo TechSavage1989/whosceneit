@@ -14,7 +14,7 @@ public static class ArrChecks
         void Reject(Action action) { try { action(); } catch (Exception e) when (e is ArgumentException || e is InvalidOperationException || e is ArrRequestException) { return; } throw new Exception("Invalid synchronization input was accepted."); }
         async Task<DeletionStatus> Done(ArrFixture f, DeletionStatus preview)
         {
-            f.Manager.Execute("admin", preview.Token, "DELETE"); var until = DateTimeOffset.UtcNow.AddSeconds(5); DeletionStatus result;
+            f.Manager.Execute("admin", preview.Token, true); var until = DateTimeOffset.UtcNow.AddSeconds(5); DeletionStatus result;
             do { await Task.Delay(10); result = f.Manager.Status("admin", preview.Token); } while (result.State == "Deleting" && DateTimeOffset.UtcNow < until);
             assert(result.State == "Completed", "Synchronization did not finish."); return result;
         }
@@ -34,7 +34,7 @@ public static class ArrChecks
             assert(done.Deleted == 1 && done.Synchronized == 1 && done.SyncFailed == 0 && !File.Exists(f.File) && !f.RecordPresent, "Radarr synchronization was not completed.");
             assert(f.Mutations.Count == 2 && f.Mutations[0].method == "PUT" && f.Mutations[0].path.EndsWith("/movie/editor") && f.Mutations[1].path.Contains("deleteFiles=false&addImportExclusion=true"), "Radarr was asked to delete additional files or changed unrelated fields.");
             assert(f.FilePresentWhenUnmonitored && !f.FilePresentWhenRemoteDeleted && File.Exists(f.Backend.FileFor("2")), "Deletion order or unrelated file preservation failed.");
-            f.Manager.Execute("admin", p.Token, "DELETE"); assert(f.Backend.Deletes == 1 && f.Mutations.Count == 2, "A replay repeated deletion.");
+            f.Manager.Execute("admin", p.Token, true); assert(f.Backend.Deletes == 1 && f.Mutations.Count == 2, "A replay repeated deletion.");
         });
         await testAsync("Sonarr synchronization unmonitors every covered episode and removes only the matched file record", async () =>
         {
@@ -62,7 +62,7 @@ public static class ArrChecks
             using (var f = new ArrFixture(root)) { var p = f.Preview(); f.FileId = 999; var done = await Done(f, p); assert(done.Failed == 1 && f.Backend.Deletes == 0 && f.Mutations.Count == 0, "A changed service target was deleted."); }
             using (var f = new ArrFixture(root)) { var p = f.Preview(); f.Backend.Blocked.Add("1"); var done = await Done(f, p); assert(done.Skipped == 1 && f.Backend.Deletes == 0 && f.Mutations.Count == 0, "A newly blocked native item changed external monitoring."); }
             using (var f = new ArrFixture(root)) { var p = f.Preview(); f.OnUnmonitor = () => File.AppendAllText(f.File, "changed during the remote call"); var done = await Done(f, p); assert(done.Failed == 1 && f.Backend.Deletes == 0 && File.Exists(f.File) && f.RecordPresent && f.Mutations.Count == 1, "Native fingerprint revalidation was skipped after the remote call."); }
-            using (var f = new ArrFixture(root)) { var p = f.Preview(); f.Settings.Radarr.ArrPathRoot = "/different"; var stopped = f.Manager.Execute("admin", p.Token, "DELETE"); assert(stopped.State == "Cancelled" && !stopped.Started && stopped.Message.Contains("settings changed") && f.Backend.Deletes == 0 && f.Mutations.Count == 0, "A stale configuration started deletion or reported uncertain progress."); }
+            using (var f = new ArrFixture(root)) { var p = f.Preview(); f.Settings.Radarr.ArrPathRoot = "/different"; var stopped = f.Manager.Execute("admin", p.Token, true); assert(stopped.State == "Cancelled" && !stopped.Started && stopped.Message.Contains("settings changed") && f.Backend.Deletes == 0 && f.Mutations.Count == 0, "A stale configuration started deletion or reported uncertain progress."); }
         });
         await testAsync("Lost monitoring and deletion receipts are verified by reads without replaying mutations", async () =>
         {
@@ -227,12 +227,12 @@ public sealed class ArrBackend : IDeletionBackend
     public int Deletes => _native.Deletes;
     public ArrBackend(string root, bool episode) { _native = new DeletionFixture(root); _episode = episode; }
     public string FileFor(string id) => _native.FileFor(id);
-    public string[] Resolve(string user, string[] ids) => ids;
+    public string[] Resolve(string user, string[] ids, bool allowUnwatched = false) => ids;
     public void EnsureAvailable() { }
-    public DeletionInspection Inspect(string actor, string user, string id)
+    public DeletionInspection Inspect(string actor, string user, string id, bool allowUnwatched = false)
     {
-        var item = _native.Inspect(actor, user, id); item.MediaPath = FileFor(id); item.MediaSize = new FileInfo(FileFor(id)).Length;
+        var item = _native.Inspect(actor, user, id, allowUnwatched); item.MediaPath = FileFor(id); item.MediaSize = new FileInfo(FileFor(id)).Length;
         item.Item.Type = _episode ? "Episode" : "Movie"; item.SeasonNumber = 1; item.EpisodeNumber = 1; item.EpisodeNumberEnd = EpisodeEnd; return item;
     }
-    public void Delete(string actor, string user, string id, string expected) { _native.Delete(actor, user, id, expected); AfterDelete?.Invoke(); }
+    public void Delete(string actor, string user, string id, string expected, bool allowUnwatched = false) { _native.Delete(actor, user, id, expected, allowUnwatched); AfterDelete?.Invoke(); }
 }

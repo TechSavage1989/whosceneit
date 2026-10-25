@@ -2,14 +2,14 @@ define([], function () {
     'use strict';
     return function (view) {
         var find = function (name) { return view.querySelector('[data-id="' + name + '"]'); };
-        if (!find('integrationSettings') || !find('deletePhase')) {
+        if (!find('integrationSettings') || !find('deletePhase') || !find('allowUnwatched') || !find('deleteScope')) {
             var notice = document.createElement('p'); notice.textContent = 'Who Scene It was updated. Reload this page to load the current deletion and synchronization controls.'; view.prepend(notice); return;
         }
         var state = { mode: 'user', start: 0, total: 0, titleStart: 0, selected: null, series: null, token: 0, titleToken: 0, active: false, initialized: false, busy: false, exporting: false, reportHealthy: false };
         var pollTimer = null, filterTimer = null, deletionTimer = null;
         var selections = new Set(), selectionContext = '', currentRows = [];
         var integrationsLoaded = false, integrationBusy = false;
-        var deletion = { token: null, state: null, busy: false, submitting: false, ready: 0, request: 0, ids: [], userId: null };
+        var deletion = { token: null, state: null, busy: false, submitting: false, ready: 0, request: 0, ids: [], userId: null, allowUnwatched: false };
         var pageSize = 100;
         function api(path, data, method) {
             return ApiClient.ajax({ type: method || 'GET', url: ApiClient.getUrl('WhoSceneIt/' + path, data || {}), dataType: 'json' }).catch(normalizeError);
@@ -90,6 +90,8 @@ define([], function () {
         function updateSelections() {
             integrationControls();
             var byTitle = state.mode === 'title';
+            var allStates = find('allowUnwatched').checked;
+            find('allowUnwatched').disabled = deletion.busy;
             find('viewDeletion').hidden = !deletion.token || deletion.state === 'Ready' || deletion.state === 'Loading' || deletion.state === 'PreviewFailed';
             text(find('viewDeletion'), deletion.busy ? 'View deletion progress' : 'View deletion results');
             text(find('selectionCount'), selections.size + ' selected');
@@ -97,8 +99,9 @@ define([], function () {
             find('deleteSelected').hidden = byTitle; find('deleteTitle').hidden = !byTitle;
             find('clearSelection').disabled = !selections.size || deletion.busy;
             find('deleteSelected').disabled = !selections.size || state.busy || deletion.busy;
-            find('deleteTitle').disabled = !state.selected || !currentRows.some(canDelete) || state.busy || deletion.busy;
-            text(find('selectionNote'), byTitle ? 'Deletion includes completed media only. Saved partial playback and rewatches for any user are preserved. Review the exact paths before confirming.' : 'Select fully watched media individually or by page. Selections carry across pages. TV shows expand to completed episodes. Saved partial playback and rewatches for any user are preserved. Deleting media affects every user.');
+            find('deleteTitle').disabled = !state.selected || !state.reportHealthy || (!allStates && !currentRows.some(canDelete)) || state.busy || deletion.busy;
+            text(find('deleteTitle'), allStates ? 'Delete selected title media...' : 'Delete watched media...');
+            text(find('selectionNote'), allStates ? 'All watch states are eligible for review. Selected shows include all available episodes. Media with saved progress for any user can be removed. Deleting media affects every user; review the exact files and service actions.' : byTitle ? 'Deletion includes completed media only. Saved partial playback and rewatches for any user are preserved. Review the exact paths before confirming.' : 'Select fully watched media individually or by page. Selections carry across pages. TV shows expand to completed episodes. Saved partial playback and rewatches for any user are preserved. Deleting media affects every user.');
             view.querySelectorAll('[data-item-selection]').forEach(function (box) { box.checked = selections.has(box.dataset.itemSelection); box.disabled = deletion.busy; });
             var pageBox = view.querySelector('[data-page-selection]');
             if (pageBox) {
@@ -108,7 +111,7 @@ define([], function () {
                 pageBox.disabled = deletion.busy || !eligible.length;
             }
         }
-        function canDelete(row) { return row.DeletableCount != null ? row.DeletableCount > 0 : row.WatchedCount > 0 && !row.WatchedWithResumeCount; }
+        function canDelete(row) { return find('allowUnwatched').checked ? ['Movie','Episode','Series'].indexOf(row.Type) >= 0 : row.DeletableCount != null ? row.DeletableCount > 0 : row.WatchedCount > 0 && !row.WatchedWithResumeCount; }
         function resetSelections() { selections.clear(); updateSelections(); }
         function reportParams(start, limit) {
             var values = { StartIndex: start, Limit: limit, WatchState: find('watchState').value, IncludeInProgress: true, SearchTerm: find('filter').value.trim(), SortBy: find('sort').value };
@@ -204,7 +207,7 @@ define([], function () {
                 cell(row, count); progressCell(row, item); cell(row, item.SavedPlayCount || 0); cell(row, dateLabel(item.LastPlayedUtc));
                 if (!byTitle) {
                     var actionCell = cell(row, ''), remove = document.createElement('button'); remove.type = 'button'; remove.className = 'wsi-danger';
-                    text(remove, item.Type === 'Series' ? 'Delete watched episodes...' : 'Delete...'); remove.disabled = !canDelete(item) || deletion.busy;
+                    text(remove, item.Type === 'Series' ? (find('allowUnwatched').checked ? 'Delete episodes...' : 'Delete watched episodes...') : 'Delete...'); remove.disabled = !canDelete(item) || deletion.busy;
                     remove.setAttribute('aria-label', 'Review deletion of ' + item.Name);
                     remove.addEventListener('click', function () { previewDeletion([item.ItemId]); }); actionCell.appendChild(remove);
                 }
@@ -222,7 +225,7 @@ define([], function () {
             if (state.mode === 'title' && !state.selected) { clearReport(); status('Search for a title and select a result.'); return Promise.resolve(); }
             if (state.mode === 'user' && !find('userSelect').value) { clearReport(); status('No Emby users were found.'); return Promise.resolve(); }
             var token = ++state.token, path = state.mode === 'user' ? 'UserReport' : 'Viewers';
-            var context = JSON.stringify([state.mode, find('userSelect').value, find('viewSelect').value, find('filter').value.trim(), find('watchState').value, state.series && state.series.Id, state.selected && state.selected.Id]);
+            var context = JSON.stringify([state.mode, find('userSelect').value, find('viewSelect').value, find('filter').value.trim(), find('watchState').value, find('allowUnwatched').checked, state.series && state.series.Id, state.selected && state.selected.Id]);
             if (context !== selectionContext) { selectionContext = context; selections.clear(); }
             state.busy = true; state.reportHealthy = false; find('export').disabled = true; status('Loading report...');
             updateSelections();
@@ -262,7 +265,7 @@ define([], function () {
             if (/^[\s]*[=+@-]/.test(str) || /^[\t\r\n]/.test(str)) str = "'" + str;
             return '"' + str.replace(/"/g, '""') + '"';
         }
-        function confirmEnabled() { find('confirmDelete').disabled = deletion.busy || deletion.state !== 'Ready' || !deletion.ready || !find('deleteAcknowledge').checked || find('deleteWord').value !== 'DELETE'; }
+        function confirmEnabled() { find('confirmDelete').disabled = deletion.busy || deletion.state !== 'Ready' || !deletion.ready || !find('deleteAcknowledge').checked; }
         function previewFailed(message) {
             deletion.state = 'PreviewFailed'; deletion.busy = false; deletion.ready = 0; deletion.token = null;
             text(find('deletePhase'), 'Preview failed. No deletion was started for this selection.');
@@ -278,6 +281,7 @@ define([], function () {
             }
             ['Deleted','Ready','Skipped','Failed','Total','Processing','Synchronized','SyncFailed'].forEach(function (key) { if (typeof result[key] !== 'number') result[key] = 0; });
             deletion.token = result.Token; deletion.state = result.State; deletion.ready = result.Ready; deletion.busy = result.State === 'Deleting';
+            text(find('deleteScope'), result.AllowUnwatched ? 'Preview scope: all watch states, including unfinished media and saved progress for any user. Shows expand into all available episodes.' : 'Preview scope: fully watched media only. Saved partial playback and rewatches remain protected.');
             var confirm = result.State === 'Ready' && result.Ready > 0;
             text(find('deletePhase'), result.State === 'Ready' ? (confirm ? 'Step 2 of 3: Review and confirm. No deletion has started.' : 'Nothing can be deleted. Review the blocked items below.') : result.State === 'Deleting' ? 'Step 3 of 3: Deleting confirmed media and updating configured services' : result.State === 'Cancelled' ? (result.Started === false ? 'Preview cancelled. No deletion started.' : 'Deletion cancelled or stopped') : (result.Failed || result.Skipped || result.SyncFailed ? 'Deletion finished with items to review' : 'Deletion completed'));
             find('retryPreview').hidden = true; find('deleteContinuation').hidden = result.State !== 'Deleting';
@@ -289,7 +293,7 @@ define([], function () {
             find('deleteItems').replaceChildren();
             (result.Items || []).forEach(function (item) {
                 var li = document.createElement('li'); text(li, item.Name + (item.Detail ? ' - ' + item.Detail : '') + ' (' + item.State + ')');
-                var detail = document.createElement('small'); text(detail, (item.Paths || []).join('\n') + ((item.WatchedBy || []).length ? '\nWatched by: ' + item.WatchedBy.join(', ') : '') + (item.EmbyState ? '\nEmby: ' + item.EmbyState : '') + (item.ExternalService ? '\n' + item.ExternalService + ': ' + item.ExternalState + (item.ExternalPath ? '\nMatched service path: ' + item.ExternalPath : '') + (item.ExternalMessage ? '\n' + item.ExternalMessage : '') : '') + (item.Message ? '\n' + item.Message : '')); li.appendChild(detail); find('deleteItems').appendChild(li);
+                var detail = document.createElement('small'); text(detail, (item.Paths || []).join('\n') + ((item.WatchedBy || []).length ? '\nWatched by: ' + item.WatchedBy.join(', ') : '') + (item.WatchNote ? '\n' + item.WatchNote : '') + (item.EmbyState ? '\nEmby: ' + item.EmbyState : '') + (item.ExternalService ? '\n' + item.ExternalService + ': ' + item.ExternalState + (item.ExternalPath ? '\nMatched service path: ' + item.ExternalPath : '') + (item.ExternalMessage ? '\n' + item.ExternalMessage : '') : '') + (item.Message ? '\n' + item.Message : '')); li.appendChild(detail); find('deleteItems').appendChild(li);
             });
             find('deleteConfirmFields').hidden = !confirm; find('confirmDelete').hidden = !confirm;
             text(find('confirmDelete'), 'Permanently delete ' + result.Ready + ' media item' + (result.Ready === 1 ? '' : 's'));
@@ -300,20 +304,22 @@ define([], function () {
             clearTimeout(deletionTimer);
             if (deletion.busy && state.active) deletionTimer = setTimeout(pollDeletion, 1000);
         }
-        function previewDeletion(ids, fixedUserId) {
+        function previewDeletion(ids, fixedUserId, fixedAllowUnwatched) {
             if (deletion.busy || !ids.length) return;
             if (ids.length > 500) { status('Select at most 500 titles per deletion batch.', true); return; }
             var request = ++deletion.request;
             deletion.ids = ids.slice(); deletion.userId = arguments.length > 1 ? fixedUserId : (state.mode === 'user' ? find('userSelect').value : null);
+            deletion.allowUnwatched = arguments.length > 2 ? fixedAllowUnwatched : find('allowUnwatched').checked;
             deletion.token = null; deletion.state = 'Loading'; deletion.ready = 0;
             text(find('deletePhase'), 'Step 1 of 3: Preparing preview for ' + ids.length + ' selected title' + (ids.length === 1 ? '' : 's') + '. No deletion has started.');
             find('deleteContinuation').hidden = true; find('deleteProgressArea').hidden = true; find('retryPreview').hidden = true;
-            find('deleteAcknowledge').checked = false; find('deleteWord').value = ''; find('deleteItems').replaceChildren();
-            text(find('deleteSummary'), 'Checking watched items, Emby permissions, playback sessions, and deletion paths...');
+            find('deleteAcknowledge').checked = false; find('deleteItems').replaceChildren();
+            text(find('deleteScope'), deletion.allowUnwatched ? 'This preview allows partially watched and unwatched media, including saved progress for any user.' : 'This preview includes fully watched media only.');
+            text(find('deleteSummary'), 'Checking selected media, Emby permissions, playback sessions, and deletion paths...');
             find('deleteConfirmFields').hidden = true; find('confirmDelete').hidden = true; find('cancelDelete').hidden = false;
             find('closeDelete').hidden = true; find('cancelDelete').disabled = false; text(find('cancelDelete'), 'Cancel');
             if (!find('deleteDialog').open) find('deleteDialog').showModal();
-            deletionApi('Preview', { UserId: deletion.userId, ItemIds: ids.join(',') }).then(function (result) {
+            deletionApi('Preview', { UserId: deletion.userId, ItemIds: ids.join(','), AllowUnwatched: deletion.allowUnwatched }).then(function (result) {
                 if (request !== deletion.request || !state.active) { if (result && result.Token) deletionApi('Cancel', { Token: result.Token }).catch(function () {}); return; }
                 showDeletion(result);
             }).catch(function (error) { if (request === deletion.request) previewFailed(deletionError(error)); });
@@ -334,13 +340,13 @@ define([], function () {
             if (state.active && deletion.token) { clearTimeout(deletionTimer); deletionTimer = setTimeout(pollDeletion, 3000); }
         }
         function executeDeletion() {
-            if (find('confirmDelete').disabled) return;
+            if (find('confirmDelete').disabled || !find('deleteAcknowledge').checked) return;
             deletion.busy = true; deletion.submitting = true; deletion.state = 'Submitting'; confirmEnabled(); find('cancelDelete').disabled = true; updateSelections();
             text(find('deletePhase'), 'Step 3 of 3: Submitting confirmed deletion. Waiting for Emby...');
             find('deleteConfirmFields').hidden = true; find('confirmDelete').hidden = true; find('deleteContinuation').hidden = false;
             find('deleteProgressArea').hidden = false;
             find('closeDelete').hidden = false; text(find('closeDelete'), 'Close progress view');
-            deletionApi('Execute', { Token: deletion.token, Confirmation: find('deleteWord').value }).then(function (result) { deletion.submitting = false; showDeletion(result); }).catch(function (error) {
+            deletionApi('Execute', { Token: deletion.token, Confirmed: find('deleteAcknowledge').checked }).then(function (result) { deletion.submitting = false; showDeletion(result); }).catch(function (error) {
                 deletion.submitting = false;
                 deletionStatusUnavailable(deletionError(error));
                 // A lost response must never trigger another destructive request.
@@ -432,9 +438,10 @@ define([], function () {
             find('clearSelection').addEventListener('click', resetSelections);
             find('deleteSelected').addEventListener('click', function () { previewDeletion(Array.from(selections)); });
             find('deleteTitle').addEventListener('click', function () { if (state.selected) previewDeletion([state.selected.Id]); });
-            find('deleteAcknowledge').addEventListener('change', confirmEnabled); find('deleteWord').addEventListener('input', confirmEnabled);
+            find('allowUnwatched').addEventListener('change', function () { selections.clear(); state.start = 0; if (find('allowUnwatched').checked && find('watchState').value === 'Started') find('watchState').value = 'All'; loadReport(); });
+            find('deleteAcknowledge').addEventListener('change', confirmEnabled);
             find('confirmDelete').addEventListener('click', executeDeletion); find('cancelDelete').addEventListener('click', cancelDeletion);
-            find('retryPreview').addEventListener('click', function () { previewDeletion(deletion.ids, deletion.userId); });
+            find('retryPreview').addEventListener('click', function () { previewDeletion(deletion.ids, deletion.userId, deletion.allowUnwatched); });
             find('viewDeletion').addEventListener('click', function () { if (!find('deleteDialog').open) find('deleteDialog').showModal(); pollDeletion(); });
             find('closeDelete').addEventListener('click', function () { find('deleteDialog').close(); if (!deletion.busy) { resetSelections(); loadReport(); pollUpdate(); } });
             find('deleteDialog').addEventListener('cancel', function (event) { event.preventDefault(); if (!deletion.busy) cancelDeletion(); });

@@ -17,7 +17,7 @@ process.on('exit', () => {
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.setContent('<body style="background:#171c20;color:#e8ecef;font-family:Arial,sans-serif">'+fs.readFileSync(path.join(__dirname,'../src/WhoSceneIt/Web/whosceneit.html'),'utf8')+'</body>');
   await page.evaluate(() => {
-    window.calls=[];window.update={InstalledVersion:'1.2.2',LatestVersion:'1.3.0',UpdateAvailable:true,Downloaded:false,Busy:false,RestartRequired:false,CanRestart:true,AwaitingDashboardVerification:true,Message:'An update is available.',Notes:['Example change.'],HasMoreNotes:false,ReleaseUrl:'https://github.com/TechSavage1989/whosceneit/releases/tag/v1.3.0'};
+    window.calls=[];window.update={InstalledVersion:'1.3.0',LatestVersion:'1.4.0',UpdateAvailable:true,Downloaded:false,Busy:false,RestartRequired:false,CanRestart:true,AwaitingDashboardVerification:true,Message:'An update is available.',Notes:['Example change.'],HasMoreNotes:false,ReleaseUrl:'https://github.com/TechSavage1989/whosceneit/releases/tag/v1.4.0'};
     const connection=()=>({Enabled:false,BaseUrl:'',HasApiKey:false,EmbyPathRoot:'',ArrPathRoot:'',AddImportExclusion:true});
     window.arrSettings={Sonarr:{...connection(),HasApiKey:true},Radarr:connection()};
     window.deletionPlans={};window.deletionCounter=0;
@@ -52,6 +52,7 @@ process.on('exit', () => {
           return list(rows);
         }
         if(u.pathname.endsWith('/Titles'))return list([{Id:'10',Name:'Example Show',Type:'Series',Year:2024},{Id:'100',Name:'Example Movie',Type:'Movie',Year:2024}]);
+        if(u.pathname.endsWith('/Viewers')&&window.emptyViewers)return {...list([]),Title:{Id:'10',Name:'Example Show',Type:'Series'}};
         if(u.pathname.endsWith('/Viewers'))return {...list([{...row('10','Example Show','Series'),UserName:'Alice',AvailableEpisodeCount:8},{...row('10','Example Show','Series'),UserId:'bob',UserName:'Bob',WatchedCount:8,Status:'All available episodes watched',AvailableEpisodeCount:8}]),Title:{Id:'10',Name:'Example Show',Type:'Series'}};
         if(u.pathname.endsWith('/Delete/Preview')){
           if(window.previewFailure)throw new Response(JSON.stringify({ResponseStatus:{Message:'Fixture preview failed: signed-in context unavailable <img src=x onerror="window.previewInjected=true">'}}),{status:500,headers:{'Content-Type':'application/json'}});
@@ -59,12 +60,12 @@ process.on('exit', () => {
           const ids=body.ItemIds.split(',').flatMap(id=>id==='10'?['400','401']:[id]);
           const items=ids.map(id=>({ItemId:id,Name:id==='400'?'Watched episode one':id==='401'?'Watched episode two':'Movie '+id,Type:'Movie',Paths:['/media/mock/'+id+'.mkv'],WatchedBy:['Alice'],State:'Ready'}));
           if(window.arrSettings.Radarr.Enabled)items.forEach(item=>Object.assign(item,{EmbyState:'Not deleted',ExternalService:'Radarr',ExternalState:'Ready',ExternalPath:'/movies/'+item.ItemId+'.mkv',ExternalMessage:'Unmonitor the matched movie and remove its Radarr entry after Emby deletion.'}));
-          const plan={Token:'preview-'+(++window.deletionCounter),State:'Ready',Items:items,Ready:items.length,Total:items.length,Deleted:0,Skipped:0,Failed:0,Started:false,Processing:0,Processed:0,Message:'Review the exact media and paths.'};
+          const plan={Token:'preview-'+(++window.deletionCounter),State:'Ready',Items:items,Ready:items.length,Total:items.length,Deleted:0,Skipped:0,Failed:0,Started:false,AllowUnwatched:!!body.AllowUnwatched,Processing:0,Processed:0,Message:'Review the exact media and paths.'};
           if(window.previewAllBlocked){plan.Items.forEach(i=>{i.State='Blocked';i.Message='Fixture deletion permission is unavailable';});plan.Ready=0;plan.Skipped=plan.Total;}
           window.deletionPlans[plan.Token]=plan;return structuredClone(plan);
         }
         if(u.pathname.endsWith('/Delete/Execute')){
-          const plan=window.deletionPlans[body.Token];if(body.Confirmation!=='DELETE')throw new Error('Confirmation missing');
+          const plan=window.deletionPlans[body.Token];if(body.Confirmed!==true)throw new Error('Confirmation missing');
           plan.State='Deleting';plan.Started=true;plan.Processing=1;plan.CurrentItemName=plan.Items[0].Name;plan.Ready=plan.Total-1;plan.Items[0].State='Deleting';plan.Message='Deleting confirmed media...';
           if(window.executeReceiptLost){window.executeReceiptLost=false;throw new Response(JSON.stringify({ResponseStatus:{Message:'Fixture execution response lost'}}),{status:503});}
           return structuredClone(plan);
@@ -126,7 +127,8 @@ process.on('exit', () => {
   await get('deleteSelected').click();await get('deleteSummary').filter({hasText:'2 ready'}).waitFor();
   if(process.env.WSI_DELETE_SCREENSHOT)await page.screenshot({path:process.env.WSI_DELETE_SCREENSHOT,fullPage:false});
   assert.equal(await get('confirmDelete').isEnabled(),false);
-  await get('deleteWord').fill('DELETE');assert.equal(await get('confirmDelete').isEnabled(),false);
+  assert.equal(await get('deleteWord').count(),0);assert.equal(await get('allowUnwatched').isChecked(),false);
+  assert.equal(await get('confirmDelete').isEnabled(),false);
   await get('deleteAcknowledge').check();assert.equal(await get('confirmDelete').isEnabled(),true);
   await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});
   assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Execute')).length),0);
@@ -143,7 +145,7 @@ process.on('exit', () => {
   if(process.env.WSI_DELETE_FAILURE_SCREENSHOT)await page.screenshot({path:process.env.WSI_DELETE_FAILURE_SCREENSHOT,fullPage:false});
   await page.evaluate(()=>{window.previewFailure=false;window.previewEnvelope=true;});await get('retryPreview').click();await get('deleteSummary').filter({hasText:'Fixture preview validation failed'}).waitFor();
   await page.evaluate(()=>window.previewEnvelope=false);await get('retryPreview').click();await get('deletePhase').filter({hasText:'Step 2 of 3'}).waitFor();
-  assert.equal(await get('deleteAcknowledge').isChecked(),false);assert.equal(await get('deleteWord').inputValue(),'');assert.equal(await get('confirmDelete').isEnabled(),false);
+  assert.equal(await get('deleteAcknowledge').isChecked(),false);assert.equal(await get('confirmDelete').isEnabled(),false);
   await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});
   console.log('PASS native Fetch preview errors and structured failures show no-deletion state and retry only the read-only preview');
   await page.evaluate(()=>window.previewAllBlocked=true);await get('deleteSelected').click();await get('deletePhase').filter({hasText:'Nothing can be deleted'}).waitFor();
@@ -152,7 +154,7 @@ process.on('exit', () => {
   console.log('PASS all-blocked previews explain each blocked item and never offer a destructive confirmation');
   await page.evaluate(()=>{window.executeReceiptLost=true;window.statusFailure=true;});
   await get('deleteSelected').click();await get('deleteSummary').filter({hasText:'2 ready'}).waitFor();
-  await get('deleteAcknowledge').check();await get('deleteWord').fill('DELETE');await get('confirmDelete').click();
+  await get('deleteAcknowledge').check();await get('confirmDelete').click();
   await get('deletePhase').filter({hasText:'Deletion status is unavailable'}).waitFor();assert.equal(await get('retryPreview').isVisible(),false);assert.equal(await get('confirmDelete').isVisible(),false);
   await get('deletePhase').filter({hasText:'Step 3 of 3: Deleting'}).waitFor();assert.equal(await get('deleteProgressArea').isVisible(),true);assert.match(await get('deleteProgressText').innerText(),/Current item: Movie/);
   if(process.env.WSI_DELETE_PROGRESS_SCREENSHOT)await page.screenshot({path:process.env.WSI_DELETE_PROGRESS_SCREENSHOT,fullPage:false});
@@ -161,14 +163,14 @@ process.on('exit', () => {
   assert.match(await get('deletePhase').innerText(),/Deletion completed/);assert.equal(await get('deleteProgress').getAttribute('value'),'2');
   assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Execute')).length),1);
   const deletionCall=await page.evaluate(()=>window.calls.find(c=>c.path.endsWith('/Delete/Execute')));
-  assert.equal(deletionCall.method,'POST');assert.equal(deletionCall.body.Confirmation,'DELETE');
+  assert.equal(deletionCall.method,'POST');assert.equal(deletionCall.body.Confirmed,true);assert.equal('Confirmation' in deletionCall.body,false);
   await get('closeDelete').click();await get('reportStatus').filter({hasText:'203 matching titles'}).waitFor();
   assert.equal(await get('selectionCount').innerText(),'0 selected');
   console.log('PASS confirmed deletion shows live progress, recovers lost responses without replay, and reports final results');
   await page.evaluate(()=>window.syncFailure=true);
   await get('reportBody').locator('[data-item-selection="202"]').check();await get('deleteSelected').click();
   await get('deletePhase').filter({hasText:'Step 2 of 3'}).waitFor();assert.match(await get('deleteItems').innerText(),/Radarr: Ready/);assert.match(await get('deleteItems').innerText(),/Matched service path: \/movies\/202/);
-  await get('deleteAcknowledge').check();await get('deleteWord').fill('DELETE');await get('confirmDelete').click();
+  await get('deleteAcknowledge').check();await get('confirmDelete').click();
   await get('deletePhase').filter({hasText:'Deletion finished with items to review'}).waitFor();
   assert.match(await get('deleteSummary').innerText(),/1 deleted; 0 ready.*1 synchronization issues/);
   assert.match(await get('deleteItems').innerText(),/Emby: Deleted/);assert.match(await get('deleteItems').innerText(),/Radarr: Failed/);
@@ -200,11 +202,29 @@ process.on('exit', () => {
   assert.equal(titlePreview.body.UserId,null);assert.equal(titlePreview.body.ItemIds,'10');
   await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});
   console.log('PASS title view previews watched episode media without deleting a TV show folder');
+  await page.evaluate(()=>window.emptyViewers=true);await get('refresh').click();await get('reportStatus').filter({hasText:'No matching results.'}).waitFor();
+  assert.equal(await get('deleteTitle').isEnabled(),false);
+  await get('allowUnwatched').check();await get('reportStatus').filter({hasText:'No matching results.'}).waitFor();assert.equal(await get('deleteTitle').isEnabled(),true);
+  await get('deleteTitle').click();await get('deletePhase').filter({hasText:'Step 2 of 3'}).waitFor();assert.match(await get('deleteScope').innerText(),/all watch states/);
+  const allShow=await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Preview')).at(-1));assert.equal(allShow.body.UserId,null);assert.equal(allShow.body.AllowUnwatched,true);assert.equal(allShow.body.ItemIds,'10');
+  assert.equal(await get('deleteAcknowledge').isChecked(),false);await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});
+  await page.evaluate(()=>window.emptyViewers=false);await get('allowUnwatched').uncheck();await get('watchState').selectOption('Started');await get('reportStatus').filter({hasText:'2 matching users'}).waitFor();
+  console.log('PASS opting in previews all show episodes even when no viewers completed the title');
   await page.evaluate(()=>window.sampleRows.push({ItemId:'999',UserId:'alice',UserName:'Alice',Name:'Partial Movie',Type:'Movie',Status:'In progress',WatchedCount:0,InProgressCount:1,SavedPlayCount:0}));
   await get('userTab').click();await get('userSelect').selectOption('alice');await get('filter').fill('Partial Movie');
   await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();
   assert.equal(await get('reportBody').locator('[data-item-selection="999"]').count(),0);
   assert.equal(await get('reportBody').getByRole('button',{name:'Review deletion of Partial Movie',exact:true}).isEnabled(),false);
+  await get('allowUnwatched').check();await get('reportBody').locator('[data-item-selection="999"]').waitFor();
+  assert.equal(await get('watchState').inputValue(),'All');await get('reportBody').locator('[data-item-selection="999"]').check();
+  await get('deleteSelected').click();await get('deletePhase').filter({hasText:'Step 2 of 3'}).waitFor();
+  assert.match(await get('deleteScope').innerText(),/saved progress for any user/);assert.equal(await get('confirmDelete').isEnabled(),false);
+  await get('deleteAcknowledge').check();assert.equal(await get('confirmDelete').isEnabled(),true);await get('deleteAcknowledge').uncheck();assert.equal(await get('confirmDelete').isEnabled(),false);
+  const partialPreview=await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Preview')).at(-1));assert.equal(partialPreview.body.AllowUnwatched,true);assert.equal(partialPreview.body.ItemIds,'999');
+  if(process.env.WSI_OPTIONS_SCREENSHOT)await page.screenshot({path:process.env.WSI_OPTIONS_SCREENSHOT,fullPage:false});
+  await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});await get('allowUnwatched').uncheck();await get('watchState').selectOption('Started');
+  await page.waitForFunction(()=>!document.querySelector('[data-item-selection="999"]'));assert.equal(await get('selectionCount').innerText(),'0 selected');
+  console.log('PASS partially watched deletion is opt-in, resets selections, and needs only the confirmation checkbox');
   await get('filter').fill('');await get('titleTab').click();await get('reportStatus').filter({hasText:'2 matching users'}).waitFor();
   console.log('PASS in-progress-only titles have no selection checkbox and cannot be deleted');
   await get('userTab').click();await get('userSelect').selectOption('alice');await get('viewSelect').selectOption('Shows');
@@ -232,6 +252,12 @@ process.on('exit', () => {
   assert.equal(await get('reportBody').getByRole('button',{name:'Review deletion of Rewatching episode',exact:true}).isEnabled(),false);
   console.log('PASS rewatch filter retains prior completion while disabling media deletion');
   await get('watchState').selectOption('NotStarted');await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();assert.match(await get('reportBody').innerText(),/Not-started episode/);
+  assert.equal(await get('reportBody').locator('[data-item-selection="603"]').count(),0);
+  await get('allowUnwatched').check();await get('reportBody').locator('[data-item-selection="603"]').waitFor();await get('reportBody').locator('[data-item-selection="603"]').check();
+  await get('deleteSelected').click();await get('deletePhase').filter({hasText:'Step 2 of 3'}).waitFor();
+  const unwatchedPreview=await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Preview')).at(-1));assert.equal(unwatchedPreview.body.AllowUnwatched,true);assert.equal(unwatchedPreview.body.ItemIds,'603');assert.equal(unwatchedPreview.body.UserId,'alice');
+  await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});await get('allowUnwatched').uncheck();await page.waitForFunction(()=>!document.querySelector('[data-item-selection="603"]'));
+  console.log('PASS unwatched episodes stay protected by default and become selectable only for an opted-in preview');
   await get('watchState').selectOption('All');await get('reportStatus').filter({hasText:'5 matching titles'}).waitFor();
   if(process.env.WSI_PROGRESS_SCREENSHOT)await page.screenshot({path:process.env.WSI_PROGRESS_SCREENSHOT,fullPage:true});
   await get('watchState').selectOption('Watched');await get('reportStatus').filter({hasText:'2 matching titles'}).waitFor();
@@ -289,7 +315,7 @@ process.on('exit', () => {
   assert.deepEqual(errors,[]);
   console.log('PASS mobile layout and no browser exceptions');
   const stale=await browser.newPage();await stale.setContent('<div data-role="page"><p>Old cached dashboard</p></div>');
-  assert.equal(await page.locator('[data-role=page]').getAttribute('data-controller'),'__plugin/whosceneit-1.3.0.js');
+  assert.equal(await page.locator('[data-role=page]').getAttribute('data-controller'),'__plugin/whosceneit-1.4.0.js');
   await stale.evaluate(()=>{window.define=(deps,factory)=>{window.controller=factory();};});await stale.addScriptTag({path:path.join(__dirname,'../src/WhoSceneIt/Web/whosceneit.js')});
   await stale.evaluate(()=>window.controller(document.querySelector('[data-role=page]')));assert.match(await stale.locator('body').innerText(),/Reload this page to load the current deletion and synchronization controls/);await stale.close();
   console.log('PASS outdated cached HTML gets a reload notice and the dashboard uses a versioned controller');
@@ -305,5 +331,5 @@ process.on('exit', () => {
   }
   await browser.close();
   suiteCompleted = true;
-  console.log('RESULT ' + (process.argv.includes('--real-timers') ? 26 : 24) + ' browser checks passed');
+  console.log('RESULT ' + (process.argv.includes('--real-timers') ? 29 : 27) + ' browser checks passed');
 })().catch(async error=>{console.error(error);if(browser)await browser.close();process.exitCode=1;});

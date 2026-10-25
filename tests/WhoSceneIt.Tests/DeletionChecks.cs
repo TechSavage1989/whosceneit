@@ -49,27 +49,41 @@ public static class DeletionChecks
             Reject(() => manager.Preview("admin", "user", new[] { "../1" }));
             Reject(() => manager.Preview("admin", "user", Enumerable.Range(1, 501).Select(x => x.ToString()).ToArray()));
             var preview = manager.Preview("admin", "user", new[] { "1" });
-            Reject(() => manager.Execute("other-admin", preview.Token, "DELETE"));
+            Reject(() => manager.Execute("other-admin", preview.Token, true));
             Reject(() => manager.Status("other-admin", preview.Token));
-            Reject(() => manager.Execute("admin", preview.Token, "delete"));
-            Reject(() => manager.Execute("admin", "unknown", "DELETE"));
+            Reject(() => manager.Execute("admin", preview.Token, false));
+            Reject(() => manager.Execute("admin", "unknown", true));
             assert(backend.Deletes == 0, "An unconfirmed request deleted media.");
         });
         await testAsync("Confirmed single and bulk deletions use real files and replay only once", async () =>
         {
             var backend = new DeletionFixture(root); var manager = new DeletionManager(backend);
             var preview = manager.Preview("admin", "user", new[] { "1", "2" });
-            manager.Execute("admin", preview.Token, "DELETE"); manager.Execute("admin", preview.Token, "DELETE");
-            var done = await Done(manager, preview.Token); manager.Execute("admin", preview.Token, "DELETE");
+            manager.Execute("admin", preview.Token, true); manager.Execute("admin", preview.Token, true);
+            var done = await Done(manager, preview.Token); manager.Execute("admin", preview.Token, true);
             assert(done.Deleted == 2 && backend.Deletes == 2 && !File.Exists(backend.FileFor("1")) && !File.Exists(backend.FileFor("2")), "Confirmed bulk deletion or replay protection failed.");
             assert(File.ReadAllText(backend.Settings) == "keep settings", "Media deletion changed settings.");
+        });
+        await testAsync("Deletion freezes the watch-state option and requires explicit checkbox confirmation", async () =>
+        {
+            foreach (var mode in new[] { false, true })
+            {
+                var backend = new DeletionFixture(root); var manager = new DeletionManager(backend);
+                var preview = manager.Preview("admin", "user", new[] { "1" }, mode);
+                assert(preview.AllowUnwatched == mode, "The preview did not report its watch-state scope.");
+                preview.AllowUnwatched = !mode;
+                Reject(() => manager.Execute("admin", preview.Token, false));
+                assert(backend.Deletes == 0, "A missing checkbox acknowledgement changed media.");
+                manager.Execute("admin", preview.Token, true); var done = await Done(manager, preview.Token);
+                assert(done.Deleted == 1 && done.AllowUnwatched == mode && backend.ResolveAllowUnwatched == mode && backend.DeleteAllowUnwatched == mode && backend.InspectionModes.All(value => value == mode), "A mutable response changed the frozen watch-state scope or revalidation used another mode.");
+            }
         });
         await testAsync("Deletion rechecks changed files, watch status, and playback before removing media", async () =>
         {
             var backend = new DeletionFixture(root); var manager = new DeletionManager(backend);
             var preview = manager.Preview("admin", "user", new[] { "1", "2", "3" });
             File.AppendAllText(backend.FileFor("1"), "changed after preview"); backend.Blocked.Add("2");
-            manager.Execute("admin", preview.Token, "DELETE"); var done = await Done(manager, preview.Token);
+            manager.Execute("admin", preview.Token, true); var done = await Done(manager, preview.Token);
             assert(done.Deleted == 1 && done.Skipped == 2 && backend.Deletes == 1, "A changed or newly blocked file was deleted.");
             assert(File.Exists(backend.FileFor("1")) && File.Exists(backend.FileFor("2")), "Skipped files did not survive.");
         });
@@ -77,7 +91,7 @@ public static class DeletionChecks
         {
             var backend = new DeletionFixture(root) { FailAfterDelete = "2" }; var manager = new DeletionManager(backend);
             var preview = manager.Preview("admin", "user", new[] { "1", "2", "3" });
-            manager.Execute("admin", preview.Token, "DELETE"); var done = await Done(manager, preview.Token);
+            manager.Execute("admin", preview.Token, true); var done = await Done(manager, preview.Token);
             assert(done.Deleted == 2 && done.Failed == 1 && done.Items.Single(i => i.ItemId == "2").Message.Contains("some files may already be removed"), "Partial native deletion was misreported.");
         });
         await testAsync("Cancellation stops remaining deletions and concurrent jobs cannot start", async () =>
@@ -88,9 +102,9 @@ public static class DeletionChecks
             var other = manager.Preview("admin", "user", new[] { "3" });
             try
             {
-                manager.Execute("admin", preview.Token, "DELETE");
+                manager.Execute("admin", preview.Token, true);
                 assert(await Task.Run(() => entered.Wait(3000)), "The first deletion did not start.");
-                Reject(() => manager.Execute("admin", other.Token, "DELETE"));
+                Reject(() => manager.Execute("admin", other.Token, true));
                 manager.Cancel("admin", preview.Token);
             }
             finally { release.Set(); }
@@ -102,8 +116,8 @@ public static class DeletionChecks
         {
             var now = DateTimeOffset.UtcNow; var backend = new DeletionFixture(root); var manager = new DeletionManager(backend, () => now);
             var preview = manager.Preview("admin", "user", new[] { "1" }); now = now.AddMinutes(11);
-            Reject(() => manager.Execute("admin", preview.Token, "DELETE"));
-            for (var i = 0; i < 12; i++) { var next = manager.Preview("admin", "user", new[] { "1" }); manager.Cancel("admin", next.Token); manager.Execute("admin", next.Token, "DELETE"); }
+            Reject(() => manager.Execute("admin", preview.Token, true));
+            for (var i = 0; i < 12; i++) { var next = manager.Preview("admin", "user", new[] { "1" }); manager.Cancel("admin", next.Token); manager.Execute("admin", next.Token, true); }
             assert(backend.Deletes == 0, "A cancelled or expired preview removed media.");
         });
         test("Native Emby series selection expands only watched episodes and removes duplicate IDs", () =>
@@ -117,6 +131,7 @@ public static class DeletionChecks
             var library = Proxy.Create<ILibraryManager>((m, a) => m.Name == "GetItemById" ? series : m.Name == "GetItemList" ? new BaseItem[] { one, one, two } : null);
             var backend = new EmbyDeletionBackend(users, data, library, null, null);
             assert(backend.Resolve("alice", new[] { "10" }).SequenceEqual(new[] { "11" }), "A series included unwatched or duplicate episodes.");
+            assert(backend.Resolve("alice", new[] { "10" }, true).OrderBy(id => id).SequenceEqual(new[] { "11", "12" }), "The opted-in series did not include all available episodes.");
         });
         test("Native deletion respects revoked admin access and rejects non-media folders", () =>
         {
@@ -161,6 +176,22 @@ public static class DeletionChecks
             fixture.OtherPosition = 100;
             Reject(() => fixture.Backend.Delete("admin", "alice", "1", preview.Fingerprint));
             assert(fixture.NativeDeletes == 0 && File.Exists(fixture.Movie.Path), "New progress after preview did not preserve the media.");
+        });
+        test("Unfinished and unwatched native deletion is opt-in and retains every non-watch guard", () =>
+        {
+            var fixture = new NativeDeletionFixture(root) { Played = false, Position = 100, OtherPosition = 200 };
+            assert(fixture.Backend.Inspect("admin", "alice", "1").Item.State == "Blocked", "The default admitted unwatched media.");
+            var preview = fixture.Backend.Inspect("admin", "alice", "1", true);
+            assert(preview.Item.State == "Ready" && preview.Item.WatchNote.Contains("Saved playback positions") && preview.Item.WatchNote.Contains("unwatched"), "The opted-in preview hid saved progress or blocked the requested media.");
+            fixture.Playing = true; assert(fixture.Backend.Inspect("admin", "alice", "1", true).Item.State == "Blocked", "The opt-in bypassed active playback."); fixture.Playing = false;
+            fixture.Movie.AllowDelete = false; assert(fixture.Backend.Inspect("admin", "alice", "1", true).Item.State == "Blocked", "The opt-in bypassed native deletion support."); fixture.Movie.AllowDelete = true;
+            fixture.Admin.Policy.EnableContentDeletion = false; assert(fixture.Backend.Inspect("admin", "alice", "1", true).Item.State == "Blocked", "The opt-in bypassed content-deletion permission."); fixture.Admin.Policy.EnableContentDeletion = true;
+            fixture.Visible = false; assert(fixture.Backend.Inspect("admin", "alice", "1", true).Item.State == "Blocked", "The opt-in bypassed visibility."); fixture.Visible = true;
+            fixture.Movie.DeleteDirectory = true; fixture.LibraryRoot = true; assert(fixture.Backend.Inspect("admin", "alice", "1", true).Item.State == "Blocked", "The opt-in allowed a library root deletion."); fixture.Movie.DeleteDirectory = false; fixture.LibraryRoot = false;
+            Reject(() => fixture.Backend.Delete("admin", "alice", "1", preview.Fingerprint));
+            assert(File.Exists(fixture.Movie.Path), "A default request used the opt-in preview to remove media.");
+            fixture.Backend.Delete("admin", "alice", "1", preview.Fingerprint, true);
+            assert(fixture.NativeDeletes == 1 && !File.Exists(fixture.Movie.Path) && !fixture.Played && fixture.Position == 100 && fixture.OtherPosition == 200, "The opted-in deletion failed or changed watch state to gain eligibility.");
         });
         test("Native deletion preserves user visibility without the removed two-argument SDK method", () =>
         {
@@ -282,6 +313,8 @@ public sealed class DeletionFixture : IDeletionBackend
 {
     private readonly string _root;
     private int _deletes;
+    public bool ResolveAllowUnwatched, DeleteAllowUnwatched;
+    public List<bool> InspectionModes = new();
     public HashSet<string> Blocked = new();
     public string FailAfterDelete, Settings;
     public ManualResetEventSlim Entered, Release;
@@ -293,18 +326,20 @@ public sealed class DeletionFixture : IDeletionBackend
         Settings = Path.Combine(_root, "settings.xml"); File.WriteAllText(Settings, "keep settings");
     }
     public string FileFor(string id) => Path.Combine(_root, "movie-" + id + ".mkv");
-    public string[] Resolve(string userId, string[] roots) => roots;
+    public string[] Resolve(string userId, string[] roots, bool allowUnwatched = false) { ResolveAllowUnwatched = allowUnwatched; return roots; }
     public void EnsureAvailable() { }
-    public DeletionInspection Inspect(string actorId, string userId, string id)
+    public DeletionInspection Inspect(string actorId, string userId, string id, bool allowUnwatched = false)
     {
+        InspectionModes.Add(allowUnwatched);
         var path = FileFor(id);
         return new DeletionInspection { Item = new DeletionItem { ItemId = id, Name = "Movie " + id, Type = "Movie", Paths = new[] { path }, WatchedBy = new[] { "Alice" }, State = Blocked.Contains(id) ? "Blocked" : "Ready", Message = Blocked.Contains(id) ? "Watch status, permission, or playback changed." : null },
             Fingerprint = File.Exists(path) ? Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))) : "missing" };
     }
-    public void Delete(string actorId, string userId, string id, string expected)
+    public void Delete(string actorId, string userId, string id, string expected, bool allowUnwatched = false)
     {
+        DeleteAllowUnwatched = allowUnwatched;
         Entered?.Set(); if (Release != null && !Release.Wait(5000)) throw new Exception("Test did not release deletion.");
-        if (Inspect(actorId, userId, id).Fingerprint != expected) throw new IOException("Fixture changed.");
+        if (Inspect(actorId, userId, id, allowUnwatched).Fingerprint != expected) throw new IOException("Fixture changed.");
         Interlocked.Increment(ref _deletes); File.Delete(FileFor(id));
         if (FailAfterDelete == id) throw new IOException("Injected partial native deletion failure.");
     }

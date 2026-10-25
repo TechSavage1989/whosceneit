@@ -17,13 +17,14 @@ namespace WhoSceneIt.Deletion
     {
         public string UserId { get; set; }
         public string ItemIds { get; set; }
+        public bool AllowUnwatched { get; set; }
     }
     [Route("/WhoSceneIt/Delete/Execute", "POST")]
     [Authenticated(Roles = "Admin")]
     public sealed class ExecuteDeletion : IReturn<DeletionStatus>
     {
         public string Token { get; set; }
-        public string Confirmation { get; set; }
+        public bool Confirmed { get; set; }
     }
     [Route("/WhoSceneIt/Delete/Status", "GET")]
     [Authenticated(Roles = "Admin")]
@@ -58,14 +59,14 @@ namespace WhoSceneIt.Deletion
             {
                 var actor = Actor();
                 if (request == null || string.IsNullOrEmpty(request.ItemIds) || request.ItemIds.Length > 11000) throw new ArgumentException("Select between 1 and 500 titles.");
-                return _manager.Preview(actor, request.UserId, request.ItemIds.Split(',').Select(s => s.Trim()).ToArray());
+                return _manager.Preview(actor, request.UserId, request.ItemIds.Split(',').Select(s => s.Trim()).ToArray(), request.AllowUnwatched);
             }
             catch (Exception exception)
             {
                 return new DeletionStatus { State = "PreviewFailed", Message = "No deletion was started for this selection. " + exception.Message };
             }
         }
-        public object Post(ExecuteDeletion request) => _manager.Execute(Actor(), request.Token, request.Confirmation);
+        public object Post(ExecuteDeletion request) => _manager.Execute(Actor(), request.Token, request.Confirmed);
         public object Get(GetDeletionStatus request) => _manager.Status(Actor(), request.Token);
         public object Post(CancelDeletion request) => _manager.Cancel(Actor(), request.Token);
     }
