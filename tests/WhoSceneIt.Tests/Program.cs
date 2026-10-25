@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using WhoSceneIt;
 using WhoSceneIt.Updates;
+using WhoSceneIt.Deletion;
 using MediaBrowser.Common;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Net;
@@ -12,8 +13,10 @@ using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Serialization;
 using MediaBrowser.Model.Services;
 
+if (args.Contains("--published-upgrade")) { await PublishedUpgradeCheck.Run(new TestJson()); return; }
 var candidate = args.FirstOrDefault(x => !x.StartsWith("--"));
-if (candidate == null || !File.Exists(candidate)) throw new ArgumentException("Pass the path of a test-only WhoSceneIt 1.0.1 DLL.");
+if (candidate == null || !File.Exists(candidate)) throw new ArgumentException("Pass the path of a test-only next-patch WhoSceneIt DLL.");
+var candidateVersion = AssemblyName.GetAssemblyName(candidate).Version.ToString(3);
 var root = Path.Combine(Path.GetTempPath(), "WhoSceneIt-tests-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
 var passed = new List<string>();
@@ -25,10 +28,10 @@ void Reject(Action action) { try { action(); } catch (InvalidDataException) { re
 ReleaseManifest Manifest() => new()
 {
     SchemaVersion = 1, AppId = "WhoSceneIt", PluginId = UpdateIntegrity.PluginId, Repository = UpdateIntegrity.Repository,
-    Version = "1.0.1", MinimumEmbyVersion = "4.8.0.0", ReleaseUrl = "https://github.com/TechSavage1989/whosceneit/releases/tag/v1.0.1",
+    Version = candidateVersion, MinimumEmbyVersion = "4.8.0.0", ReleaseUrl = "https://github.com/TechSavage1989/whosceneit/releases/tag/v" + candidateVersion,
     Notes = new[] { "Test-only candidate." }, Asset = new()
     {
-        FileName = "WhoSceneIt.dll", DownloadUrl = "https://github.com/TechSavage1989/whosceneit/releases/download/v1.0.1/WhoSceneIt.dll",
+        FileName = "WhoSceneIt.dll", DownloadUrl = "https://github.com/TechSavage1989/whosceneit/releases/download/v" + candidateVersion + "/WhoSceneIt.dll",
         Sha256 = UpdateIntegrity.Hash(candidate), SizeBytes = new FileInfo(candidate).Length
     }
 };
@@ -79,9 +82,10 @@ try
     Test("Every report and update route requires the native Admin role", () =>
     {
         var routes = typeof(Plugin).Assembly.GetTypes().Where(t=>t.GetCustomAttribute<RouteAttribute>()!=null).ToArray();
-        Assert(routes.Length==10,"Unexpected public endpoint count.");
+        Assert(routes.Length==14,"Unexpected public endpoint count.");
         Assert(routes.All(t=>t.GetCustomAttribute<AuthenticatedAttribute>()?.Roles=="Admin"),"An endpoint is missing server-side authorization.");
         Assert(routes.Where(t=>t.Namespace=="WhoSceneIt.Updates" && t.Name!="GetUpdates").All(t=>t.GetCustomAttribute<RouteAttribute>().Verbs=="POST"),"Update writes allow GET.");
+        Assert(routes.Where(t=>t.Namespace=="WhoSceneIt.Deletion" && t.Name!="GetDeletionStatus").All(t=>t.GetCustomAttribute<RouteAttribute>().Verbs=="POST"),"Deletion writes allow GET.");
     });
     Test("Manifest rejects other repositories, versions, URLs, hashes, sizes, and app identities", () =>
     {
@@ -157,7 +161,7 @@ try
         var dir=Path.Combine(root,"reload");Directory.CreateDirectory(dir);
         var target=Path.Combine(dir,"WhoSceneIt.dll");File.Copy(typeof(Plugin).Assembly.Location,target);
         var data=Path.Combine(dir,"data");Directory.CreateDirectory(data);
-        var pending=new InstallTransaction {Version="1.0.0",Sha256=UpdateIntegrity.Hash(target),SizeBytes=new FileInfo(target).Length,PreviousVersion="0.9.0"};
+        var pending=new InstallTransaction {Version=typeof(Plugin).Assembly.GetName().Version.ToString(3),Sha256=UpdateIntegrity.Hash(target),SizeBytes=new FileInfo(target).Length,PreviousVersion="1.0.0"};
         File.WriteAllText(Path.Combine(data,"pending-install.json"),json.SerializeToString(pending));
         File.WriteAllText(Path.Combine(data,"downloaded.dll"),"owned staged bytes");
         File.WriteAllText(Path.Combine(data,"settings.xml"),"preserved settings");
@@ -204,6 +208,26 @@ try
         Assert(!manager.Status().Downloaded && manager.Status().Message.Contains("failed"),"Bad download was accepted.");
     });
 
+    await DeletionChecks.Run(root, Test, TestAsync, Assert);
+    await TestAsync("An active media deletion blocks plugin installation and restart", async () =>
+    {
+        using var entered = new ManualResetEventSlim(); using var release = new ManualResetEventSlim();
+        var backend = new DeletionFixture(root) { Entered = entered, Release = release };
+        var deletion = new DeletionManager(backend); var preview = deletion.Preview("admin", "user", new[] { "1", "2" });
+        using var manager = Manager(new FakeHttp(request => Task.FromResult(request.RequestUri.Host == "raw.githubusercontent.com" ? FakeHttp.ManifestResponse(Manifest()) : new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(File.ReadAllBytes(candidate)) })));
+        await manager.CheckAsync("startup"); manager.BeginDownload();
+        var limit = DateTimeOffset.UtcNow.AddSeconds(10); while (manager.Status().Busy && DateTimeOffset.UtcNow < limit) await Task.Delay(10);
+        Assert(manager.Status().Downloaded, "Upgrade fixture did not download.");
+        try
+        {
+            deletion.Execute("admin", preview.Token, "DELETE"); Assert(await Task.Run(() => entered.Wait(3000)), "Deletion did not start.");
+            manager.Install(); Assert(!manager.Status().RestartRequired && manager.Status().Message.Contains("media deletion"), "Installation ran during deletion.");
+            manager.Restart(); Assert(manager.Status().Message.Contains("media deletion"), "Restart was not blocked during deletion.");
+        }
+        finally { release.Set(); }
+        limit = DateTimeOffset.UtcNow.AddSeconds(5); while (deletion.Status("admin", preview.Token).State == "Deleting" && DateTimeOffset.UtcNow < limit) await Task.Delay(10);
+        Assert(deletion.Status("admin", preview.Token).State == "Completed", "Deletion did not finish after the guard check.");
+    });
     if(args.Contains("--real-timer"))
     {
         await TestAsync("Real five-minute timer, two-minute focus gate, manual cooldown expiry, ETag, and HTTP 304", async()=>

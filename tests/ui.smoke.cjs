@@ -10,13 +10,14 @@ let browser;
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.setContent('<body style="background:#171c20;color:#e8ecef;font-family:Arial,sans-serif">'+fs.readFileSync(path.join(__dirname,'../src/WhoSceneIt/Web/whosceneit.html'),'utf8')+'</body>');
   await page.evaluate(() => {
-    window.calls=[];window.update={InstalledVersion:'1.0.0',LatestVersion:'1.0.1',UpdateAvailable:true,Downloaded:false,Busy:false,RestartRequired:false,CanRestart:true,AwaitingDashboardVerification:true,Message:'An update is available.',Notes:['Example change.'],HasMoreNotes:false,ReleaseUrl:'https://github.com/TechSavage1989/whosceneit/releases/tag/v1.0.1'};
+    window.calls=[];window.update={InstalledVersion:'1.1.0',LatestVersion:'1.1.1',UpdateAvailable:true,Downloaded:false,Busy:false,RestartRequired:false,CanRestart:true,AwaitingDashboardVerification:true,Message:'An update is available.',Notes:['Example change.'],HasMoreNotes:false,ReleaseUrl:'https://github.com/TechSavage1989/whosceneit/releases/tag/v1.1.1'};
+    window.deletionPlans={};window.deletionCounter=0;
     const row=(id,name,type='Movie')=>({ItemId:id,UserId:'alice',UserName:'Alice',Name:name,Type:type,Year:2024,Status:type==='Series'?'Watched episodes':'Watched',WatchedCount:type==='Series'?4:1,InProgressCount:0,SavedPlayCount:1,LastPlayedUtc:'2025-01-02T10:00:00.0000000+00:00'});
     window.sampleRows=[row('10','Example Show','Series'),row('11','<img src=x onerror="window.injected=true">'),row('12','=HYPERLINK("test")'),...Array.from({length:202},(_,i)=>row(String(i+100),'Movie '+String(i).padStart(3,'0')))];
     window.ApiClient={
       getUrl:(route,params)=>'https://local.invalid/'+route+'?'+new URLSearchParams(params),
       ajax: async options => {
-        const u=new URL(options.url),p=Object.fromEntries(u.searchParams);window.calls.push({path:u.pathname,params:p,method:options.type});
+        const u=new URL(options.url),p=Object.fromEntries(u.searchParams),body=options.data?JSON.parse(options.data):{};window.calls.push({path:u.pathname,params:p,body,method:options.type});
         const list=(rows)=>({Items:rows.slice(Number(p.StartIndex||0),Number(p.StartIndex||0)+Number(p.Limit||100)),TotalRecordCount:rows.length});
         if(u.pathname.endsWith('/Users'))return [{Id:'alice',Name:'Alice'},{Id:'bob',Name:'Bob'}];
         if(u.pathname.endsWith('/UserReport')){
@@ -29,6 +30,22 @@ let browser;
         }
         if(u.pathname.endsWith('/Titles'))return list([{Id:'10',Name:'Example Show',Type:'Series',Year:2024},{Id:'100',Name:'Example Movie',Type:'Movie',Year:2024}]);
         if(u.pathname.endsWith('/Viewers'))return {...list([{...row('10','Example Show','Series'),UserName:'Alice',AvailableEpisodeCount:8},{...row('10','Example Show','Series'),UserId:'bob',UserName:'Bob',WatchedCount:8,Status:'All available episodes watched',AvailableEpisodeCount:8}]),Title:{Id:'10',Name:'Example Show',Type:'Series'}};
+        if(u.pathname.endsWith('/Delete/Preview')){
+          const ids=body.ItemIds.split(',').flatMap(id=>id==='10'?['400','401']:[id]);
+          const items=ids.map(id=>({ItemId:id,Name:id==='400'?'Watched episode one':id==='401'?'Watched episode two':'Movie '+id,Type:'Movie',Paths:['/media/mock/'+id+'.mkv'],WatchedBy:['Alice'],State:'Ready'}));
+          const plan={Token:'preview-'+(++window.deletionCounter),State:'Ready',Items:items,Ready:items.length,Total:items.length,Deleted:0,Skipped:0,Failed:0,Message:'Review the exact media and paths.'};window.deletionPlans[plan.Token]=plan;return structuredClone(plan);
+        }
+        if(u.pathname.endsWith('/Delete/Execute')){
+          const plan=window.deletionPlans[body.Token];if(body.Confirmation!=='DELETE')throw new Error('Confirmation missing');
+          plan.State='Deleting';plan.Message='Deleting confirmed media...';return structuredClone(plan);
+        }
+        if(u.pathname.endsWith('/Delete/Status')){
+          const plan=window.deletionPlans[p.Token];if(plan.State==='Deleting'){
+            plan.State='Completed';plan.Deleted=plan.Items.length;plan.Ready=0;plan.Message='Deletion finished.';plan.Items.forEach(item=>item.State='Deleted');
+            window.sampleRows=window.sampleRows.filter(row=>!plan.Items.some(item=>item.ItemId===row.ItemId));
+          }return structuredClone(plan);
+        }
+        if(u.pathname.endsWith('/Delete/Cancel')){const plan=window.deletionPlans[body.Token];plan.State='Cancelled';plan.Message='Deletion cancelled.';return structuredClone(plan);}
         if(u.pathname.endsWith('/Updates/Download')){window.update.Downloaded=true;window.update.Message='Download verified. Ready to install.';return {...window.update};}
         if(u.pathname.endsWith('/Updates/Install')){window.update.RestartRequired=true;window.update.Downloaded=false;window.update.Message='Update installed. Restarting Emby Server...';return {...window.update};}
         if(u.pathname.endsWith('/Updates/Check'))return {...window.update};
@@ -52,6 +69,37 @@ let browser;
   const csv=fs.readFileSync(await download.path(),'utf8');
   assert.equal(csv.trim().split('\r\n').length,206);assert.ok(csv.includes("'=HYPERLINK"));
   console.log('PASS CSV includes every page and neutralizes formula-like titles');
+  await get('reportBody').locator('[data-item-selection="300"]').check();
+  await get('prev').click();await get('pageInfo').filter({hasText:'101-200 of 205'}).waitFor();
+  await get('reportBody').locator('[data-item-selection="200"]').check();
+  assert.equal(await get('selectionCount').innerText(),'2 selected');
+  await get('deleteSelected').click();await get('deleteSummary').filter({hasText:'2 ready'}).waitFor();
+  if(process.env.WSI_DELETE_SCREENSHOT)await page.screenshot({path:process.env.WSI_DELETE_SCREENSHOT,fullPage:false});
+  assert.equal(await get('confirmDelete').isEnabled(),false);
+  await get('deleteWord').fill('DELETE');assert.equal(await get('confirmDelete').isEnabled(),false);
+  await get('deleteAcknowledge').check();assert.equal(await get('confirmDelete').isEnabled(),true);
+  await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});
+  assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Execute')).length),0);
+  console.log('PASS bulk selection carries across pages and preview cancellation never deletes media');
+  await get('reportBody').getByRole('button',{name:'Review deletion of Movie 100',exact:true}).click();
+  await get('deleteSummary').filter({hasText:'1 ready'}).waitFor();
+  assert.match(await get('deleteItems').innerText(),/\/media\/mock\/200.mkv/);
+  await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});
+  console.log('PASS individual delete buttons preview exactly the requested movie');
+  await get('deleteSelected').click();await get('deleteSummary').filter({hasText:'2 ready'}).waitFor();
+  await get('deleteAcknowledge').check();await get('deleteWord').fill('DELETE');await get('confirmDelete').click();
+  await get('deleteSummary').filter({hasText:'2 deleted; 0 ready'}).waitFor();
+  assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Execute')).length),1);
+  const deletionCall=await page.evaluate(()=>window.calls.find(c=>c.path.endsWith('/Delete/Execute')));
+  assert.equal(deletionCall.method,'POST');assert.equal(deletionCall.body.Confirmation,'DELETE');
+  await get('closeDelete').click();await get('reportStatus').filter({hasText:'203 matching titles'}).waitFor();
+  assert.equal(await get('selectionCount').innerText(),'0 selected');
+  console.log('PASS confirmed bulk deletion posts once, shows progress, and refreshes the report');
+  await get('reportBody').locator('[data-item-selection="201"]').check();
+  await get('filter').fill('Movie 101');await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();
+  assert.equal(await get('selectionCount').innerText(),'0 selected');
+  await get('filter').fill('');await get('reportStatus').filter({hasText:'203 matching titles'}).waitFor();
+  console.log('PASS report scope and filter changes clear stale bulk selections');
   await get('viewSelect').selectOption('Shows');await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();
   assert.match(await get('reportBody').innerText(),/4 watched episodes/);
   await get('viewSelect').selectOption('Titles');
@@ -63,6 +111,20 @@ let browser;
   await get('titleResults').getByRole('button').first().click();await get('reportStatus').filter({hasText:'2 matching users'}).waitFor();
   assert.match(await get('reportBody').innerText(),/Alice/);assert.match(await get('reportBody').innerText(),/Bob/);assert.match(await get('reportBody').innerText(),/8 watched episodes of 8 available/);
   console.log('PASS title selection and users who watched a show');
+  assert.equal(await get('deleteSelected').isVisible(),false);
+  await get('deleteTitle').click();await get('deleteSummary').filter({hasText:'2 ready'}).waitFor();
+  assert.match(await get('deleteItems').innerText(),/Watched episode one/);
+  const titlePreview=await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Preview')).at(-1));
+  assert.equal(titlePreview.body.UserId,null);assert.equal(titlePreview.body.ItemIds,'10');
+  await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});
+  console.log('PASS title view previews watched episode media without deleting a TV show folder');
+  await page.evaluate(()=>window.sampleRows.push({ItemId:'999',UserId:'alice',UserName:'Alice',Name:'Partial Movie',Type:'Movie',Status:'In progress',WatchedCount:0,InProgressCount:1,SavedPlayCount:0}));
+  await get('userTab').click();await get('userSelect').selectOption('alice');await get('filter').fill('Partial Movie');
+  await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();
+  assert.equal(await get('reportBody').locator('[data-item-selection="999"]').count(),0);
+  assert.equal(await get('reportBody').getByRole('button',{name:'Review deletion of Partial Movie',exact:true}).isEnabled(),false);
+  await get('filter').fill('');await get('titleTab').click();await get('reportStatus').filter({hasText:'2 matching users'}).waitFor();
+  console.log('PASS in-progress-only titles have no selection checkbox and cannot be deleted');
   assert.equal(await get('releaseLink').isVisible(),false);
   await get('downloadUpdate').click();await get('installUpdate').waitFor({state:'visible'});
   assert.equal(await get('restartWarning').isVisible(),true);

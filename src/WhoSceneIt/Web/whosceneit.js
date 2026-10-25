@@ -3,7 +3,9 @@ define([], function () {
     return function (view) {
         var find = function (name) { return view.querySelector('[data-id="' + name + '"]'); };
         var state = { mode: 'user', start: 0, total: 0, titleStart: 0, selected: null, token: 0, titleToken: 0, active: false, initialized: false, busy: false, exporting: false, reportHealthy: false };
-        var pollTimer = null, filterTimer = null;
+        var pollTimer = null, filterTimer = null, deletionTimer = null;
+        var selections = new Set(), selectionContext = '', currentRows = [];
+        var deletion = { token: null, state: null, busy: false, ready: 0, request: 0 };
         var pageSize = 100;
         function api(path, data, method) {
             return ApiClient.ajax({ type: method || 'GET', url: ApiClient.getUrl('WhoSceneIt/' + path, data || {}), dataType: 'json' });
@@ -14,6 +16,34 @@ define([], function () {
             return 'The request failed. Check your connection and Emby Server logs, then try again.';
         }
         function status(message, error) { text(find('reportStatus'), message); find('reportStatus').classList.toggle('wsi-error', !!error); }
+        function deletionApi(action, data, method) {
+            if (method === 'GET') return api('Delete/' + action, data);
+            return ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('WhoSceneIt/Delete/' + action), data: JSON.stringify(data || {}), contentType: 'application/json', dataType: 'json' });
+        }
+        function deletionError(error) {
+            var result = error && error.responseJSON;
+            if (!result && error && error.responseText) { try { result = JSON.parse(error.responseText); } catch (_) {} }
+            return result && ((result.ResponseStatus && result.ResponseStatus.Message) || result.Message) || errorText(error);
+        }
+        function updateSelections() {
+            var byTitle = state.mode === 'title';
+            text(find('selectionCount'), selections.size + ' selected');
+            find('selectionCount').hidden = byTitle; find('clearSelection').hidden = byTitle;
+            find('deleteSelected').hidden = byTitle; find('deleteTitle').hidden = !byTitle;
+            find('clearSelection').disabled = !selections.size || deletion.busy;
+            find('deleteSelected').disabled = !selections.size || state.busy || deletion.busy;
+            find('deleteTitle').disabled = !state.selected || !state.total || state.busy || deletion.busy;
+            text(find('selectionNote'), byTitle ? 'Deletion includes only movies or episodes marked watched by at least one current user. Review the exact media and paths before confirming.' : 'Select watched titles individually or by page. Selections carry across pages. TV shows expand to watched episodes. Deleting media affects every user.');
+            view.querySelectorAll('[data-item-selection]').forEach(function (box) { box.checked = selections.has(box.dataset.itemSelection); box.disabled = deletion.busy; });
+            var pageBox = view.querySelector('[data-page-selection]');
+            if (pageBox) {
+                var eligible = currentRows.filter(function (row) { return row.WatchedCount > 0; });
+                pageBox.checked = !!eligible.length && eligible.every(function (row) { return selections.has(row.ItemId); });
+                pageBox.indeterminate = !pageBox.checked && eligible.some(function (row) { return selections.has(row.ItemId); });
+                pageBox.disabled = deletion.busy || !eligible.length;
+            }
+        }
+        function resetSelections() { selections.clear(); updateSelections(); }
         function reportParams(start, limit) {
             var values = { StartIndex: start, Limit: limit, IncludeInProgress: find('includeProgress').checked, SearchTerm: find('filter').value.trim(), SortBy: find('sort').value };
             if (state.mode === 'user') { values.UserId = find('userSelect').value; values.View = find('viewSelect').value; }
@@ -30,6 +60,7 @@ define([], function () {
         function clearReport() {
             state.total = 0; find('reportBody').replaceChildren(); find('tableWrap').hidden = true;
             find('pager').hidden = true; find('export').disabled = true;
+            currentRows = []; updateSelections();
         }
         function cell(row, value, small) {
             var td = document.createElement('td'); text(td, value);
@@ -43,12 +74,29 @@ define([], function () {
         function renderReport(result) {
             var rows = result.Items || [], byTitle = state.mode === 'title';
             state.total = result.TotalRecordCount || 0;
+            currentRows = rows;
             var headings = byTitle ? ['User', 'Watch status', 'Watched / in progress', 'Saved play count', 'Last played'] : ['Title', 'Type', 'Watch status', 'Watched / in progress', 'Saved play count', 'Last played'];
             var tr = document.createElement('tr');
+            if (!byTitle) {
+                var selectionHead = document.createElement('th'), pageBox = document.createElement('input');
+                pageBox.type = 'checkbox'; pageBox.dataset.pageSelection = 'true'; pageBox.setAttribute('aria-label', 'Select watched titles on this page');
+                pageBox.addEventListener('change', function () { currentRows.filter(function (row) { return row.WatchedCount > 0; }).forEach(function (row) { if (pageBox.checked) selections.add(row.ItemId); else selections.delete(row.ItemId); }); updateSelections(); });
+                selectionHead.appendChild(pageBox); tr.appendChild(selectionHead);
+            }
             headings.forEach(function (label) { var th = document.createElement('th'); th.scope = 'col'; text(th, label); tr.appendChild(th); });
+            if (!byTitle) { var actionHead = document.createElement('th'); actionHead.scope = 'col'; text(actionHead, 'Delete media'); tr.appendChild(actionHead); }
             find('reportHead').replaceChildren(tr); find('reportBody').replaceChildren();
             rows.forEach(function (item) {
                 var row = document.createElement('tr');
+                if (!byTitle) {
+                    var selectionCell = cell(row, ''); selectionCell.className = 'wsi-selection';
+                    if (item.WatchedCount > 0) {
+                        var box = document.createElement('input'); box.type = 'checkbox'; box.dataset.itemSelection = item.ItemId;
+                        box.setAttribute('aria-label', 'Select ' + item.Name);
+                        box.addEventListener('change', function () { if (box.checked) selections.add(item.ItemId); else selections.delete(item.ItemId); updateSelections(); });
+                        selectionCell.appendChild(box);
+                    }
+                }
                 if (byTitle) cell(row, item.UserName, item.UserDisabled ? 'Disabled account' : '');
                 else {
                     var nameCell = cell(row, '', item.Type === 'Episode' ? [item.SeriesName, item.Episode].filter(Boolean).join(' - ') : (item.Year || ''));
@@ -62,6 +110,12 @@ define([], function () {
                 if (item.AvailableEpisodeCount != null) count += ' of ' + item.AvailableEpisodeCount + ' available';
                 if (item.InProgressCount) count += '; ' + item.InProgressCount + ' in progress';
                 cell(row, count); cell(row, item.SavedPlayCount || 0); cell(row, dateLabel(item.LastPlayedUtc));
+                if (!byTitle) {
+                    var actionCell = cell(row, ''), remove = document.createElement('button'); remove.type = 'button'; remove.className = 'wsi-danger';
+                    text(remove, item.Type === 'Series' ? 'Delete watched episodes...' : 'Delete...'); remove.disabled = !item.WatchedCount || deletion.busy;
+                    remove.setAttribute('aria-label', 'Review deletion of ' + item.Name);
+                    remove.addEventListener('click', function () { previewDeletion([item.ItemId]); }); actionCell.appendChild(remove);
+                }
                 find('reportBody').appendChild(row);
             });
             find('tableWrap').hidden = !rows.length; find('pager').hidden = state.total <= pageSize;
@@ -69,13 +123,17 @@ define([], function () {
             text(find('pageInfo'), (state.start + 1) + '-' + (state.start + rows.length) + ' of ' + state.total);
             find('export').disabled = !state.total || state.exporting;
             status(state.total ? state.total + ' matching ' + (byTitle ? 'users' : 'titles') + '. Dates use your browser time zone.' : 'No matching results.');
+            updateSelections();
         }
         function loadReport() {
             if (!state.active) return Promise.resolve();
             if (state.mode === 'title' && !state.selected) { clearReport(); status('Search for a title and select a result.'); return Promise.resolve(); }
             if (state.mode === 'user' && !find('userSelect').value) { clearReport(); status('No Emby users were found.'); return Promise.resolve(); }
             var token = ++state.token, path = state.mode === 'user' ? 'UserReport' : 'Viewers';
+            var context = JSON.stringify([state.mode, find('userSelect').value, find('viewSelect').value, find('filter').value.trim(), find('includeProgress').checked, state.selected && state.selected.Id]);
+            if (context !== selectionContext) { selectionContext = context; selections.clear(); }
             state.busy = true; find('export').disabled = true; status('Loading report...');
+            updateSelections();
             return api(path, reportParams(state.start, pageSize)).then(function (result) {
                 if (token !== state.token || !state.active) return;
                 state.busy = false;
@@ -112,6 +170,61 @@ define([], function () {
             if (/^[\s]*[=+@-]/.test(str) || /^[\t\r\n]/.test(str)) str = "'" + str;
             return '"' + str.replace(/"/g, '""') + '"';
         }
+        function confirmEnabled() { find('confirmDelete').disabled = deletion.busy || deletion.state !== 'Ready' || !deletion.ready || !find('deleteAcknowledge').checked || find('deleteWord').value !== 'DELETE'; }
+        function showDeletion(result) {
+            deletion.token = result.Token; deletion.state = result.State; deletion.ready = result.Ready; deletion.busy = result.State === 'Deleting';
+            text(find('deleteSummary'), result.Message + ' ' + result.Deleted + ' deleted; ' + result.Ready + ' ready; ' + result.Skipped + ' blocked or skipped; ' + result.Failed + ' failed.');
+            find('deleteItems').replaceChildren();
+            (result.Items || []).forEach(function (item) {
+                var li = document.createElement('li'); text(li, item.Name + (item.Detail ? ' - ' + item.Detail : '') + ' (' + item.State + ')');
+                var detail = document.createElement('small'); text(detail, (item.Paths || []).join('\n') + ((item.WatchedBy || []).length ? '\nWatched by: ' + item.WatchedBy.join(', ') : '') + (item.Message ? '\n' + item.Message : '')); li.appendChild(detail); find('deleteItems').appendChild(li);
+            });
+            find('deleteConfirmFields').hidden = result.State !== 'Ready'; find('confirmDelete').hidden = result.State !== 'Ready';
+            find('cancelDelete').hidden = result.State !== 'Ready' && result.State !== 'Deleting';
+            find('closeDelete').hidden = result.State === 'Ready' || result.State === 'Deleting';
+            find('cancelDelete').disabled = false; text(find('cancelDelete'), deletion.busy ? 'Stop after current item' : 'Cancel');
+            confirmEnabled(); updateSelections();
+            clearTimeout(deletionTimer);
+            if (deletion.busy && state.active) deletionTimer = setTimeout(pollDeletion, 1000);
+        }
+        function previewDeletion(ids) {
+            if (deletion.busy || !ids.length) return;
+            if (ids.length > 500) { status('Select at most 500 titles per deletion batch.', true); return; }
+            var request = ++deletion.request;
+            deletion.token = null; deletion.state = 'Loading'; deletion.ready = 0;
+            find('deleteAcknowledge').checked = false; find('deleteWord').value = ''; find('deleteItems').replaceChildren();
+            text(find('deleteSummary'), 'Checking watched items, Emby permissions, playback sessions, and deletion paths...');
+            find('deleteConfirmFields').hidden = true; find('confirmDelete').hidden = true; find('cancelDelete').hidden = false;
+            find('closeDelete').hidden = true; find('cancelDelete').disabled = false; text(find('cancelDelete'), 'Cancel');
+            if (!find('deleteDialog').open) find('deleteDialog').showModal();
+            deletionApi('Preview', { UserId: state.mode === 'user' ? find('userSelect').value : null, ItemIds: ids.join(',') }).then(function (result) {
+                if (request !== deletion.request || !state.active) { deletionApi('Cancel', { Token: result.Token }).catch(function () {}); return; }
+                showDeletion(result);
+            }).catch(function (error) { if (request === deletion.request) { deletion.state = 'Error'; text(find('deleteSummary'), deletionError(error)); find('cancelDelete').hidden = true; find('closeDelete').hidden = false; } });
+        }
+        function pollDeletion() {
+            if (!state.active || !deletion.token) return;
+            deletionApi('Status', { Token: deletion.token }, 'GET').then(showDeletion).catch(function (error) {
+                text(find('deleteSummary'), 'Unable to read deletion progress. The confirmed operation may still be running. ' + deletionError(error));
+                if (state.active) deletionTimer = setTimeout(pollDeletion, 3000);
+            });
+        }
+        function executeDeletion() {
+            if (find('confirmDelete').disabled) return;
+            deletion.busy = true; confirmEnabled(); find('cancelDelete').disabled = true; updateSelections();
+            deletionApi('Execute', { Token: deletion.token, Confirmation: find('deleteWord').value }).then(showDeletion).catch(function (error) {
+                text(find('deleteSummary'), 'Unable to confirm the operation status. ' + deletionError(error));
+                // A lost response must never trigger another destructive request.
+                pollDeletion();
+            });
+        }
+        function cancelDeletion() {
+            ++deletion.request;
+            if (!deletion.token) { find('deleteDialog').close(); return; }
+            var wasRunning = deletion.busy;
+            find('cancelDelete').disabled = true;
+            deletionApi('Cancel', { Token: deletion.token }).then(function (result) { showDeletion(result); if (!wasRunning) find('deleteDialog').close(); }).catch(function (error) { text(find('deleteSummary'), deletionError(error)); find('cancelDelete').disabled = false; });
+        }
         function exportCsv() {
             if (state.exporting || !state.total || state.busy) return;
             var path = state.mode === 'user' ? 'UserReport' : 'Viewers', parameters = reportParams(0, 500), all = [];
@@ -142,11 +255,11 @@ define([], function () {
             var busy = update.Busy;
             find('checkUpdate').disabled = !!busy;
             find('downloadUpdate').hidden = !update.UpdateAvailable || update.Downloaded || update.RestartRequired;
-            find('downloadUpdate').disabled = !!busy;
+            find('downloadUpdate').disabled = !!busy || deletion.busy;
             find('installUpdate').hidden = !update.Downloaded || update.RestartRequired;
-            find('installUpdate').disabled = !!busy;
+            find('installUpdate').disabled = !!busy || deletion.busy;
             find('restartServer').hidden = !update.RestartRequired || !update.CanRestart;
-            find('restartServer').disabled = !!busy;
+            find('restartServer').disabled = !!busy || deletion.busy;
             text(find('installUpdate'), update.CanRestart ? 'Install and restart' : 'Install update');
             find('restartWarning').hidden = !update.Downloaded || update.RestartRequired;
             text(find('restartWarning'), update.CanRestart ? 'Save open work. Installing this update restarts Emby Server and briefly disconnects its clients.' : 'Save open work. After installation, restart Emby Server using its normal controls.');
@@ -163,6 +276,7 @@ define([], function () {
             api('Updates').then(renderUpdate).catch(function () { if (state.active) { text(find('updateMessage'), 'Emby Server is unreachable. Waiting to reconnect...'); pollTimer = setTimeout(pollUpdate, 3000); } });
         }
         function updateAction(action, reason) {
+            if (deletion.busy && (action === 'Install' || action === 'Restart' || action === 'Download')) return;
             find('checkUpdate').disabled = true; find('downloadUpdate').disabled = true; find('installUpdate').disabled = true;
             api('Updates/' + action, { Reason: reason || 'manual' }, 'POST').then(renderUpdate).catch(function (error) { text(find('updateMessage'), errorText(error)); pollTimer = setTimeout(pollUpdate, 2000); });
         }
@@ -181,6 +295,13 @@ define([], function () {
             find('prev').addEventListener('click', function () { state.start = Math.max(0,state.start-pageSize); loadReport(); });
             find('next').addEventListener('click', function () { state.start += pageSize; loadReport(); });
             find('export').addEventListener('click', exportCsv);
+            find('clearSelection').addEventListener('click', resetSelections);
+            find('deleteSelected').addEventListener('click', function () { previewDeletion(Array.from(selections)); });
+            find('deleteTitle').addEventListener('click', function () { if (state.selected) previewDeletion([state.selected.Id]); });
+            find('deleteAcknowledge').addEventListener('change', confirmEnabled); find('deleteWord').addEventListener('input', confirmEnabled);
+            find('confirmDelete').addEventListener('click', executeDeletion); find('cancelDelete').addEventListener('click', cancelDeletion);
+            find('closeDelete').addEventListener('click', function () { find('deleteDialog').close(); resetSelections(); loadReport(); pollUpdate(); });
+            find('deleteDialog').addEventListener('cancel', function (event) { event.preventDefault(); if (!deletion.busy) cancelDeletion(); });
             find('checkUpdate').addEventListener('click', function () { updateAction('Check','manual'); });
             find('downloadUpdate').addEventListener('click', function () { updateAction('Download'); });
             find('installUpdate').addEventListener('click', function () { updateAction('Install'); });
@@ -192,7 +313,13 @@ define([], function () {
             }).catch(function () { find('adminError').hidden = false; find('reportApp').hidden = true; });
             pollUpdate();
         }
-        view.addEventListener('viewshow', function () { state.active = true; init(); window.addEventListener('focus',focus); document.addEventListener('visibilitychange',focus); focus(); });
-        view.addEventListener('viewhide', function () { state.active = false; state.token++; state.titleToken++; clearTimeout(pollTimer); clearTimeout(filterTimer); window.removeEventListener('focus',focus); document.removeEventListener('visibilitychange',focus); });
+        view.addEventListener('viewshow', function () { state.active = true; init(); window.addEventListener('focus',focus); document.addEventListener('visibilitychange',focus); focus(); if (deletion.busy) { if (!find('deleteDialog').open) find('deleteDialog').showModal(); pollDeletion(); } });
+        view.addEventListener('viewhide', function () {
+            state.active = false; state.token++; state.titleToken++; deletion.request++;
+            clearTimeout(pollTimer); clearTimeout(filterTimer); clearTimeout(deletionTimer);
+            window.removeEventListener('focus',focus); document.removeEventListener('visibilitychange',focus);
+            if (find('deleteDialog').open) find('deleteDialog').close();
+            if (deletion.token && !deletion.busy && deletion.state === 'Ready') { deletionApi('Cancel', { Token: deletion.token }).catch(function () {}); deletion.state = 'Cancelled'; }
+        });
     };
 });

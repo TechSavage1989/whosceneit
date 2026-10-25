@@ -258,7 +258,7 @@ namespace WhoSceneIt.Updates
             if (_host.IsShuttingDown || !_host.IsStartupComplete) throw new InvalidOperationException("Wait for Emby Server startup or shutdown to finish.");
             if (_library.IsScanRunning) throw new InvalidOperationException("Wait for the library scan to finish.");
             if (_tasks != null && _tasks.ScheduledTasks.Any(x => x.State != TaskState.Idle)) throw new InvalidOperationException("Wait for Emby's running scheduled tasks to finish.");
-            if (ReportActivity.Active > 0) throw new InvalidOperationException("Wait for active Who Scene It reports to finish.");
+            if (ReportActivity.Active > 0) throw new InvalidOperationException("Wait for active Who Scene It reports or media deletion to finish.");
             if (_sessions.Sessions.Any(x => x.NowPlayingItem != null)) throw new InvalidOperationException("Stop active and paused playback sessions before restarting Emby Server.");
         }
 

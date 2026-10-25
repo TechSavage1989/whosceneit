@@ -2,12 +2,12 @@
 
 ## Current state
 
-- Latest published version: 1.0.0 preview; assembly/file version: 1.0.0.0.
-- Status: published on October 25, 2026 with successful hosted Windows/Linux CI and verified public downloads. This is not a user-confirmed Emby baseline.
+- Current candidate: 1.1.0; assembly/file version: 1.1.0.0. Its publication is explicitly approved and in progress.
+- Latest published/user-confirmed baseline: 1.0.0. The user reported "it works great" on October 25, 2026, then requested individual and bulk deletion of watched media and publication of the next build.
 - Repository: https://github.com/TechSavage1989/whosceneit; confirmed public.
 - Original main ref: c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5, containing only a README. No prior releases, AGENTS.md, or DEVELOPMENT_HANDOFF.md existed.
 - Published source: 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a, tag v1.0.0. The package build-metadata.json records that exact source commit and a clean working tree. Prepared local source was d812efd4c77a42af2f290996eb267b5dde3b95a0; only publication documentation changed before the hosted build.
-- Local branch: codex/whosceneit-publication, tracking origin/main. Main additionally contains the publication handoff and a draft-release lookup correction; these do not change the published application DLL.
+- Local branch: codex/whosceneit-publication, tracking origin/main. The new candidate keeps the established identity, report behavior, update feed, and single-DLL packaging.
 - Release: https://github.com/TechSavage1989/whosceneit/releases/tag/v1.0.0, a published pre-release with six uploaded assets. Do not replace its tag or assets.
 - Update feed: https://raw.githubusercontent.com/TechSavage1989/whosceneit/main/update-manifest.json, activated only after all public asset downloads passed size and SHA-256 verification.
 - Published WhoSceneIt.dll: 89,088 bytes; SHA-256 e2f2e93ee1aa4e3d656bf373cbdc8b5e5fb7bdbca9a6f30dff9f4eb6995ed024.
@@ -17,7 +17,7 @@
 
 Build a new Emby plugin with watched titles by user and viewers by movie/show/episode, reliable update checks, explicit download/install controls, safe replacement, build assets, tests, and a clear future-chat handoff. Adapt desktop-specific requirements to Emby Server. Do not create a separate desktop EXE or add server setup, account setup, payments, unattended workers, or Codex CLI automation.
 
-The user explicitly approved publishing the prepared source and v1.0.0 preview with "publish it" on October 25, 2026. Sync this approved source to the existing public repository, run hosted CI, and publish the preview after its required checks pass. No further publication confirmation is required within this scope. Do not change repository visibility or create credentials.
+The user explicitly approved publishing v1.0.0, confirmed it works, and then explicitly requested individual/bulk watched-media deletion and publication of the new build. This expands the original report-only scope to administrator-confirmed permanent media deletion through Emby's own API. Public source and release publication for 1.1.0 are authorized. No further publication confirmation is required within this scope. Do not change repository visibility or create credentials. Do not delete actual user media while developing or testing this feature.
 
 ## Implementation
 
@@ -28,6 +28,10 @@ The user explicitly approved publishing the prepared source and v1.0.0 preview w
 - UpdateIntegrity allows only the exact source feed and repository release URLs, with restricted GitHub asset redirect hosts. Updates accept one DLL and validate size, SHA-256, PE DLL characteristics, assembly name, and version.
 - UpdateInstaller copies to the target filesystem, flushes writes, uses atomic replacement, verifies the result, restores on replacement failure, and retains one previous DLL. It updates the assembly's actual location, including a customized filename.
 - Restart guards cover active/paused playback, library scans, scheduled tasks, startup/shutdown, and active plugin report queries. A user-initiated restart is rechecked immediately before the host restart call.
+- DeletionService exposes four native Admin routes: POST Delete/Preview, POST Delete/Execute, GET Delete/Status, and POST Delete/Cancel. It additionally resolves the signed-in user from IAuthorizationContext/IRequiresRequest and rejects anonymous/API-key-only contexts without a user.
+- DeletionManager stores administrator-bound, ten-minute, single-use previews in bounded process memory. It snapshots at most 500 expanded media items, rejects duplicate physical paths, starts only after exact DELETE confirmation, prevents concurrent jobs/replayed execution, and reports per-item outcomes. User-initiated jobs run inside Emby, preserve the full-operation update/restart guard, and stop remaining items on request. They are never persisted for unattended replay.
+- EmbyDeletionBackend expands series into watched episodes, rechecks selected-user visibility/watch state (or any current user in By title), native CanDelete permissions, active/paused playback, and native deletion paths. It rejects folders/non-file/virtual items, filesystem/library roots, and directory deletions containing other library movies/episodes. It fingerprints paths, type, size, and timestamps and repeats inspection immediately before ILibraryManager.DeleteItem with DeleteFileLocation=true and DeleteFromExternalProvider=false. No custom filesystem deletion is used for media.
+- The dashboard has individual buttons, page checkboxes, selections across pages, a typed confirmation dialog with every deletion path, progress polling, cancellation, and report refresh. Changing the report scope clears selections. In-progress-only titles cannot be selected. By title uses any-current-user watch status, independently of viewer-name filtering; the preview explains this.
 
 ## Build and checks
 
@@ -38,7 +42,13 @@ The user explicitly approved publishing the prepared source and v1.0.0 preview w
     npm run test:ui -- --real-timers
     python scripts/package.py
 
+After publishing and verifying the feed, explicitly test the actual published updater transport and file transaction:
+
+    dotnet run --project tests/WhoSceneIt.Tests/WhoSceneIt.Tests.csproj -c Release -- --published-upgrade
+
 Target netstandard2.0 using official MediaBrowser.Server.Core 4.8.0.80. System.Memory is a build-time reference supplied at runtime by Emby; ship only the plugin DLL. The test runner targets net8.0. Browser tests use synthetic data, not a real Emby instance. Sixteen compiled checks and nine browser checks passed, including real timing, file rollback, and verified downloads with injected HTTP responses. See VALIDATION.md for exact test boundaries and blocked checks.
+
+For 1.1.0, local validation passed 27 compiled checks without the five-minute option and 15 browser checks including real browser timers. New checks exercise actual temporary-file deletion, replay/expiry/cancellation, partial failure, changed targets, native SDK watch/permission/playback/folder guards, correct native DeleteOptions, and update/restart exclusion. Hosted CI must rerun all 28 compiled checks (including the real five-minute timer) and all 15 browser checks for the exact 1.1.0 release commit before publication. The next-patch 1.1.1 DLL is a test-only fixture and must never be released.
 
 Hosted validation for the exact released commit passed at https://github.com/TechSavage1989/whosceneit/actions/runs/40174051730. Both Windows and Linux passed all 16 compiled checks; Linux also passed all nine browser checks. Release builds had zero compiler warnings or errors. These are SDK/filesystem/browser-fixture tests, not live Emby tests.
 
@@ -53,6 +63,7 @@ The first publication workflow, https://github.com/TechSavage1989/whosceneit/act
 - Temporary installation copy: a uniquely named .whosceneit-install-*.tmp in the installed DLL's directory, removed when the install operation ends.
 - Report exports: user-controlled browser CSV downloads.
 - Logs: normal Emby server logs. No private user data is exported or transmitted by update checks.
+- Deletion previews/progress: bounded memory only, scoped to the initiating administrator. No media or watch history is transmitted to GitHub. Media deletion is permanent; plugin DLL rollback cannot restore media. Closing the browser does not stop an already confirmed job, but restarting Emby does not replay unfinished deletions.
 
 ## Future release procedure after explicit approval
 
@@ -61,15 +72,16 @@ The first publication workflow, https://github.com/TechSavage1989/whosceneit/act
 3. Invoke the manual release workflow with a new version matching the source project at that source ref. Version 1.0.0 already exists and must not be republished. The workflow refuses an existing tag/release, tags the exact source commit, creates a draft, uploads all artifacts, verifies them using the draft's stable release ID, publishes, then advances the main feed.
 4. Verify public release URLs, uploaded assets, source tag/ref, published DLL SHA-256, and the public feed's matching version/digest.
 5. Install the initial DLL with Emby stopped, then verify admin/non-admin access, both report views against known server data, and real server/browser lifecycle behavior.
-6. After this first baseline is confirmed, publish a small 1.0.1 change and test a real 1.0.0-to-1.0.1 upgrade from the hosted feed through download, digest, staging, installation, Emby restart, browser reconnection, settings, cleanup, and rollback.
+6. Version 1.0.0 is user-confirmed. After publishing 1.1.0, run the explicit published-upgrade mode to check the real public feed/download, digest, staging, install, custom filename, backup, configuration, isolated assembly reload, and cleanup using the old 1.0.0 updater. This uses SDK host fixtures and does not verify an actual Emby process restart. Native restart/reconnect and real-library deletion remain separate user/platform checks.
 7. Update this handoff and VALIDATION.md with actual outcomes and approved source/ref. Never overwrite a published version.
 
 ## Known limitations
 
-- An isolated Emby startup test was rejected by automatic approval review because Emby attempted to contact an external public-IP lookup service. Do not bypass or retry this rejected execution indirectly. No live Emby load, native authentication filter, restart, or reconnect result is claimed.
+- Automated isolated Emby startup was rejected by automatic approval review because Emby attempted an external public-IP lookup. Do not bypass or retry it indirectly. The user subsequently confirmed 1.0.0 works, but automated native authentication, media deletion, restart, and reconnect remain unverified.
 - Windows replacement of a DLL loaded by a live Emby process, Docker/NAS supervision, server crash recovery, and a real published-version upgrade remain unverified. Hosted Windows filesystem replacement/rollback tests passed; this does not establish live Emby loaded-DLL behavior.
 - A plugin cannot run its recovery code if a bad replacement prevents that plugin from loading. The single backup supports a manual restore with Emby stopped; the current implementation does not include an external watchdog.
 - Saved watch flags, dates, and counts cannot reconstruct deleted history or distinguish all manual/imported marks from actual playback.
 - The user report respects current selected-user access; the title report reads saved data for all current users. Short playback outside Emby's resumable query can be absent from the user report. Counts refer to current episode files, including specials and possible duplicate versions.
 - A series-level manual mark without individual episode data is not treated as evidence for reconstructed episode counts.
+- Real Emby/filesystem errors can leave a media item partially deleted. The UI reports this explicitly; deletion has no automatic media rollback. Folder layouts with other library media and merged versions can be blocked and require Emby's normal controls. The existing configuration and user watch flags are not edited to enable deletion.
 - Filesystem and network tests use real .NET timers/files and injected HTTP responses. They do not substitute for an actual hosted release and native Emby install test.

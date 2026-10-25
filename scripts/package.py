@@ -21,7 +21,7 @@ manifest = {
     "SchemaVersion": 1, "AppId": "WhoSceneIt", "PluginId": "b6405a2e-52e6-4218-a014-00a46a65f1f8",
     "Repository": repository, "Version": version, "MinimumEmbyVersion": "4.8.0.0",
     "ReleaseUrl": release_root + "tag/v" + version,
-    "Notes": ["Watched movies and TV shows by user.", "Viewer reports by movie, show, or episode.", "CSV exports and verified, administrator-controlled plugin updates."],
+    "Notes": ["Delete watched movies and episodes individually or in bulk.", "Review exact paths and confirm before deleting shared media.", "TV shows expand to watched episodes, with Emby permission and playback checks."],
     "HasMoreNotes": True,
     "Asset": {"FileName": "WhoSceneIt.dll", "DownloadUrl": release_root + "download/v" + version + "/WhoSceneIt.dll", "Sha256": sha, "SizeBytes": len(data)}
 }

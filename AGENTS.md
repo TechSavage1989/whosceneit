@@ -6,10 +6,10 @@ Read this file and DEVELOPMENT_HANDOFF.md before editing. Then inspect the curre
 
 - Repository: https://github.com/TechSavage1989/whosceneit
 - The repository was public with only an initial README at commit c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5 when work began.
-- First published application: 1.0.0 preview, tag v1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. No user-confirmed working Emby installation exists yet.
+- User-confirmed working baseline: 1.0.0, tag v1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. The user confirmed it works on October 25, 2026. Version 1.1.0 adds the explicitly requested media deletion feature.
 - Public source publication and release publication require the user's explicit approval. A repository URL alone does not override that instruction. Do not change visibility, create credentials, or embed tokens.
 - Preserve the stable assembly name and installed filename WhoSceneIt.dll and plugin ID b6405a2e-52e6-4218-a014-00a46a65f1f8 across versions. Use the assembly's actual installed location for updates so custom filenames survive.
-- Keep reporting read-only. Do not change users, permissions, metadata, play counts, or watch state. Every plugin endpoint must require Emby's native Admin role.
+- Keep reports read-only. The user explicitly approved individual and bulk deletion of watched media and publication of the new build. Deletion must use Emby's native policy checks and library deletion API, an administrator-bound expiring preview, exact-path revalidation, explicit DELETE confirmation, and progress/error reporting. Never delete a TV show folder to implement watched-episode deletion. Never grant permissions or change watch state to make an item eligible. Every plugin endpoint must require Emby's native Admin role.
 - No server setup, Codex CLI automation, unattended workers, payment setup, or API-account setup. GitHub CI and an explicitly invoked release workflow are part of the requested build/release scope.
 
 ## Build and test
@@ -23,7 +23,7 @@ Use .NET SDK 8 or newer. The plugin must target netstandard2.0. Emby supplies it
     npm run test:ui -- --real-timers
     python scripts/package.py
 
-The C# test runner uses an unpublished 1.0.1 test DLL to exercise upgrades from 1.0.0. It must never be published. The real timer test takes about five minutes. Browser tests use synthetic data and never connect to a user's Emby server.
+The C# test runner generates an unpublished next-patch DLL to exercise upgrades from the current version (1.1.1 for the 1.1.0 source). Never publish that fixture. The real timer test takes about five minutes. Browser tests use synthetic data and never connect to a user's Emby server. After publication, the explicit --published-upgrade test mode exercises the actual published 1.0.0 updater against the current public feed using SDK host fixtures; it never starts Emby.
 
 ## Updates and releases
 
@@ -32,7 +32,7 @@ The C# test runner uses an unpublished 1.0.1 test DLL to exercise upgrades from 
 - The server-owned timer checks on startup and every five minutes. Browser focus checks require two minutes since the last attempt; manual checks have a 30-second cooldown. Preserve single-flight, ETags, cached results, backoff, and Retry-After behavior.
 - No automatic downloads or unsolicited restarts. Installation is an explicit administrator action. Block installation/restart during playback, library scans, running scheduled tasks, and active plugin reports.
 - Validate the exact repository, HTTPS URLs and redirect hosts, size, SHA-256, PE DLL header, assembly name, and version. A digest is not publisher signing. Updates use a single DLL, never an archive.
-- Stage on the destination filesystem, verify before and after atomic replacement, restore the old DLL on replacement failure, and retain one rollback DLL in Emby's data directory. Never remove settings or media data.
+- Stage on the destination filesystem, verify before and after atomic replacement, restore the old DLL on replacement failure, and retain one rollback DLL in Emby's data directory. The updater must never remove settings or media data. The separately confirmed media-deletion feature has no media rollback.
 - Do not claim an Emby update is healthy merely because a file was replaced. Disclose the limits of server load checks, browser checks, and platform testing.
 - The release workflow is manually invoked after approval. It creates a draft, uploads and verifies all assets, publishes, verifies the public DLL hash, then advances the feed. No feed may point at a missing asset.
 
@@ -40,4 +40,4 @@ The C# test runner uses an unpublished 1.0.1 test DLL to exercise upgrades from 
 
 Update DEVELOPMENT_HANDOFF.md, CHANGELOG.md, and VALIDATION.md after meaningful changes. Record source/ref, version, feed, settings/data paths, checks actually performed, and limitations. Keep credentials, runtime downloads, test servers, local absolute paths, and test data out of release artifacts.
 
-Full Emby startup validation was blocked by automatic approval review because Emby attempted an external public-IP lookup. Do not bypass that rejection or silently repeat the blocked test. Continue offline tests and seek explicit authorization only if that integration test is needed. Hosted Windows/Linux CI and all six public v1.0.0 assets are verified. Native Emby loading/restart, loaded-DLL behavior on Windows, Docker/NAS, and a real published-version upgrade remain unverified. See DEVELOPMENT_HANDOFF.md for the publication recovery and feed verification.
+Automated Emby startup validation was blocked by automatic approval review because Emby attempted an external public-IP lookup. Do not bypass that rejection or silently repeat the blocked test. The user subsequently confirmed 1.0.0 works. Automated live Emby deletion/authentication/restart, loaded-DLL behavior on Windows, and Docker/NAS remain unverified. SDK and temporary-file deletion checks do not constitute a real-library deletion test. See DEVELOPMENT_HANDOFF.md for release state and exact checks.

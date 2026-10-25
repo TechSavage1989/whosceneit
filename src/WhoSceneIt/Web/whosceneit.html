@@ -36,6 +36,17 @@
     .wsi-update h2 { font-size: 1.05em; margin: 0 0 .65em; }
     .wsi-update ul { margin: .7em 0; padding-left: 1.4em; }
     .wsi-note { font-size: .9em; }
+    .wsi td.wsi-selection { min-width: 2.8em; width: 2.8em; }
+    .wsi input[type="checkbox"] { accent-color: #4a9566; }
+    .wsi .wsi-danger { border-color: #bd6868; color: #f2aaaa; }
+    .wsi .wsi-danger:enabled:hover { background: #793a3a; color: #fff; }
+    .wsi-delete { width: min(900px, calc(100vw - 2em)); max-height: 90vh; color: #e8ecef; background: #20262c; border: 1px solid #916262; border-radius: 8px; padding: 1.3em; }
+    .wsi-delete::backdrop { background: #0009; }
+    .wsi-delete h2 { margin-top: 0; }
+    .wsi-delete-list { max-height: 40vh; overflow: auto; padding-left: 1.5em; }
+    .wsi-delete-list li { margin: .8em 0; overflow-wrap: anywhere; }
+    .wsi-delete-list small { display: block; margin-top: .3em; opacity: .8; white-space: pre-wrap; }
+    .wsi-delete-confirm { display: grid; gap: .6em; margin: 1em 0; }
     @media(max-width:600px) { .wsi {padding:.7em .5em 2em;} .wsi-panel {padding:.8em;} .wsi-fields {grid-template-columns:1fr;} }
   </style>
   <div data-role="content">
@@ -89,10 +100,33 @@
         </div>
         <label class="wsi-check"><input data-id="includeProgress" type="checkbox">Include in-progress titles</label>
         <div class="wsi-actions"><button data-id="refresh" type="button" class="wsi-primary">Refresh report</button><button data-id="export" type="button" disabled>Export all matching rows to CSV</button></div>
+        <div class="wsi-actions" data-id="deleteActions" style="margin-top:1em">
+          <span data-id="selectionCount">0 selected</span>
+          <button data-id="clearSelection" type="button" disabled>Clear selection</button>
+          <button data-id="deleteSelected" type="button" class="wsi-danger" disabled>Delete selected media...</button>
+          <button data-id="deleteTitle" type="button" class="wsi-danger" hidden disabled>Delete watched media...</button>
+        </div>
+        <p data-id="selectionNote" class="wsi-note wsi-muted">Select watched titles individually or by page. Selections carry across pages. TV shows expand to watched episodes. Deleting media affects every user.</p>
         <div data-id="reportStatus" class="wsi-status" role="status" aria-live="polite"></div>
         <div class="wsi-tablewrap" data-id="tableWrap" hidden><table><thead data-id="reportHead"></thead><tbody data-id="reportBody"></tbody></table></div>
         <div class="wsi-pager" data-id="pager" hidden><button type="button" data-id="prev">Previous</button><span data-id="pageInfo"></span><button type="button" data-id="next">Next</button></div>
       </div>
+      <dialog data-id="deleteDialog" class="wsi-delete" aria-labelledby="wsi-delete-title">
+        <h2 id="wsi-delete-title">Review media deletion</h2>
+        <p class="wsi-error">This permanently deletes the listed media from Emby and its storage for every user. It cannot be undone by this plugin. Emby may also remove the listed folders and their contents.</p>
+        <p class="wsi-note">Confirmed deletions continue if you leave this page. Keep it open to monitor progress or stop the remaining items.</p>
+        <p data-id="deleteSummary" role="status" aria-live="polite"></p>
+        <ol data-id="deleteItems" class="wsi-delete-list"></ol>
+        <div data-id="deleteConfirmFields" class="wsi-delete-confirm">
+          <label class="wsi-check"><input type="checkbox" data-id="deleteAcknowledge">I reviewed the paths and understand this removes media for everyone.</label>
+          <label>Type DELETE to confirm <input data-id="deleteWord" type="text" autocomplete="off" spellcheck="false" maxlength="6"></label>
+        </div>
+        <div class="wsi-actions">
+          <button data-id="confirmDelete" type="button" class="wsi-danger" disabled>Delete confirmed media</button>
+          <button data-id="cancelDelete" type="button">Cancel</button>
+          <button data-id="closeDelete" type="button" hidden>Close and refresh</button>
+        </div>
+      </dialog>
     </main>
   </div>
 </div>
