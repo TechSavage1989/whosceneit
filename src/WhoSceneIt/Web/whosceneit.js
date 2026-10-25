@@ -2,9 +2,13 @@ define([], function () {
     'use strict';
     return function (view) {
         var find = function (name) { return view.querySelector('[data-id="' + name + '"]'); };
+        if (!find('integrationSettings') || !find('deletePhase')) {
+            var notice = document.createElement('p'); notice.textContent = 'Who Scene It was updated. Reload this page to load the current deletion and synchronization controls.'; view.prepend(notice); return;
+        }
         var state = { mode: 'user', start: 0, total: 0, titleStart: 0, selected: null, series: null, token: 0, titleToken: 0, active: false, initialized: false, busy: false, exporting: false, reportHealthy: false };
         var pollTimer = null, filterTimer = null, deletionTimer = null;
         var selections = new Set(), selectionContext = '', currentRows = [];
+        var integrationsLoaded = false, integrationBusy = false;
         var deletion = { token: null, state: null, busy: false, submitting: false, ready: 0, request: 0, ids: [], userId: null };
         var pageSize = 100;
         function api(path, data, method) {
@@ -36,10 +40,55 @@ define([], function () {
             if (method === 'GET') return api('Delete/' + action, data);
             return ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('WhoSceneIt/Delete/' + action), data: JSON.stringify(data || {}), contentType: 'application/json', dataType: 'json' }).catch(normalizeError);
         }
+        function integrationApi(path, data) {
+            return ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('WhoSceneIt/Integrations' + path), data: JSON.stringify(data), contentType: 'application/json', dataType: 'json' }).catch(normalizeError);
+        }
+        function integrationControls() {
+            ['saveIntegrations','testSonarr','testRadarr'].forEach(function (id) { find(id).disabled = !integrationsLoaded || integrationBusy || deletion.busy; });
+            find('reloadIntegrations').disabled = integrationBusy || deletion.busy;
+            view.querySelectorAll('[data-arr-input]').forEach(function (input) { input.disabled = !integrationsLoaded || integrationBusy || deletion.busy; });
+        }
+        function loadIntegrations() {
+            if (integrationBusy || deletion.busy) return;
+            integrationBusy = true; integrationControls();
+            api('Integrations').then(renderIntegrations).catch(function (error) { text(find('integrationStatus'), errorText(error)); })
+                .then(function () { integrationBusy = false; integrationControls(); });
+        }
+        function renderIntegrations(settings) {
+            ['sonarr','radarr'].forEach(function (name) {
+                var c = settings[name === 'sonarr' ? 'Sonarr' : 'Radarr'];
+                find(name + 'Enabled').checked = !!c.Enabled; find(name + 'Url').value = c.BaseUrl || '';
+                find(name + 'Key').value = ''; find(name + 'ClearKey').checked = false;
+                find(name + 'EmbyRoot').value = c.EmbyPathRoot || ''; find(name + 'ArrRoot').value = c.ArrPathRoot || '';
+                text(find(name + 'KeyStatus'), c.HasApiKey ? 'A key is stored. Leave blank to keep it.' : 'No API key is stored.');
+            });
+            find('radarrExclude').checked = !!settings.Radarr.AddImportExclusion;
+            var enabled = ['Sonarr','Radarr'].filter(function (name) { return settings[name].Enabled; });
+            text(find('integrationSummary'), enabled.length ? 'Synchronization enabled for ' + enabled.join(' and ') + '. Unmatched or unreachable items are blocked before media deletion.' : 'Emby-only deletion. Configure and enable Sonarr/Radarr to synchronize their records.');
+            integrationsLoaded = true; integrationControls();
+        }
+        function connectionValues(name) {
+            return { Enabled: find(name + 'Enabled').checked, BaseUrl: find(name + 'Url').value.trim(), ApiKey: find(name + 'Key').value,
+                ClearApiKey: find(name + 'ClearKey').checked, EmbyPathRoot: find(name + 'EmbyRoot').value.trim(), ArrPathRoot: find(name + 'ArrRoot').value.trim(), AddImportExclusion: name === 'radarr' && find('radarrExclude').checked };
+        }
+        function saveIntegrations() {
+            if (integrationBusy || deletion.busy) return;
+            integrationBusy = true; integrationControls(); text(find('integrationStatus'), 'Saving synchronization settings...');
+            integrationApi('', { Sonarr: connectionValues('sonarr'), Radarr: connectionValues('radarr') }).then(function (result) {
+                renderIntegrations(result); text(find('integrationStatus'), 'Settings saved. Prepare a new deletion preview to use them.');
+            }).catch(function (error) { text(find('integrationStatus'), errorText(error)); }).then(function () { integrationBusy = false; integrationControls(); });
+        }
+        function testIntegration(name) {
+            if (integrationBusy || deletion.busy) return;
+            integrationBusy = true; integrationControls(); text(find('integrationStatus'), 'Testing ' + name + ' connection without changing media or saving settings...');
+            integrationApi('/Test', { Service: name, Connection: connectionValues(name.toLowerCase()) }).then(function (result) { text(find('integrationStatus'), result.Message); })
+                .catch(function (error) { text(find('integrationStatus'), errorText(error)); }).then(function () { integrationBusy = false; integrationControls(); });
+        }
         function deletionError(error) {
             return errorText(error);
         }
         function updateSelections() {
+            integrationControls();
             var byTitle = state.mode === 'title';
             find('viewDeletion').hidden = !deletion.token || deletion.state === 'Ready' || deletion.state === 'Loading' || deletion.state === 'PreviewFailed';
             text(find('viewDeletion'), deletion.busy ? 'View deletion progress' : 'View deletion results');
@@ -227,20 +276,20 @@ define([], function () {
                 if (deletion.busy) { deletionStatusUnavailable('Emby did not return a valid operation status.'); return; }
                 previewFailed(result && result.Message || 'Emby did not return a valid deletion preview.'); return;
             }
-            ['Deleted','Ready','Skipped','Failed','Total','Processing'].forEach(function (key) { if (typeof result[key] !== 'number') result[key] = 0; });
+            ['Deleted','Ready','Skipped','Failed','Total','Processing','Synchronized','SyncFailed'].forEach(function (key) { if (typeof result[key] !== 'number') result[key] = 0; });
             deletion.token = result.Token; deletion.state = result.State; deletion.ready = result.Ready; deletion.busy = result.State === 'Deleting';
             var confirm = result.State === 'Ready' && result.Ready > 0;
-            text(find('deletePhase'), result.State === 'Ready' ? (confirm ? 'Step 2 of 3: Review and confirm. No deletion has started.' : 'Nothing can be deleted. Review the blocked items below.') : result.State === 'Deleting' ? 'Step 3 of 3: Deleting confirmed media' : result.State === 'Cancelled' ? (result.Started === false ? 'Preview cancelled. No deletion started.' : 'Deletion cancelled or stopped') : (result.Failed || result.Skipped ? 'Deletion finished with items to review' : 'Deletion completed'));
+            text(find('deletePhase'), result.State === 'Ready' ? (confirm ? 'Step 2 of 3: Review and confirm. No deletion has started.' : 'Nothing can be deleted. Review the blocked items below.') : result.State === 'Deleting' ? 'Step 3 of 3: Deleting confirmed media and updating configured services' : result.State === 'Cancelled' ? (result.Started === false ? 'Preview cancelled. No deletion started.' : 'Deletion cancelled or stopped') : (result.Failed || result.Skipped || result.SyncFailed ? 'Deletion finished with items to review' : 'Deletion completed'));
             find('retryPreview').hidden = true; find('deleteContinuation').hidden = result.State !== 'Deleting';
             var processed = result.Processed == null ? (result.Deleted || 0) + (result.Skipped || 0) + (result.Failed || 0) : result.Processed;
             find('deleteProgressArea').hidden = result.State === 'Ready' || result.Started === false || !result.Total;
             find('deleteProgress').max = Math.max(1, result.Total || 0); find('deleteProgress').value = processed;
-            text(find('deleteProgressText'), processed + ' of ' + result.Total + ' processed' + (result.CurrentItemName ? '. Current item: ' + result.CurrentItemName : '') + '. ' + (result.Processing || 0) + ' currently deleting.');
-            text(find('deleteSummary'), result.Message + ' ' + result.Deleted + ' deleted; ' + result.Ready + ' ready; ' + result.Skipped + ' blocked or skipped; ' + result.Failed + ' failed.');
+            text(find('deleteProgressText'), processed + ' of ' + result.Total + ' processed' + (result.CurrentItemName ? '. Current item: ' + result.CurrentItemName : '') + '. ' + (result.Processing || 0) + ' currently processing.');
+            text(find('deleteSummary'), result.Message + ' ' + result.Deleted + ' deleted; ' + result.Ready + ' ready; ' + result.Skipped + ' blocked or skipped; ' + result.Failed + ' media failures. ' + result.Synchronized + ' synchronized; ' + result.SyncFailed + ' synchronization issues.');
             find('deleteItems').replaceChildren();
             (result.Items || []).forEach(function (item) {
                 var li = document.createElement('li'); text(li, item.Name + (item.Detail ? ' - ' + item.Detail : '') + ' (' + item.State + ')');
-                var detail = document.createElement('small'); text(detail, (item.Paths || []).join('\n') + ((item.WatchedBy || []).length ? '\nWatched by: ' + item.WatchedBy.join(', ') : '') + (item.Message ? '\n' + item.Message : '')); li.appendChild(detail); find('deleteItems').appendChild(li);
+                var detail = document.createElement('small'); text(detail, (item.Paths || []).join('\n') + ((item.WatchedBy || []).length ? '\nWatched by: ' + item.WatchedBy.join(', ') : '') + (item.EmbyState ? '\nEmby: ' + item.EmbyState : '') + (item.ExternalService ? '\n' + item.ExternalService + ': ' + item.ExternalState + (item.ExternalPath ? '\nMatched service path: ' + item.ExternalPath : '') + (item.ExternalMessage ? '\n' + item.ExternalMessage : '') : '') + (item.Message ? '\n' + item.Message : '')); li.appendChild(detail); find('deleteItems').appendChild(li);
             });
             find('deleteConfirmFields').hidden = !confirm; find('confirmDelete').hidden = !confirm;
             text(find('confirmDelete'), 'Permanently delete ' + result.Ready + ' media item' + (result.Ready === 1 ? '' : 's'));
@@ -376,6 +425,10 @@ define([], function () {
             find('prev').addEventListener('click', function () { state.start = Math.max(0,state.start-pageSize); loadReport(); });
             find('next').addEventListener('click', function () { state.start += pageSize; loadReport(); });
             find('export').addEventListener('click', exportCsv);
+            find('saveIntegrations').addEventListener('click', saveIntegrations);
+            find('reloadIntegrations').addEventListener('click', loadIntegrations);
+            find('testSonarr').addEventListener('click', function () { testIntegration('Sonarr'); });
+            find('testRadarr').addEventListener('click', function () { testIntegration('Radarr'); });
             find('clearSelection').addEventListener('click', resetSelections);
             find('deleteSelected').addEventListener('click', function () { previewDeletion(Array.from(selections)); });
             find('deleteTitle').addEventListener('click', function () { if (state.selected) previewDeletion([state.selected.Id]); });
@@ -391,6 +444,7 @@ define([], function () {
             find('restartServer').addEventListener('click', function () { updateAction('Restart'); });
             api('Users').then(function (users) {
                 find('reportApp').hidden = false; find('adminError').hidden = true;
+                loadIntegrations();
                 users.forEach(function (user) { var option = document.createElement('option'); option.value = user.Id; text(option,user.Name + (user.IsDisabled ? ' (disabled)' : '')); find('userSelect').appendChild(option); });
                 loadReport();
             }).catch(function () { find('adminError').hidden = false; find('reportApp').hidden = true; });

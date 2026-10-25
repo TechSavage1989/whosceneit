@@ -5,7 +5,7 @@ An administrator-only Emby Server plugin that answers two questions:
 - What movies and TV shows has this user watched?
 - Which users have watched this movie, TV show, or episode?
 
-Version 1.2.2 improves deletion preview, confirmation, live progress, and final results. Preview errors explicitly state that no deletion started and show Emby's returned reason. It retains episode progress, report-query repair, individual/bulk deletion, and updater behavior. Live Emby deletion/restart still needs validation; see VALIDATION.md.
+Version 1.3.0 fixes the deletion SDK mismatch shown by newer Emby servers and adds optional Sonarr/Radarr synchronization. Exact file matches and service actions appear in the preview; results distinguish Emby deletion from external cleanup. Reports, progress protection, and updater behavior are retained. Live Emby/Sonarr/Radarr deletion still needs target-server validation; see VALIDATION.md.
 
 ## Features
 
@@ -16,15 +16,16 @@ Version 1.2.2 improves deletion preview, confirmation, live progress, and final 
 - Saved play counts and the last recorded playback date.
 - Watched and partially watched titles appear together by default. Search/filter controls, pagination, and CSV export include the matching progress details.
 - Individual and bulk watched-media deletion, with an exact-path preview, explicit confirmation, progress, cancellation, and Emby permission/playback checks.
+- Optional Sonarr/Radarr connection settings, read-only connection tests, path mapping, strict matching, unmonitoring, and separate synchronization results.
 - Explicit, administrator-controlled plugin updates with SHA-256 and assembly validation, a rollback backup, and restart guards.
 
 ## Requirements
 
-Emby Server 4.8 or newer is the intended target. The plugin is built against the official 4.8.0.80 SDK and targets netstandard2.0. Actual compatibility with your Emby version and platform still needs an installation test. This is not a Jellyfin plugin. An Emby administrator account is required; no new API account or API key is needed.
+Emby Server 4.8 or newer is the intended target. The plugin is built against the official 4.8.0.80 SDK and targets netstandard2.0. Actual compatibility with your Emby version and platform still needs an installation test. This is not a Jellyfin plugin. An Emby administrator account is required. Reports and plugin updates need no Emby API key. Optional synchronization needs each existing Sonarr/Radarr server URL and API key.
 
 ## Install
 
-If version 1.0.0 or 1.1.0 reports an empty "path" during installation, replace the DLL manually using the steps below. The already loaded old updater cannot apply its own path fix. Install the current 1.2.2 DLL directly; intermediate versions are unnecessary. Version 1.1.1 already contains the path fix and can use the normal updater. Keep the existing filename if you customized it.
+If version 1.0.0 or 1.1.0 reports an empty "path" during installation, replace the DLL manually using the steps below. The already loaded old updater cannot apply its own path fix. Install the current 1.3.0 DLL directly; intermediate versions are unnecessary. Version 1.1.1 already contains the path fix and can use the normal updater. Keep the existing filename if you customized it.
 
 1. Stop Emby Server.
 2. Find its Server Data Folder in the Emby dashboard. Open the plugins directory directly under that folder.
@@ -32,7 +33,7 @@ If version 1.0.0 or 1.1.0 reports an empty "path" during installation, replace t
 4. Start Emby Server and sign in through its web interface as an administrator.
 5. Open Dashboard, Plugins, Who Scene It, then its settings/configuration page. The server menu also provides a Who Scene It page where supported.
 
-If the page does not appear, refresh the browser and check Emby's server log for WhoSceneIt. Do not install this preview over an existing plugin with a different identity or name.
+After updating, reload the plugin page with Ctrl+F5 to refresh cached controls. The dashboard uses a versioned controller and shows a reload notice if it receives outdated HTML. If the page does not appear, refresh the browser and check Emby's server log for WhoSceneIt. Do not install this preview over an existing plugin with a different identity or name.
 
 Emby's official manual plugin instructions: https://emby.media/support/articles/Plugins.html
 
@@ -54,11 +55,29 @@ In By title, select a movie, show, or episode and choose Delete watched media. T
 
 Delete selected media first prepares a read-only preview. If preparation fails, no deletion has started; the dialog shows the reason and Retry preview. Retry only prepares another review and never confirms deletion. If every item is blocked, the dialog lists the reasons without offering confirmation.
 
-Review every listed path. Deletion removes media from the library and its storage for every user. Emby's normal deletion behavior can also remove listed folders, metadata, subtitles, and other folder contents. The plugin blocks filesystem roots, configured library roots, and directory deletions containing other movie/episode library items. Merged versions or unusual shared-folder layouts may therefore require Emby's own media controls.
+Review every listed path and any Sonarr/Radarr action. Deletion removes media from the library and its storage for every user. Emby's normal deletion behavior can also remove listed folders, metadata, subtitles, and other folder contents. The plugin blocks filesystem roots, configured library roots, and directory deletions containing other movie/episode library items. Merged versions or unusual shared-folder layouts may therefore require Emby's own media controls.
 
 Check the acknowledgement, type DELETE, and choose Delete confirmed media. Only the frozen preview can run; newly watched episodes are not added after confirmation. Previews expire after ten minutes. Emby's deletion permissions, current watch status, playback sessions, and exact deletion paths are rechecked before each item. Local movies and episodes must qualify; channels, virtual media, and non-file sources are excluded. The selected administrator must already have Emby's content-deletion permission for the item.
 
 After confirmation, a progress bar shows processed/total counts, the current item, and deleted, queued, blocked/skipped, and failed results. A lost response is treated as an unknown status; the plugin checks the existing operation and does not resubmit deletion. Close progress view only closes the dialog; View deletion progress reopens the current operation while you remain on this page. Stop after current item preserves the remaining items. Confirmed operations continue inside Emby if you leave the page, and are not replayed automatically after a server restart. Partial deletion can occur if Emby or the filesystem fails; refresh the library and review the result before retrying. Plugin rollback restores only the plugin DLL and cannot recover deleted media. Plugin installation/restart is blocked while deletion is running.
+
+## Sonarr and Radarr synchronization
+
+Synchronization is disabled by default until configured. Expand Sonarr and Radarr synchronization on the plugin page.
+
+1. Enter each service's base URL as reachable from Emby Server, including any URL base such as /sonarr. Enter its existing API key in the password field.
+2. Enable the matching connection: Sonarr for episodes, Radarr for movies.
+3. If the services see different filesystem paths, provide both path prefixes. Otherwise leave both blank. For example, map Emby's /media/tv to Sonarr's /tv, or D:\Media\Movies to Radarr's /movies. Prefix matching respects path boundaries, Windows/UNC case handling, and POSIX case. One connection and one prefix mapping per service are supported.
+4. Use Test connection. This reads the supplied connection without saving changes or modifying media. Sonarr v3 and v5 API routes are detected; Radarr uses its v3 API.
+5. Save settings, then prepare a new deletion preview. Blank API-key fields preserve stored keys; Clear the stored API key removes one explicitly. Reload saved settings discards unsaved form edits. Settings cannot be saved during a running deletion.
+
+Keys are saved in Emby's native plugin configuration and are never returned by the integration settings endpoint, reports, previews, or CSV. Protect and back up that configuration as you would other service credentials. Requests use the configured service only; HTTP redirects are rejected, and TLS certificate checks are retained. No credentials or library data are sent to GitHub.
+
+For an enabled service, the preview requires exactly one matching file path and matching file size. Sonarr also verifies episode numbering and all episodes associated with a shared file. A shared file containing episodes outside the selected Emby episode or numbered range is blocked. Ambiguous records, duplicate remote targets, missing matches, unavailable services, changed settings, and changed targets preserve media. Names alone are never used to choose a deletion target. Disabled connections are explicitly labelled Emby-only in the preview.
+
+After confirmation, the plugin verifies the remote target and unmonitors it, reads the monitoring state back, and rechecks Emby's native deletion guards. Emby performs the actual media deletion. The plugin then removes the matched Sonarr episode-file record or Radarr movie entry and verifies the record is absent. Sonarr retains its series and episode listings with the affected episodes unmonitored. It never deletes a series through this integration. Radarr is told not to delete additional files. Its optional import-list exclusion is requested when removing the movie; that setting does not prevent a later manual re-add.
+
+The UI shows Emby and external service results separately. If external cleanup fails after media deletion, the media remains deleted and the result reports a synchronization issue. If preparation/unmonitoring fails first, media deletion does not start for that item, although monitoring may already have changed. There is no cross-application transaction or media rollback. Read-back checks can verify a lost mutation receipt; mutations are not automatically replayed. Review partial failures in the matching service rather than repeating media deletion. Deleting the last series folder can also trigger Sonarr's own root-folder safeguards; those protections are not bypassed.
 
 ## Updates
 

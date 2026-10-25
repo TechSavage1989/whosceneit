@@ -1,6 +1,20 @@
-# Who Scene It 1.2.2 - preview validation
+# Who Scene It 1.3.0 - preview validation
 
 Date: October 25, 2026.
+
+Version 1.3.0 replaces the legacy Emby visibility method and adds optional Sonarr/Radarr synchronization. Hosted exact-source validation, publication, and public upgrade verification are pending. The new screenshot identifies the SDK mismatch; no live Emby or Sonarr/Radarr deletion success is claimed.
+
+## Version 1.3.0 checks
+
+- Local quick compiled validation passes 62 checks with zero warnings/errors. The hosted real-timer suite must pass 63 checks on each platform before publication.
+- Negative control: restoring the removed two-argument visibility call causes MissingMethodException in the native SDK fixture. The repaired exact-item user query passes and still rejects inaccessible items. The fixture simulates the unavailable legacy method; it does not start a newer Emby process. See docs/validation-deletion-compatibility-negative.txt. Current reference: https://dev.emby.media/reference/pluginapi/MediaBrowser.Controller.Library.ILibraryManager.html.
+- Thirteen integration checks cover disabled/read-only preview; exact file path and size; unmonitor-before-native-delete ordering; Sonarr shared-file ranges and retained series; native/remote/settings revalidation; lost receipts without replay; partial results; replacement-file preservation; API versions/URL bases/redirects; key masking; Windows/UNC/POSIX mapping; and actual native XML save/reload with blank-key preservation, explicit clearing, and running-operation exclusion.
+- Local Chromium passed 26 checks including real timers during development. New browser cases exercise connection settings, masked keys, unsaved read-only tests, persistence/reload, exact preview service actions, independent media/synchronization outcomes, literal HTML error text, mobile settings, and stale cached HTML. Hosted Linux must pass all 26 on the exact release source.
+- All new routes require native Admin; only POST can save/test integration settings. Preview never changes monitoring or media. Configured missing/ambiguous/unreachable targets block the item; disabled connections explicitly remain Emby-only. API keys stay in native configuration and are absent from response views and artifacts.
+- Sonarr and Radarr tests use synthetic HTTP handlers; native deletion tests use temporary files and SDK interfaces. There is no claim of a live authentication pipeline, actual external app behavior, or real-library deletion. Cross-app partial failures cannot restore media. Sonarr root-folder safeguards are not bypassed.
+- After publication, verify all assets/source/tag/feed and run the real public 1.2.2-to-1.3.0 memory-loaded updater check. The next-patch 1.3.1 DLL is test-only and must never be published.
+
+## Historical 1.2.2 validation
 
 Version 1.2.2 repairs deletion preview/error feedback and adds explicit confirmation/progress/results. Hosted exact-source CI, publication, public asset/feed verification, and the public previous-version upgrade check passed. Exact source: 43494290988f57813fdfcb6ca9a42d225951f5b5; tag v1.2.2. The user's HTTP 500 preview response did not expose its underlying server exception; no claim of live deletion success is made.
 

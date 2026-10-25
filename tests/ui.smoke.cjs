@@ -17,7 +17,9 @@ process.on('exit', () => {
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.setContent('<body style="background:#171c20;color:#e8ecef;font-family:Arial,sans-serif">'+fs.readFileSync(path.join(__dirname,'../src/WhoSceneIt/Web/whosceneit.html'),'utf8')+'</body>');
   await page.evaluate(() => {
-    window.calls=[];window.update={InstalledVersion:'1.2.1',LatestVersion:'1.2.2',UpdateAvailable:true,Downloaded:false,Busy:false,RestartRequired:false,CanRestart:true,AwaitingDashboardVerification:true,Message:'An update is available.',Notes:['Example change.'],HasMoreNotes:false,ReleaseUrl:'https://github.com/TechSavage1989/whosceneit/releases/tag/v1.2.2'};
+    window.calls=[];window.update={InstalledVersion:'1.2.2',LatestVersion:'1.3.0',UpdateAvailable:true,Downloaded:false,Busy:false,RestartRequired:false,CanRestart:true,AwaitingDashboardVerification:true,Message:'An update is available.',Notes:['Example change.'],HasMoreNotes:false,ReleaseUrl:'https://github.com/TechSavage1989/whosceneit/releases/tag/v1.3.0'};
+    const connection=()=>({Enabled:false,BaseUrl:'',HasApiKey:false,EmbyPathRoot:'',ArrPathRoot:'',AddImportExclusion:true});
+    window.arrSettings={Sonarr:{...connection(),HasApiKey:true},Radarr:connection()};
     window.deletionPlans={};window.deletionCounter=0;
     const row=(id,name,type='Movie')=>({ItemId:id,UserId:'alice',UserName:'Alice',Name:name,Type:type,Year:2024,Status:type==='Series'?'Watched episodes':'Watched',WatchedCount:type==='Series'?4:1,InProgressCount:0,SavedPlayCount:1,LastPlayedUtc:'2025-01-02T10:00:00.0000000+00:00'});
     window.sampleRows=[row('10','Example Show','Series'),row('11','<img src=x onerror="window.injected=true">'),row('12','=HYPERLINK("test")'),...Array.from({length:202},(_,i)=>row(String(i+100),'Movie '+String(i).padStart(3,'0')))];
@@ -29,6 +31,11 @@ process.on('exit', () => {
         const u=new URL(options.url),p=Object.fromEntries(u.searchParams),body=options.data?JSON.parse(options.data):{};window.calls.push({path:u.pathname,params:p,body,method:options.type});
         const list=(rows)=>({Items:rows.slice(Number(p.StartIndex||0),Number(p.StartIndex||0)+Number(p.Limit||100)),TotalRecordCount:rows.length});
         if(u.pathname.endsWith('/Users'))return [{Id:'alice',Name:'Alice'},{Id:'bob',Name:'Bob'}];
+        if(u.pathname.endsWith('/Integrations')){
+          if(options.type==='POST')for(const name of ['Sonarr','Radarr']){const c=body[name],old=window.arrSettings[name];window.arrSettings[name]={Enabled:c.Enabled,BaseUrl:c.BaseUrl,EmbyPathRoot:c.EmbyPathRoot,ArrPathRoot:c.ArrPathRoot,AddImportExclusion:c.AddImportExclusion,HasApiKey:c.ClearApiKey?false:!!c.ApiKey||old.HasApiKey};}
+          return structuredClone(window.arrSettings);
+        }
+        if(u.pathname.endsWith('/Integrations/Test'))return {Success:true,Message:'Read-only fixture connection test passed. Settings were not saved.'};
         if(u.pathname.endsWith('/UserReport')){
           if(window.reportFailure){if(window.reportFailureAsFetch)throw new Response(JSON.stringify(window.reportFailure.responseJSON),{status:window.reportFailure.status,headers:{'Content-Type':'application/json'}});throw structuredClone(window.reportFailure);}
           await new Promise(resolve=>setTimeout(resolve,p.UserId==='alice'?80:5));
@@ -51,6 +58,7 @@ process.on('exit', () => {
           if(window.previewEnvelope)return {State:'PreviewFailed',Message:'Fixture preview validation failed. No deletion was started.',Started:false};
           const ids=body.ItemIds.split(',').flatMap(id=>id==='10'?['400','401']:[id]);
           const items=ids.map(id=>({ItemId:id,Name:id==='400'?'Watched episode one':id==='401'?'Watched episode two':'Movie '+id,Type:'Movie',Paths:['/media/mock/'+id+'.mkv'],WatchedBy:['Alice'],State:'Ready'}));
+          if(window.arrSettings.Radarr.Enabled)items.forEach(item=>Object.assign(item,{EmbyState:'Not deleted',ExternalService:'Radarr',ExternalState:'Ready',ExternalPath:'/movies/'+item.ItemId+'.mkv',ExternalMessage:'Unmonitor the matched movie and remove its Radarr entry after Emby deletion.'}));
           const plan={Token:'preview-'+(++window.deletionCounter),State:'Ready',Items:items,Ready:items.length,Total:items.length,Deleted:0,Skipped:0,Failed:0,Started:false,Processing:0,Processed:0,Message:'Review the exact media and paths.'};
           if(window.previewAllBlocked){plan.Items.forEach(i=>{i.State='Blocked';i.Message='Fixture deletion permission is unavailable';});plan.Ready=0;plan.Skipped=plan.Total;}
           window.deletionPlans[plan.Token]=plan;return structuredClone(plan);
@@ -65,7 +73,7 @@ process.on('exit', () => {
           if(window.statusFailure){window.statusFailure=false;throw new Response(JSON.stringify({ResponseStatus:{Message:'Fixture status temporarily unavailable'}}),{status:503});}
           const plan=window.deletionPlans[p.Token];if(plan.State==='Deleting'){
             plan.Polls=(plan.Polls||0)+1;
-            if(plan.Polls>1){plan.State='Completed';plan.Deleted=plan.Items.length;plan.Processed=plan.Total;plan.Ready=0;plan.Processing=0;plan.CurrentItemName=null;plan.Message='Deletion finished.';plan.Items.forEach(item=>item.State='Deleted');
+            if(plan.Polls>1){plan.State='Completed';plan.Deleted=plan.Items.length;plan.Processed=plan.Total;plan.Ready=0;plan.Processing=0;plan.CurrentItemName=null;plan.Message='Deletion finished.';plan.SyncFailed=window.syncFailure?plan.Total:0;plan.Synchronized=window.syncFailure?0:plan.Total;plan.Items.forEach(item=>{item.State='Deleted';item.EmbyState='Deleted';if(item.ExternalService){item.ExternalState=window.syncFailure?'Failed':'Completed';item.ExternalMessage=window.syncFailure?'Fixture Radarr cleanup failed <img src=x onerror="window.syncInjected=true">':'Movie entry removed.';}});
             window.sampleRows=window.sampleRows.filter(row=>!plan.Items.some(item=>item.ItemId===row.ItemId));}
           }return structuredClone(plan);
         }
@@ -87,6 +95,24 @@ process.on('exit', () => {
   assert.equal(await get('reportBody').locator('tr').count(),100);
   assert.equal(await page.evaluate(()=>window.injected),undefined);
   console.log('PASS initial user report, paging, and safe title rendering');
+  await get('integrationSettings').locator('summary').click();
+  await get('integrationSummary').filter({hasText:'Emby-only deletion'}).waitFor();
+  assert.equal(await get('sonarrKey').inputValue(),'');assert.match(await get('sonarrKeyStatus').innerText(),/A key is stored/);
+  await get('radarrEnabled').check();await get('radarrUrl').fill('https://radarr.fixture.invalid/base');await get('radarrKey').fill('fixture-ui-api-key');
+  await get('radarrEmbyRoot').fill('/media/movies');await get('radarrArrRoot').fill('/movies');
+  await get('testRadarr').click();await get('integrationStatus').filter({hasText:'Read-only fixture connection test passed'}).waitFor();
+  assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Integrations')&&c.method==='POST').length),0);
+  const testConnection=await page.evaluate(()=>window.calls.find(c=>c.path.endsWith('/Integrations/Test')));
+  assert.equal(testConnection.body.Service,'Radarr');assert.equal(testConnection.body.Connection.ApiKey,'fixture-ui-api-key');
+  await get('saveIntegrations').click();await get('integrationStatus').filter({hasText:'Settings saved.'}).waitFor();
+  assert.equal(await get('radarrKey').inputValue(),'');assert.match(await get('radarrKeyStatus').innerText(),/A key is stored/);
+  const savedConnections=await page.evaluate(()=>window.calls.find(c=>c.path.endsWith('/Integrations')&&c.method==='POST'));
+  assert.equal(savedConnections.body.Sonarr.ApiKey,'');assert.equal(savedConnections.body.Radarr.ArrPathRoot,'/movies');
+  await get('radarrUrl').fill('https://unsaved.fixture.invalid');await get('reloadIntegrations').click();
+  await page.waitForFunction(()=>document.querySelector('[data-id=radarrUrl]').value==='https://radarr.fixture.invalid/base');
+  if(process.env.WSI_ARR_SCREENSHOT)await get('integrationSettings').screenshot({path:process.env.WSI_ARR_SCREENSHOT});
+  await get('integrationSettings').locator('summary').click();
+  console.log('PASS synchronization settings keep stored keys masked, test unsaved connections read-only, save paths, and reload saved values');
   await get('next').click();await get('pageInfo').filter({hasText:'101-200 of 205'}).waitFor();
   await get('next').click();await get('pageInfo').filter({hasText:'201-205 of 205'}).waitFor();
   const downloadPromise=page.waitForEvent('download');await get('export').click();const download=await downloadPromise;
@@ -139,10 +165,22 @@ process.on('exit', () => {
   await get('closeDelete').click();await get('reportStatus').filter({hasText:'203 matching titles'}).waitFor();
   assert.equal(await get('selectionCount').innerText(),'0 selected');
   console.log('PASS confirmed deletion shows live progress, recovers lost responses without replay, and reports final results');
+  await page.evaluate(()=>window.syncFailure=true);
+  await get('reportBody').locator('[data-item-selection="202"]').check();await get('deleteSelected').click();
+  await get('deletePhase').filter({hasText:'Step 2 of 3'}).waitFor();assert.match(await get('deleteItems').innerText(),/Radarr: Ready/);assert.match(await get('deleteItems').innerText(),/Matched service path: \/movies\/202/);
+  await get('deleteAcknowledge').check();await get('deleteWord').fill('DELETE');await get('confirmDelete').click();
+  await get('deletePhase').filter({hasText:'Deletion finished with items to review'}).waitFor();
+  assert.match(await get('deleteSummary').innerText(),/1 deleted; 0 ready.*1 synchronization issues/);
+  assert.match(await get('deleteItems').innerText(),/Emby: Deleted/);assert.match(await get('deleteItems').innerText(),/Radarr: Failed/);
+  assert.equal(await get('deleteItems').locator('img').count(),0);assert.equal(await page.evaluate(()=>window.syncInjected),undefined);
+  if(process.env.WSI_ARR_FAILURE_SCREENSHOT)await page.screenshot({path:process.env.WSI_ARR_FAILURE_SCREENSHOT,fullPage:false});
+  await get('closeDelete').click();await get('reportStatus').filter({hasText:'202 matching titles'}).waitFor();await page.evaluate(()=>window.syncFailure=false);
+  assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Execute')).length),2);
+  console.log('PASS preview lists exact service actions and partial synchronization failures retain truthful Emby results without replay');
   await get('reportBody').locator('[data-item-selection="201"]').check();
   await get('filter').fill('Movie 101');await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();
   assert.equal(await get('selectionCount').innerText(),'0 selected');
-  await get('filter').fill('');await get('reportStatus').filter({hasText:'203 matching titles'}).waitFor();
+  await get('filter').fill('');await get('reportStatus').filter({hasText:'202 matching titles'}).waitFor();
   console.log('PASS report scope and filter changes clear stale bulk selections');
   await get('viewSelect').selectOption('Shows');await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();
   assert.match(await get('reportBody').innerText(),/4 watched episodes/);
@@ -243,11 +281,18 @@ process.on('exit', () => {
   assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.params.Reason==='focus').length),returnBefore+1);
   console.log('PASS real browser focus events and listener cleanup without duplicate subscriptions');
   await page.setViewportSize({width:390,height:844});
+  await get('integrationSettings').locator('summary').click();
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+  await get('integrationSettings').locator('summary').click();
   await page.setViewportSize({width:1280,height:1000});
   if(process.env.WSI_SCREENSHOT)await page.screenshot({path:process.env.WSI_SCREENSHOT,fullPage:true});
   assert.deepEqual(errors,[]);
   console.log('PASS mobile layout and no browser exceptions');
+  const stale=await browser.newPage();await stale.setContent('<div data-role="page"><p>Old cached dashboard</p></div>');
+  assert.equal(await page.locator('[data-role=page]').getAttribute('data-controller'),'__plugin/whosceneit-1.3.0.js');
+  await stale.evaluate(()=>{window.define=(deps,factory)=>{window.controller=factory();};});await stale.addScriptTag({path:path.join(__dirname,'../src/WhoSceneIt/Web/whosceneit.js')});
+  await stale.evaluate(()=>window.controller(document.querySelector('[data-role=page]')));assert.match(await stale.locator('body').innerText(),/Reload this page to load the current deletion and synchronization controls/);await stale.close();
+  console.log('PASS outdated cached HTML gets a reload notice and the dashboard uses a versioned controller');
   if(process.argv.includes('--real-timers')){
     const before=await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Updates')).length);
     await page.waitForTimeout(31000);
@@ -260,5 +305,5 @@ process.on('exit', () => {
   }
   await browser.close();
   suiteCompleted = true;
-  console.log('RESULT ' + (process.argv.includes('--real-timers') ? 23 : 21) + ' browser checks passed');
+  console.log('RESULT ' + (process.argv.includes('--real-timers') ? 26 : 24) + ' browser checks passed');
 })().catch(async error=>{console.error(error);if(browser)await browser.close();process.exitCode=1;});

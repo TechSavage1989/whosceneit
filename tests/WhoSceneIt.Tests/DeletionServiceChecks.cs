@@ -15,7 +15,7 @@ public static class DeletionServiceChecks
             var request = Proxy.Create<IRequest>((m, a) => null);
             var info = new AuthorizationInfo { User = native.Admin };
             var auth = Proxy.Create<IAuthorizationContext>((m, a) => { assert(ReferenceEquals(a[0], request), "Authorization was not bound to the actual request."); return info; });
-            var service = new DeletionService(auth, native.Users, native.Data, native.Library, native.Sessions, native.Host) { Request = request };
+            var service = new DeletionService(auth, native.Users, native.Data, native.Library, native.Sessions, native.Host, new TestJson()) { Request = request };
             return (service, native, next => info = next);
         }
         test("Native deletion service binds the authenticated administrator request before read-only preview", () =>

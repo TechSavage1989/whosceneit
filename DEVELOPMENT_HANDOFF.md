@@ -2,8 +2,10 @@
 
 ## Current state
 
+- Current candidate: 1.3.0. Local validation, exact-source hosted CI, publication, and public previous-version upgrade verification must be recorded below. The latest screenshot identifies a missing legacy visibility-method signature; the fix retains native user visibility through a supported query. The user also requested Sonarr/Radarr synchronization.
+
 - Latest maintained/published version: 1.2.2 preview; assembly/file version: 1.2.2.0.
-- User-confirmed baseline: 1.0.0 reports. The latest deletion screenshot shows an HTTP 500 during the read-only preview, before confirmation. Version 1.2.2 repairs error-body handling and deletion feedback; the original native exception and live deletion success remain unverified.
+- User-confirmed baseline: 1.0.0 reports. A subsequent deletion screenshot identifies MissingMethodException for the legacy two-argument visibility method. Version 1.2.2 exposed that exception; 1.3.0 replaces the call. Live successful deletion remains unverified.
 - Repository: https://github.com/TechSavage1989/whosceneit; public. No visibility or credential changes were made.
 - Exact 1.2.2 source/tag: 43494290988f57813fdfcb6ca9a42d225951f5b5, v1.2.2. Build metadata records that exact source and a clean tree. Never replace published tags/assets.
 - Release: https://github.com/TechSavage1989/whosceneit/releases/tag/v1.2.2. All six public assets were independently downloaded and size/hash-checked. All 48 source files match the tagged tree; all 54 preview content hashes pass.
@@ -15,6 +17,22 @@
 - Stable assembly/filename: WhoSceneIt.dll; plugin ID: b6405a2e-52e6-4218-a014-00a46a65f1f8. Customized filenames/settings survive updates. Versions 1.0.0/1.1.0 need manual replacement once.
 - Local branch: main, tracking origin/main. Main holds current verification notes; immutable release tags identify application source.
 - Previous immutable sources: 1.2.1 at c68e1714c67c488adac12dda8b7c87e08b3f9126; 1.2.0 at e2be637d3e333d14fb6ae6e6a36c2b95dca59aaf; 1.1.1 at c29b1b94644168ec2ce63e359735fd244528fc3f; 1.1.0 at 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd; 1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. Original baseline: c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5.
+
+## Version 1.3.0 compatibility and synchronization
+
+The new screenshot shows the native visibility method cannot be linked: FilterItemsToIdsForUser(BaseItem[], User). Current Emby reference documentation instead shows the overload with IDataContext and CancellationToken. The production adapter now uses GetItemList(new InternalItemsQuery(selectedUser)) with exact ItemIds, EnforceContentRestriction=true, and SDK collection defaults. Native fixtures reject the old method; restoring the old production call fails the check, while the repaired query still blocks inaccessible media. This is an SDK compatibility fix, not a permission bypass or proof of a live server deletion.
+
+The user requested deleting managed entries from Sonarr/Radarr as part of media deletion. New Admin-only integration endpoints read masked settings, save changes, and run read-only connection tests. PluginConfiguration.Arr stores the two optional connections with native XML serialization. Blank keys preserve the saved value; clearing is explicit. Tests initialize the SDK's SetStartupInfo directory callback before native SaveConfiguration. Keys never appear in API views, preview/status, URLs, or logs. Default connections are disabled, preserving existing installations until configured.
+
+Each preview freezes settings and exact remote IDs/paths/sizes. Caches hold catalogs only during preview and are cleared before retaining the plan. A failed read stops that service for the current batch. Matching uses path boundaries/case rules and size, never display titles. Sonarr requires all file-linked episode IDs to fit the selected Emby episode/range. Duplicate remote targets block all affected entries. Server-side settings saves are excluded for the full running operation, and changes invalidate old previews.
+
+After confirmation, the session revalidates remote targets, unmonitors them using Sonarr episode/monitor or Radarr movie/editor, and verifies monitoring by read-back. Emby's adapter then rechecks watch state, permissions, sessions, paths, and fingerprints and performs native deletion. Only after native success does cleanup remove a Sonarr episode-file record or a Radarr movie record. Radarr uses deleteFiles=false; its optional import-list exclusion is requested. Sonarr retains the series/episode listings. A replacement file at Emby's original media path stops Sonarr cleanup. Missing records and lost mutation receipts are checked through reads; mutations are never replayed automatically.
+
+Results keep EmbyState, ExternalService/State/Message/Path, Synchronized, and SyncFailed separate from native failure counts. A remote failure after native success still counts the media as deleted and flags synchronization. A native failure can remain Unknown and never launches external cleanup. Cancellation/skipped items report service actions as Not run. There is no atomic cross-application transaction or media rollback; failures may need review in the remote service. Sonarr's own root-folder protections remain in effect. URLs support native base paths; redirects are rejected, response sizes/timeouts are bounded, and existing TLS validation remains enabled. The connection test detects Sonarr v3/v5 API routes and Radarr v3, but no live instance is used.
+
+The HTML uses whosceneit-1.3.0.js, with a matching page resource and the old alias retained. New JavaScript gives outdated HTML a reload notice. After installation, use Ctrl+F5 to discard cached controls. New browser fixtures cover masked keys, draft connection testing, save/reload, exact preview actions, independent partial results, safe text rendering, mobile settings, and stale HTML.
+
+Local checks: 62 quick compiled checks and 26 browser checks including real timers have passed during development. The final exact source must pass hosted 63 compiled checks on Windows/Linux and 26 browser checks on Linux before publication. The compatibility negative control is in docs/validation-deletion-compatibility-negative.txt. After publication, run the pinned public 1.2.2 memory-loaded updater against 1.3.0 and verify all assets/tag/source/feed. No Emby process, real Sonarr/Radarr endpoint, or user media is used in these checks.
 
 ## Version 1.2.2 deletion feedback
 
@@ -102,13 +120,13 @@ Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/4
 
 The historical public 1.0.0-to-1.1.0 test passed real GitHub HTTPS transport and file replacement with an explicitly supplied target. It bypassed UpdateEntryPoint and did not establish that Emby supplied a usable installation path. The user screenshot disproved that assumption. See the 1.1.1 repair and revised post-publication check above; retain the old output only as historical file-transaction evidence.
 
-The current test runner creates an unpublished next-patch 1.2.3 fixture for the 1.2.2 source. The old 1.2.1 source's 1.2.2 test fixture is not this release and must never be published. The old 1.2.0 source's same-numbered 1.2.1 fixture is not this patch and must never be published. The old 1.1.0 source generated a test-only 1.1.1 fixture; it is not the patched release and must never be published. Never publish that fixture. Browser fixtures contain synthetic data only. Native SDK fixture protocol/service stubs are test infrastructure, not a running Emby server.
+The current test runner creates an unpublished next-patch 1.3.1 fixture for the 1.3.0 source. The old 1.2.2 source's 1.2.3 fixture is unrelated to this release. The old 1.2.1 source's 1.2.2 test fixture is not this release and must never be published. The old 1.2.0 source's same-numbered 1.2.1 fixture is not this patch and must never be published. The old 1.1.0 source generated a test-only 1.1.1 fixture; it is not the patched release and must never be published. Never publish that fixture. Browser fixtures contain synthetic data only. Native SDK fixture protocol/service stubs are test infrastructure, not a running Emby server.
 
 Negative controls: historical Windows run 40174933095 missed its timer request under the redundant five-minute wall-clock gate. The corrected real timer passes on both platforms. A local run restoring the broad update Busy guard reproduced interruption of deletion by a background check; the corrected IsInstalling guard passes that same test.
 
 ## Storage
 
-- Configuration: Emby's normal plugin configuration directory, preserving the established identity.
+- Configuration: Emby's normal plugin configuration directory, preserving the established identity. PluginConfiguration.Arr contains optional URLs, server-held API keys, path prefixes, enabled flags, and Radarr exclusion preference; protect it as credential-bearing configuration.
 - Update data: IApplicationPaths.DataPath/WhoSceneIt, normally Server Data Folder/data/WhoSceneIt.
 - Rollback: rollback/WhoSceneIt.dll under that data directory, exactly one previous binary.
 - Cache: update-cache.json; staging: download.partial and downloaded.dll; transaction: pending-install.json.
@@ -126,6 +144,8 @@ Negative controls: historical Windows run 40174933095 missed its timer request u
 6. Update this handoff and VALIDATION.md with actual results. Frozen release packages retain pre-publication notes; main holds current verification details.
 
 ## Known limitations
+
+- Sonarr/Radarr API behavior is tested with synthetic HTTP fixtures, including lost responses and native XML persistence. Real installed versions, authentication proxies, path aliases, and media deletion across the user's services remain unverified. One instance/mapping per service is supported. Partial cross-app failures need review; a successful Emby deletion cannot be rolled back by a failed remote update.
 
 - Automated isolated Emby startup was rejected by automatic approval review because Emby attempted an external public-IP lookup. Do not bypass or silently repeat it. The user subsequently confirmed 1.0.0 works; automated native authentication, real-media deletion, server restart, and dashboard reconnection remain unverified.
 - Windows replacement of a DLL loaded by live Emby, Docker/NAS supervision, and recovery from a DLL that prevents plugin loading remain unverified. SDK/file tests and isolated assembly reload do not establish those results.

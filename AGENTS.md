@@ -13,6 +13,14 @@ Read this file and DEVELOPMENT_HANDOFF.md before editing. Then inspect the curre
 - Keep reports read-only. The user explicitly approved individual and bulk deletion of watched media and publication of the new build. Deletion must use Emby's native policy checks and library deletion API, an administrator-bound expiring preview, exact-path revalidation, explicit DELETE confirmation, and progress/error reporting. Never delete a TV show folder to implement watched-episode deletion. Never grant permissions or change watch state to make an item eligible. Every plugin endpoint must require Emby's native Admin role.
 - No server setup, Codex CLI automation, unattended workers, payment setup, or API-account setup. GitHub CI and an explicitly invoked release workflow are part of the requested build/release scope.
 
+## Current compatibility and synchronization work
+
+- Candidate: 1.3.0. The new screenshot identifies MissingMethodException for ILibraryManager.FilterItemsToIdsForUser(BaseItem[], User). Current Emby documents a different overload. Use GetItemList with InternalItemsQuery(selectedUser), an exact ItemIds filter, EnforceContentRestriction, and preserved SDK collection defaults. Never bypass visibility to work around SDK differences.
+- The user requested Sonarr/Radarr deletion synchronization and added the SDK error as another issue to fix. Keep optional server-configured integrations disabled until URLs/API keys are supplied. Enabled connections require one exact path/size match; Sonarr must cover every episode in a shared file within the selected Emby numbered range. Never match by title alone or delete a Sonarr series for an episode selection.
+- Unmonitor/verify first, then revalidate and delete through native Emby, then verify remote cleanup. Radarr DELETE must keep deleteFiles=false. Report Emby deletion separately from external outcomes; there is no atomic transaction across apps and no media rollback. Never automatically replay mutations after a lost response. Cache a failed read for the batch and retain only frozen targets after preview.
+- API keys are stored through native plugin configuration, never returned by the integration API or placed in URLs/logs/artifacts. All integration endpoints require native Admin; settings save is blocked during deletion. Only synthetic HTTP/settings/media fixtures may run during development. Do not connect to or delete from real Sonarr/Radarr instances without the user's specific target-server instruction.
+- Keep the versioned dashboard resource in Plugin.GetPages and HTML aligned with the application version. Preserve the old script alias and show a reload notice for outdated HTML.
+
 ## Deletion feedback repair
 
 - Published repair: 1.2.2. The user's deletion dialog shows an HTTP 500 while loading the read-only preview, before confirmation. Do not claim files were deleted or that the unseen server exception has been reproduced. Decode Fetch Response error bodies and XHR errors, show precise no-start/unknown/active/final states, and never replay a destructive request on transport failure.
@@ -39,7 +47,7 @@ Use .NET SDK 8 or newer. The plugin must target netstandard2.0. Emby supplies it
     npm run test:ui -- --real-timers
     python scripts/package.py
 
-The C# test runner generates an unpublished next-patch DLL to exercise upgrades from the current version (1.2.3 for the 1.2.2 source). Never publish a test-artifacts fixture. Version 1.2.2 must be built from the actual repair source, not the old 1.2.1 source's same-numbered fixture. The real timer test takes about five minutes. Browser tests use synthetic data and never connect to a user's Emby server. After publication, --published-upgrade reproduces the public 1.0.0 memory-loaded entry-point failure and one-time manual bootstrap, then exercises the actual public 1.2.1 memory-loaded updater installing the current release. It never starts Emby.
+The C# test runner generates an unpublished next-patch DLL to exercise upgrades from the current version (1.3.1 for the 1.3.0 source). Never publish a test-artifacts fixture. Version 1.3.0 must be built from this source; never publish an upgrade-test fixture. The real timer test takes about five minutes. Browser tests use synthetic data and never connect to a user's Emby server. After publication, --published-upgrade reproduces the public 1.0.0 memory-loaded entry-point failure and one-time manual bootstrap, then exercises the actual public 1.2.2 memory-loaded updater installing the current release. It never starts Emby.
 
 ## Updates and releases
 

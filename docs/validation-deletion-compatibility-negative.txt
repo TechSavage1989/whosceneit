@@ -1,0 +1,7 @@
+Negative control: temporarily restored the legacy two-argument visibility call in production source.
+The native SDK proxy deliberately rejects that method to model the signature absent from the supplied screenshot.
+The check fails before media deletion; the supported user-scoped query passes with inaccessible-item protection retained.
+This is an SDK fixture, not a running Emby server. The repaired source was restored before building the candidate.
+
+Unhandled exception. System.MissingMethodException: The legacy visibility method is unavailable in this server fixture.
+   at generatedProxy_2.FilterItemsToIdsForUser(BaseItem[], User)

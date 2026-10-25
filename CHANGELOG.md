@@ -1,5 +1,15 @@
 # Changes
 
+## 1.3.0 - Emby deletion compatibility and Sonarr/Radarr synchronization
+
+- Replaced the removed two-argument FilterItemsToIdsForUser call with an exact-item, user-scoped native query. Selected-user visibility and content restrictions remain enforced. A regression fixture rejects the legacy method and catches the old implementation.
+- Added administrator-only Sonarr/Radarr settings, masked stored-key indicators, explicit key preservation/clearing, native XML persistence, read-only connection tests, and optional path-prefix mapping. Integrations remain disabled until configured.
+- Added strict path/size matching, Sonarr shared-episode range checks, duplicate-target protection, cached read failures, and revalidation of settings, remote identities, and native media guards. Preview is read-only; unavailable/unmatched enabled services block media deletion.
+- Unmonitor and verify matched entries before Emby deletes media. Afterward, remove and verify Sonarr's file record or Radarr's movie entry. Sonarr series/episode listings remain; Radarr is told not to delete additional files and can request an import-list exclusion.
+- Report native media deletion and external synchronization independently, including partial success, cancelled/not-run actions, and lost receipts verified by reads without mutation replay. A replacement file appearing at the Emby path stops Sonarr cleanup.
+- Added a versioned dashboard controller and stale-HTML reload notice. Retained existing reports, saved-progress protections, deletion confirmation/cancellation, settings, and updater behavior.
+- Added native settings-persistence, mock HTTP contract, partial-failure, path-mapping, and browser tests. No live Emby, Sonarr, Radarr, or user media is used by the automated tests.
+
 ## 1.2.2 - deletion confirmation and progress
 
 - Separated read-only preview failure, review/confirmation, deletion submission, active progress, and final result states. A failed preview explicitly states that no deletion was started.

@@ -79,13 +79,14 @@ try
         Assert(ReportBuilder.FilterAndSort(rows,null,"LastPlayed").First().ItemId=="2","Unknown date sorted first.");
         Assert(ReportBuilder.FilterAndSort(rows,"TITLE 1","Name").Single().ItemId=="1","Search failed.");
     });
-    Test("Every report and update route requires the native Admin role", () =>
+    Test("Every report, update, deletion, and integration route requires the native Admin role", () =>
     {
         var routes = typeof(Plugin).Assembly.GetTypes().Where(t=>t.GetCustomAttribute<RouteAttribute>()!=null).ToArray();
-        Assert(routes.Length==14,"Unexpected public endpoint count.");
+        Assert(routes.Length==17,"Unexpected public endpoint count.");
         Assert(routes.All(t=>t.GetCustomAttribute<AuthenticatedAttribute>()?.Roles=="Admin"),"An endpoint is missing server-side authorization.");
         Assert(routes.Where(t=>t.Namespace=="WhoSceneIt.Updates" && t.Name!="GetUpdates").All(t=>t.GetCustomAttribute<RouteAttribute>().Verbs=="POST"),"Update writes allow GET.");
         Assert(routes.Where(t=>t.Namespace=="WhoSceneIt.Deletion" && t.Name!="GetDeletionStatus").All(t=>t.GetCustomAttribute<RouteAttribute>().Verbs=="POST"),"Deletion writes allow GET.");
+        Assert(routes.Where(t=>t.Namespace=="WhoSceneIt.Integrations" && t.Name!="GetArrSettings").All(t=>t.GetCustomAttribute<RouteAttribute>().Verbs=="POST"),"Integration writes allow GET.");
     });
     Test("Manifest rejects other repositories, versions, URLs, hashes, sizes, and app identities", () =>
     {
@@ -246,6 +247,7 @@ try
         limit = DateTimeOffset.UtcNow.AddSeconds(5); while (deletion.Status("admin", preview.Token).State == "Deleting" && DateTimeOffset.UtcNow < limit) await Task.Delay(10);
         Assert(deletion.Status("admin", preview.Token).State == "Completed", "Deletion did not finish after the guard check.");
     });
+    await ArrChecks.Run(root, Test, TestAsync, Assert);
     if(args.Contains("--real-timer"))
     {
         await TestAsync("Real five-minute timer, two-minute focus gate, manual cooldown expiry, ETag, and HTTP 304", async()=>

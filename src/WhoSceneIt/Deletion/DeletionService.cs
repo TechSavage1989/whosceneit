@@ -6,6 +6,8 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Net;
 using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Services;
+using MediaBrowser.Model.Serialization;
+using WhoSceneIt.Integrations;
 
 namespace WhoSceneIt.Deletion
 {
@@ -36,10 +38,11 @@ namespace WhoSceneIt.Deletion
         private readonly IAuthorizationContext _authorization;
         private readonly IUserManager _users;
         public IRequest Request { get; set; }
-        public DeletionService(IAuthorizationContext authorization, IUserManager users, IUserDataManager data, ILibraryManager library, ISessionManager sessions, IApplicationHost host)
+        public DeletionService(IAuthorizationContext authorization, IUserManager users, IUserDataManager data, ILibraryManager library, ISessionManager sessions, IApplicationHost host, IJsonSerializer json)
         {
             _authorization = authorization; _users = users;
-            LazyInitializer.EnsureInitialized(ref _manager, () => new DeletionManager(new EmbyDeletionBackend(users, data, library, sessions, host)));
+            LazyInitializer.EnsureInitialized(ref _manager, () => new DeletionManager(new EmbyDeletionBackend(users, data, library, sessions, host),
+                synchronization: new ArrSynchronization(ArrSettingsStore.Read, json, beginOperation: ArrSettingsStore.BeginOperation)));
         }
         private string Actor()
         {

@@ -74,7 +74,10 @@ namespace WhoSceneIt.Deletion
             if (watched.Length == 0) return Block("This item is not marked watched for the selected report. In-progress media is preserved.");
             var resuming = _users.GetUserList(new UserQuery()).Where(u => WatchProgress.HasResume(_data.GetUserData(u, item)?.PlaybackPositionTicks ?? 0L)).Select(u => u.Name).ToArray();
             if (resuming.Length > 0) return Block("Saved playback positions exist for: " + string.Join(", ", resuming) + ". This media is preserved, including possible rewatches.");
-            if (selectedUser != null && _library.FilterItemsToIdsForUser(new[] { item }, selectedUser).Length == 0)
+            // This user-scoped query is available in both 4.8 and current Emby.
+            // The old two-argument FilterItemsToIdsForUser no longer exists in newer servers.
+            if (selectedUser != null && !_library.GetItemList(new InternalItemsQuery(selectedUser) { ItemIds = new[] { item.InternalId },
+                Recursive = true, IsVirtualItem = false, EnforceContentRestriction = true, Limit = 1 }).Any(i => i.InternalId == item.InternalId))
                 return Block("This title is no longer available to the selected user.");
             var folders = _library.GetCollectionFolders(item);
             if (!item.CanDelete(actor, folders)) return Block("Emby's content-deletion permissions do not allow this administrator to delete this item.");
@@ -99,7 +102,9 @@ namespace WhoSceneIt.Deletion
             var identity = itemId + "\n" + item.GetType().FullName + "\n" + item.Path + "\n" + string.Join("\n", paths.OrderBy(p => p.FullName, PathComparer)
                 .Select(p => p.FullName + "|" + p.IsDirectory + "|" + p.Length + "|" + p.LastWriteTimeUtc.ToString("O")));
             using var hash = SHA256.Create();
-            return new DeletionInspection { Item = entry, Fingerprint = BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(identity))).Replace("-", "") };
+            return new DeletionInspection { Item = entry, Fingerprint = BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(identity))).Replace("-", ""),
+                MediaPath = item.Path, MediaSize = File.Exists(item.Path) ? new FileInfo(item.Path).Length : (long?)null,
+                SeasonNumber = item.ParentIndexNumber, EpisodeNumber = item.IndexNumber, EpisodeNumberEnd = (item as Episode)?.IndexNumberEnd };
         }
         public void Delete(string actorId, string userId, string itemId, string expectedFingerprint)
         {

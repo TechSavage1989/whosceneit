@@ -162,6 +162,15 @@ public static class DeletionChecks
             Reject(() => fixture.Backend.Delete("admin", "alice", "1", preview.Fingerprint));
             assert(fixture.NativeDeletes == 0 && File.Exists(fixture.Movie.Path), "New progress after preview did not preserve the media.");
         });
+        test("Native deletion preserves user visibility without the removed two-argument SDK method", () =>
+        {
+            var fixture = new NativeDeletionFixture(root);
+            assert(fixture.Backend.Inspect("admin", "alice", "1").Item.State == "Ready", "An eligible item was blocked by the old visibility API.");
+            assert(fixture.VisibilityQuery != null && fixture.VisibilityQuery.ItemIds.SequenceEqual(new[] { 1L }) && fixture.VisibilityQuery.EnforceContentRestriction && fixture.VisibilityQuery.AncestorIds != null, "Visibility was not checked with a native user-scoped query and SDK defaults.");
+            fixture.Visible = false;
+            assert(fixture.Backend.Inspect("admin", "alice", "1").Item.State == "Blocked", "The compatibility repair bypassed selected-user visibility.");
+            assert(fixture.NativeDeletes == 0 && File.Exists(fixture.Movie.Path), "A visibility check removed media.");
+        });
         test("Native Emby delete uses file-deletion options only after a matching path preview", () =>
         {
             var fixture = new NativeDeletionFixture(root);
@@ -178,7 +187,8 @@ public static class DeletionChecks
 
 public sealed class NativeDeletionFixture
 {
-    public bool Played = true, Playing, SiblingMedia, LibraryRoot;
+    public bool Played = true, Visible = true, Playing, SiblingMedia, LibraryRoot;
+    public InternalItemsQuery VisibilityQuery;
     public long Position, OtherPosition;
     public int NativeDeletes;
     public DeleteOptions Options;
@@ -211,9 +221,13 @@ public sealed class NativeDeletionFixture
             if (m.Name == "GetItemById") return Movie;
             if (m.Name == "GetShareLevels") return new MediaBrowser.Model.Querying.QueryResult<MediaBrowser.Model.Dto.UserItemShareLevel?> { Items = new MediaBrowser.Model.Dto.UserItemShareLevel?[] { Enum.GetValues<MediaBrowser.Model.Dto.UserItemShareLevel>().Max() }, TotalRecordCount = 1 };
             if (m.Name == "GetCollectionFolders") return Array.Empty<Folder>();
-            if (m.Name == "FilterItemsToIdsForUser") return new[] { 1L };
+            if (m.Name == "FilterItemsToIdsForUser") throw new MissingMethodException("The legacy visibility method is unavailable in this server fixture.");
             if (m.Name == "GetVirtualFolders") return new List<MediaBrowser.Model.Entities.VirtualFolderInfo> { new() { Locations = LibraryRoot ? new[] { directory } : Array.Empty<string>() } };
-            if (m.Name == "GetItemList") return SiblingMedia ? new BaseItem[] { new Movie { InternalId = 2 } } : Array.Empty<BaseItem>();
+            if (m.Name == "GetItemList") {
+                var query = (InternalItemsQuery)a[0];
+                if (query.ItemIds?.Length > 0) { VisibilityQuery = query; return Visible ? new BaseItem[] { Movie } : Array.Empty<BaseItem>(); }
+                return SiblingMedia ? new BaseItem[] { new Movie { InternalId = 2 } } : Array.Empty<BaseItem>();
+            }
             if (m.Name == "DeleteItem") { Options = (DeleteOptions)a[1]; NativeDeletes++; File.Delete(Movie.Path); }
             if (m.ReturnType == typeof(MediaBrowser.Model.Dto.UserItemShareLevel)) return Enum.GetValues<MediaBrowser.Model.Dto.UserItemShareLevel>().Max();
             return null;
