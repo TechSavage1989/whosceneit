@@ -1,21 +1,21 @@
   Determining projects to restore...
-  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 204 ms).
+  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 255 ms).
   WhoSceneIt -> <source>/test-artifacts/upgrade-fixture/WhoSceneIt.dll
 
 Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:01.62
+Time Elapsed 00:00:01.86
   Determining projects to restore...
-  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 224 ms).
+  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 205 ms).
   WhoSceneIt -> <source>/src/WhoSceneIt/bin/Release/netstandard2.0/WhoSceneIt.dll
 
 Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:01.61
+Time Elapsed 00:00:01.72
 PASS Manual watch flags are retained without inventing play counts or dates
 PASS Play counts and dates alone never imply completed viewing
 PASS Shows with identical names remain separate and repeated records do not inflate counts
@@ -42,5 +42,6 @@ PASS Native Emby series selection expands only watched episodes and removes dupl
 PASS Native deletion respects revoked admin access and rejects non-media folders
 PASS Native Emby adapter rechecks watch status, playback, deletion support, and shared folders
 PASS Native Emby delete uses file-deletion options only after a matching path preview
+PASS Background update checks do not interrupt media deletion
 PASS An active media deletion blocks plugin installation and restart
-RESULT 27 checks passed.
+RESULT 28 checks passed.

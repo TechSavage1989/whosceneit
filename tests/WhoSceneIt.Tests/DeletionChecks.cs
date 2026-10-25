@@ -137,6 +137,8 @@ public static class DeletionChecks
             assert(fixture.Backend.Inspect("admin", "alice", "1").Item.State == "Blocked", "Unwatched media was eligible for deletion.");
             fixture.Played = true; fixture.Playing = true;
             assert(fixture.Backend.Inspect("admin", "alice", "1").Item.State == "Blocked", "Playing media was eligible for deletion.");
+            fixture.SessionItemId = fixture.Movie.Id.ToString("N");
+            assert(fixture.Backend.Inspect("admin", "alice", "1").Item.State == "Blocked", "A GUID-based playback session was not recognized.");
             fixture.Playing = false; fixture.Movie.AllowDelete = false;
             assert(fixture.Backend.Inspect("admin", "alice", "1").Item.State == "Blocked", "Native deletion support was ignored.");
             fixture.Movie.AllowDelete = true; fixture.Admin.Policy.EnableContentDeletion = false;
@@ -168,6 +170,7 @@ public sealed class NativeDeletionFixture
     public DeleteOptions Options;
     public NativeDeletionMovie Movie;
     public User Admin;
+    public string SessionItemId = "1";
     public EmbyDeletionBackend Backend;
     public NativeDeletionFixture(string root)
     {
@@ -176,7 +179,7 @@ public sealed class NativeDeletionFixture
         BaseItem.MediaSourceManager = FileProtocolStub();
         var directory = Path.Combine(root, "native-media-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(directory);
         var file = Path.Combine(directory, "movie.mkv"); File.WriteAllText(file, "synthetic media");
-        Movie = new NativeDeletionMovie { InternalId = 1, Name = "Native movie", Path = file };
+        Movie = new NativeDeletionMovie { InternalId = 1, Id = Guid.NewGuid(), Name = "Native movie", Path = file };
         var admin = Admin = new User { InternalId = 5, Name = "Admin", Policy = new MediaBrowser.Model.Users.UserPolicy { IsAdministrator = true, EnableContentDeletion = true } };
         var user = new User { InternalId = 4, Name = "Alice", Policy = new MediaBrowser.Model.Users.UserPolicy() };
         var users = Proxy.Create<IUserManager>((m, a) => m.Name switch {
@@ -201,7 +204,7 @@ public sealed class NativeDeletionFixture
             if (!Playing) return Array.Empty<SessionInfo>();
             var session = new SessionInfo(null, Proxy.Create<MediaBrowser.Model.Logging.ILogger>((n, b) => null));
             var progress = new MediaBrowser.Model.Session.PlaybackProgressInfo { PlaySessionId = "deletion-fixture" };
-            session.GetOrAddPlaySessionInfo(progress).NowPlayingItem = new MediaBrowser.Model.Dto.BaseItemDto { Id = "1" }; session.RegisterPlaySession(progress);
+            session.GetOrAddPlaySessionInfo(progress).NowPlayingItem = new MediaBrowser.Model.Dto.BaseItemDto { Id = SessionItemId }; session.RegisterPlaySession(progress);
             return new[] { session };
         });
         var host = Proxy.Create<IApplicationHost>((m, a) => m.Name == "get_IsStartupComplete" ? true : null);

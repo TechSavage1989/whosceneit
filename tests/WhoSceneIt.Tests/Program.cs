@@ -209,6 +209,21 @@ try
     });
 
     await DeletionChecks.Run(root, Test, TestAsync, Assert);
+    await TestAsync("Background update checks do not interrupt media deletion", async () =>
+    {
+        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var manager = Manager(new FakeHttp(async request => { entered.SetResult(true); await release.Task; return FakeHttp.ManifestResponse(Manifest()); }));
+        var instance = typeof(UpdateManager).GetProperty("Instance"); var previous = instance.GetValue(null);
+        instance.SetValue(null, manager); Task check = null;
+        try
+        {
+            check = manager.CheckAsync("startup"); await entered.Task;
+            Assert(manager.Status().Busy && !manager.IsInstalling, "The background check fixture did not become busy.");
+            new NativeDeletionFixture(root).Backend.EnsureAvailable();
+        }
+        finally { release.TrySetResult(true); if (check != null) await check; instance.SetValue(null, previous); }
+    });
     await TestAsync("An active media deletion blocks plugin installation and restart", async () =>
     {
         using var entered = new ManualResetEventSlim(); using var release = new ManualResetEventSlim();

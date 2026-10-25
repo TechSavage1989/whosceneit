@@ -29,8 +29,8 @@ namespace WhoSceneIt.Deletion
         {
             if (!_host.IsStartupComplete || _host.IsShuttingDown) throw new InvalidOperationException("Wait for Emby startup or shutdown to finish.");
             if (_library.IsScanRunning) throw new InvalidOperationException("Wait for the library scan to finish before deleting media.");
-            var update = UpdateManager.Instance?.Status();
-            if (update != null && (update.Busy || update.RestartRequired)) throw new InvalidOperationException("Finish the plugin update or restart before deleting media.");
+            var manager = UpdateManager.Instance;
+            if (manager != null && (manager.IsInstalling || manager.Status().RestartRequired)) throw new InvalidOperationException("Finish the plugin update or restart before deleting media.");
         }
         public string[] Resolve(string userId, string[] rootIds)
         {
@@ -76,7 +76,8 @@ namespace WhoSceneIt.Deletion
                 return Block("This title is no longer available to the selected user.");
             var folders = _library.GetCollectionFolders(item);
             if (!item.CanDelete(actor, folders)) return Block("Emby's content-deletion permissions do not allow this administrator to delete this item.");
-            if (_sessions.Sessions.Any(s => s.FullNowPlayingItem?.InternalId == item.InternalId || s.NowPlayingItem?.Id == Id(item)))
+            if (_sessions.Sessions.Any(s => s.FullNowPlayingItem?.InternalId == item.InternalId || s.NowPlayingItem?.Id == Id(item) ||
+                (Guid.TryParse(s.NowPlayingItem?.Id, out var playingId) && playingId == item.Id)))
                 return Block("This media is playing or paused in an Emby session. Stop playback before deleting it.");
             var paths = item.GetDeletePaths(false, folders);
             if (paths == null || paths.Count == 0 || paths.Any(p => string.IsNullOrWhiteSpace(p.FullName))) return Block("Emby did not provide safe deletion paths.");

@@ -35,6 +35,8 @@ namespace WhoSceneIt.Updates
         private Timer _timer;
         private UpdateCache _cache;
         private volatile bool _busy;
+        private volatile bool _installing;
+        public bool IsInstalling => _installing;
         private volatile bool _downloaded;
         private volatile bool _restartRequired;
         private volatile bool _awaitingDashboard = true;
@@ -230,7 +232,7 @@ namespace WhoSceneIt.Updates
             {
                 EnsureIdle();
                 if (!_downloaded || _cache.Manifest == null) throw new InvalidOperationException("Download and verify an update first.");
-                _busy = true; _message = "Installing verified update...";
+                _installing = true; _busy = true; _message = "Installing verified update...";
                 var release = _cache.Manifest;
                 UpdateIntegrity.ValidateManifest(release, _host.ApplicationVersion);
                 var transaction = new InstallTransaction { Version = release.Version, Sha256 = release.Asset.Sha256, SizeBytes = release.Asset.SizeBytes, PreviousVersion = _installed.ToString(3), PreviousSha256 = UpdateIntegrity.Hash(_target) };
@@ -242,7 +244,7 @@ namespace WhoSceneIt.Updates
                 if (_host.CanSelfRestart) _ = RestartAfterResponse();
             }
             catch (Exception exception) { _message = "Installation stopped: " + exception.Message; }
-            finally { _busy = false; _gate.Release(); }
+            finally { _installing = false; _busy = false; _gate.Release(); }
             return Status();
         }
 
