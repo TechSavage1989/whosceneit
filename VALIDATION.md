@@ -2,17 +2,17 @@
 
 Date: October 25, 2026.
 
-The user confirmed 1.0.0 reports work, then reported an empty installation-path error while updating to 1.1.0. Version 1.1.1 repairs byte-loaded plugin path discovery and retains individual/bulk deletion. Local validation is complete; exact-source hosted CI and publication are pending. Affected older installations require one manual DLL replacement. Automated live Emby deletion/restart validation remains incomplete.
+The user confirmed 1.0.0 reports work, then reported an empty installation-path error while updating to 1.1.0. Version 1.1.1 repairs byte-loaded plugin path discovery and retains individual/bulk deletion. Exact-source hosted CI, publication, all six public assets, the matching feed, and the public memory-load/manual-bootstrap check passed. Affected older installations require one manual DLL replacement. Automated live Emby deletion/restart validation remains incomplete.
 
 ## Version 1.1.1 checks
 
-- Release build: zero compiler warnings/errors; 33 local compiled checks passed. The five-minute hosted option adds one check, for 34 expected on each platform. Hosted results for this patch are pending.
+- Release build: zero compiler warnings/errors; 33 local quick compiled checks passed. Hosted Windows and Linux each passed all 34 checks, including the real five-minute timer, on exact source c29b1b94644168ec2ce63e359735fd244528fc3f. Linux passed all 15 browser checks, including real polling and cleanup timers.
 - Actual DLLs loaded using AssemblyLoadContext.LoadFromStream have an empty Assembly.Location. The previous Hash(Location) code reproduces ArgumentException with parameter path, matching the user screenshot.
 - Actual memory-loaded Plugin and UpdateEntryPoint instances use native SDK SetAttributes and host plugin metadata. They resolve the registered custom filename, support attributes registered after entry-point construction, and support a bare filename under PluginsPath.
 - Unique plugins-directory fallback succeeds; duplicate WhoSceneIt installations, wrong assembly identity/version, missing files, and shadow-cache locations are rejected. Negative cases preserve target bytes.
 - A lazy path provider is used by real download/staging/replacement with injected HTTP. The exact custom target is replaced, the old DLL and settings are preserved, and a newly memory-loaded entry point verifies the pending digest/version before dashboard acknowledgement cleans staging.
-- The revised explicit public check must be run after publication. It uses the real public 1.0.0 entry point loaded from bytes to reproduce the failed install, then simulates the documented manual bootstrap into the new public DLL. It does not claim the broken old updater can install its own fix.
-- No browser UI changed. The required hosted Linux job reruns all 15 browser checks, including real timers.
+- The revised explicit public check passed after publication. The exact public 1.0.0 entry point loaded from bytes downloaded and verified the real public 1.1.1 DLL, then reproduced the empty-path install failure without changing the target. Simulated manual replacement loaded the new public entry point from bytes, resolved the custom target, preserved settings/backup, and cleaned staging after acknowledgement. The installed SHA-256 matched the release. See docs/validation-published-upgrade.txt. The broken old updater cannot install its own fix; no live Emby process was started or restarted.
+- No browser UI changed. The required hosted Linux job passed all 15 browser checks, including real timers.
 
 ## Completed checks
 
@@ -82,3 +82,13 @@ build-metadata.json identifies the source commit and DLL digest. CONTENTS_SHA256
 - WhoSceneIt.dll: 126,976 bytes, SHA-256 2db640f20e5aca376a1d955a7ef8a8466bd60cddafeb7ca90b981f20fd9a55b6.
 - The public main feed matches the 1.1.0 release manifest, URL, version, and digest. Neither published release/tag was overwritten.
 - The exact public 1.0.0 updater passed real HTTPS download and file replacement into an explicitly supplied temporary target. This historical fixture bypassed UpdateEntryPoint and missed the byte-loaded empty-path defect. No real user media was deleted and no live Emby restart was performed.
+
+## Verified 1.1.1 publication
+
+- Source/tag: c29b1b94644168ec2ce63e359735fd244528fc3f, v1.1.1.
+- Hosted Windows/Linux validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40180285235, successful; 34 compiled checks per platform and 15 Linux browser checks.
+- Publication workflow: https://github.com/TechSavage1989/whosceneit/actions/runs/40180822733, successful. Public release: https://github.com/TechSavage1989/whosceneit/releases/tag/v1.1.1.
+- Six public assets independently downloaded and verified against API sizes/digests and SHA256SUMS.txt. All 44 source files match the exact tagged source; all 50 preview content hashes pass. Build metadata matches the tag and records a clean source tree.
+- WhoSceneIt.dll: 131,584 bytes; SHA-256 9c79efe59c167cc7667cfa0fb85926bb532090b3dabd0ae7fb80e31e09949aad.
+- The public main feed exactly matches the public release manifest, URL, version, digest, and size. Feed commit: 4251cc01a912521b5582d821db765371b95d6073. Existing releases/tags/assets were not overwritten.
+- The real public 1.0.0 memory-loaded entry point reproduced the reported empty-path installation failure. One-time manual bootstrap into the public 1.1.1 memory-loaded entry point passed path/settings/backup/cleanup checks. This corrects the earlier explicit-target fixture's coverage gap. No real user media was deleted and no live Emby restart was performed.

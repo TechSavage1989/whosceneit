@@ -1,5 +1,5 @@
 
-> whosceneit-validation@1.1.0 test:ui
+> whosceneit-validation@1.1.1 test:ui
 > node tests/ui.smoke.cjs --real-timers
 
 PASS initial user report, paging, and safe title rendering

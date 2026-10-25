@@ -1,3 +1,4 @@
-PASS Published 1.0.0 to 1.1.0: real HTTPS feed/download, digest, staging, installation, custom filename, backup, settings, isolated assembly reload, and cleanup.
-Installed SHA-256: 2db640f20e5aca376a1d955a7ef8a8466bd60cddafeb7ca90b981f20fd9a55b6
-This check uses SDK host fixtures; it does not start or restart a live Emby server.
+PASS Negative control: public 1.0.0 loaded from bytes reproduces the empty-path installation failure after a verified real download.
+PASS Public 1.1.1 manual bootstrap: actual memory-loaded entry point resolves the installed DLL, preserves settings/custom filename/backup, and cleans staging.
+Installed SHA-256: 9c79efe59c167cc7667cfa0fb85926bb532090b3dabd0ae7fb80e31e09949aad
+Older installed versions need the manual replacement once. No live Emby process was started or restarted.

@@ -2,16 +2,16 @@
 
 ## Current state
 
-- Current candidate: 1.1.1 preview; assembly/file version: 1.1.1.0. Latest published version before this patch: 1.1.0. Publication and exact-source hosted CI for 1.1.1 are pending.
-- User-confirmed baseline: 1.0.0. The user reported "it works great" on October 25, 2026, then requested individual and bulk watched-media deletion and publication of the next build. The new deletion feature is not yet user-confirmed.
+- Latest maintained/published version: 1.1.1 preview; assembly/file version: 1.1.1.0.
+- User-confirmed baseline: 1.0.0 reports. The user requested individual/bulk deletion, then supplied the empty-path installation error while updating to 1.1.0. Real-library deletion is not yet user-confirmed. Affected older installations need one manual DLL replacement to receive 1.1.1.
 - Repository: https://github.com/TechSavage1989/whosceneit; public. No visibility or credential changes were made.
-- Exact 1.1.0 source/tag: 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd, v1.1.0. The release build metadata records that source and a clean working tree.
-- Release: https://github.com/TechSavage1989/whosceneit/releases/tag/v1.1.0. Six public assets were downloaded and verified, including the source and complete preview ZIPs. Never replace this tag or its assets.
-- Published WhoSceneIt.dll: 126,976 bytes; SHA-256 2db640f20e5aca376a1d955a7ef8a8466bd60cddafeb7ca90b981f20fd9a55b6.
-- Live feed: https://raw.githubusercontent.com/TechSavage1989/whosceneit/main/update-manifest.json, verified to match the public 1.1.0 manifest/version/digest.
-- Stable assembly/filename: WhoSceneIt.dll; plugin ID: b6405a2e-52e6-4218-a014-00a46a65f1f8. Emby can load DLL bytes into memory, so Assembly.Location may be empty. Resolve the native registered installation path lazily and preserve customized filenames.
-- Local branch: codex/whosceneit-publication, tracking origin/main. Main additionally contains the verified publication handoff; the immutable release tag identifies the application source.
-- Prior 1.0.0 source: 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. Original repository baseline was only a README at c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5.
+- Exact 1.1.1 source/tag: c29b1b94644168ec2ce63e359735fd244528fc3f, v1.1.1. Build metadata records this exact source and a clean tree. Never replace the published tag/assets.
+- Release: https://github.com/TechSavage1989/whosceneit/releases/tag/v1.1.1. All six public assets were independently downloaded and size/hash-checked. All 44 source files match the tagged tree; all 50 preview content hashes pass.
+- Published WhoSceneIt.dll: 131,584 bytes; SHA-256 9c79efe59c167cc7667cfa0fb85926bb532090b3dabd0ae7fb80e31e09949aad.
+- Live feed: https://raw.githubusercontent.com/TechSavage1989/whosceneit/main/update-manifest.json, verified to match the public 1.1.1 manifest. Feed commit: 4251cc01a912521b5582d821db765371b95d6073, created only after public asset verification.
+- Stable assembly/filename: WhoSceneIt.dll; plugin ID: b6405a2e-52e6-4218-a014-00a46a65f1f8. Resolve the native installed path lazily because byte-loaded Assembly.Location can be empty; preserve customized filenames.
+- Local branch: codex/whosceneit-publication, tracking origin/main. Main holds current verification notes; immutable release tags identify application source.
+- Previous immutable sources: 1.1.0 at 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd; 1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. The original repository baseline was only a README at c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5.
 
 ## Version 1.1.1 installation-path repair
 
@@ -21,7 +21,7 @@ PluginPathResolver now prefers matching IApplicationHost.Plugins / IPlugin.Assem
 
 Affected 1.0.0 and 1.1.0 installations need one manual replacement: stop Emby, replace the existing plugin DLL with the official 1.1.1 DLL, preserve any customized filename, and start Emby. Do not add a second DLL beside the old one. Settings are retained by preserving the plugin identity/configuration. Advancing the feed cannot repair code already loaded by the old updater.
 
-Local Release builds have zero warnings/errors. All 33 quick compiled checks pass, including five new memory-loaded entry-point cases and the existing deletion/update checks. The real-timer hosted suite should run 34 checks; it has not yet run for this candidate. New cases reproduce the old empty-path failure, test native registered/custom filenames, fallback ambiguity, wrong targets, late registration, actual installation/backup/settings preservation, new memory loading, and health cleanup. The rewritten public check reproduces the exact public 1.0.0 failure before simulating the manual bootstrap into the published patch; it must run after publication. No Emby process or real user library is used.
+Local Release builds have zero warnings/errors. All 33 quick compiled checks pass, including five new memory-loaded entry-point cases and the existing deletion/update checks. Exact-source hosted Windows and Linux each passed all 34 checks, including the real timer; Linux passed all 15 browser checks. New cases reproduce the old empty-path failure, test native registered/custom filenames, fallback ambiguity, wrong targets, late registration, actual installation/backup/settings preservation, new memory loading, and health cleanup. The rewritten public check passed after publication: it reproduced the exact public 1.0.0 memory-loaded entry-point failure after a verified HTTPS patch download, then simulated the documented manual bootstrap into the public 1.1.1 DLL. The patched entry point resolved the custom target; settings/backup were preserved and owned staging was cleaned. See docs/validation-published-upgrade.txt. No Emby process or real user library is used.
 
 ## Approved project scope
 
@@ -57,7 +57,9 @@ After publication and feed verification, explicitly run the public previous-vers
 
     dotnet run --project tests/WhoSceneIt.Tests/WhoSceneIt.Tests.csproj -c Release -- --published-upgrade
 
-Hosted validation for exact release source 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd passed at https://github.com/TechSavage1989/whosceneit/actions/runs/40178145566. Windows and Linux each passed all 29 compiled checks, including actual five-minute polling, two-minute focus gating, cooldown expiry, ETag/304, temporary-file deletion/rollback, cancellation, stale-target/native permission/playback/folder guards, partial errors, and update/deletion concurrency. Linux passed all 15 browser checks, including real polling and timer/listener cleanup. Release builds reported zero compiler warnings/errors.
+Current 1.1.1 validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40180285235, successful at exact source c29b1b94644168ec2ce63e359735fd244528fc3f. Windows/Linux each passed 34 compiled checks; Linux passed 15 browser checks. Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/40180822733 completed successfully, verified assets, and advanced the feed. Independent public verification and the revised memory-load/manual-bootstrap check passed. No live Emby process was started or restarted.
+
+Historical 1.1.0 hosted validation for exact release source 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd passed at https://github.com/TechSavage1989/whosceneit/actions/runs/40178145566. Windows and Linux each passed all 29 compiled checks, including actual five-minute polling, two-minute focus gating, cooldown expiry, ETag/304, temporary-file deletion/rollback, cancellation, stale-target/native permission/playback/folder guards, partial errors, and update/deletion concurrency. Linux passed all 15 browser checks, including real polling and timer/listener cleanup. Release builds reported zero compiler warnings/errors.
 
 Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/40178653703 completed successfully, verified draft/public assets, and advanced/verified the feed. All six public downloads were independently size/hash-checked. All 41 source files match the tagged source; all 47 preview content hashes pass.
 
