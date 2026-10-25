@@ -3,19 +3,19 @@
   "AppId": "WhoSceneIt",
   "PluginId": "b6405a2e-52e6-4218-a014-00a46a65f1f8",
   "Repository": "TechSavage1989/whosceneit",
-  "Version": "1.5.0",
+  "Version": "1.5.1",
   "MinimumEmbyVersion": "4.8.0.0",
-  "ReleaseUrl": "https://github.com/TechSavage1989/whosceneit/releases/tag/v1.5.0",
+  "ReleaseUrl": "https://github.com/TechSavage1989/whosceneit/releases/tag/v1.5.1",
   "Notes": [
-    "Persistent Never delete protection for movies, shows, and episodes.",
-    "Cleanup rules with review prompts, UTC schedules, and playback/watch-state triggers.",
-    "Optional removal of verified empty Sonarr show entries; native protections and service results retained."
+    "Browse all watch states by default, including unwatched movies, shows, and episodes.",
+    "Mark unwatched media Never delete individually or in bulk without enabling unwatched deletion.",
+    "Mixed selections retain watched-only deletion unless the unfinished-deletion option is enabled."
   ],
   "HasMoreNotes": true,
   "Asset": {
     "FileName": "WhoSceneIt.dll",
-    "DownloadUrl": "https://github.com/TechSavage1989/whosceneit/releases/download/v1.5.0/WhoSceneIt.dll",
-    "Sha256": "014f6825803704453e657edaf5521c66435894cf38274f730280f0abdf879a4d",
-    "SizeBytes": 274944
+    "DownloadUrl": "https://github.com/TechSavage1989/whosceneit/releases/download/v1.5.1/WhoSceneIt.dll",
+    "Sha256": "2b41ba8bf41bca7b712c544fed3344839ffadbf43aa8d0fcb04f6805ec9c55a9",
+    "SizeBytes": 275968
   }
 }
