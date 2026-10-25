@@ -6,7 +6,7 @@ Read this file and DEVELOPMENT_HANDOFF.md before editing. Then inspect the curre
 
 - Repository: https://github.com/TechSavage1989/whosceneit
 - The repository was public with only an initial README at commit c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5 when work began.
-- Latest maintained/published application: 1.1.1 preview, tag v1.1.1 at c29b1b94644168ec2ce63e359735fd244528fc3f. Hosted Windows/Linux each passed 34 compiled checks; Linux passed 15 browser checks. All six public assets, the feed, the actual public 1.0.0 memory-load failure, and manual bootstrap into the public patch are verified. Older affected installations need one manual replacement. Previous explicit-target updater coverage missed this defect.
+- Latest maintained/published application: 1.2.0 preview, tag v1.2.0 at e2be637d3e333d14fb6ae6e6a36c2b95dca59aaf. Hosted Windows/Linux each passed 43 compiled checks; Linux passed 20 browser checks. All six assets/feed, all 46 source files/52 preview hashes, and actual public 1.1.1-to-1.2.0 updater installation/health/cleanup are verified with memory-loaded SDK entry points. Versions 1.0.0/1.1.0 still need one manual DLL replacement. Live Emby restart/deletion remains unverified.
 - User-confirmed working baseline: 1.0.0, tag v1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. The user confirmed it works on October 25, 2026. Version 1.1.0 adds the explicitly requested media deletion feature.
 - Public source publication and release publication require the user's explicit approval. A repository URL alone does not override that instruction. Do not change visibility, create credentials, or embed tokens.
 - Preserve the stable assembly name and installed filename WhoSceneIt.dll and plugin ID b6405a2e-52e6-4218-a014-00a46a65f1f8 across versions. Use the assembly's actual installed location for updates so custom filenames survive.
@@ -15,7 +15,7 @@ Read this file and DEVELOPMENT_HANDOFF.md before editing. Then inspect the curre
 
 ## Watch-progress behavior
 
-- Current candidate: 1.2.0. The user explicitly requested episode full/partial detection, related features, and publication. Read saved Played, PlaybackPositionTicks, and RunTimeTicks without changing them. A saved position alone never implies completion or a proven rewatch. Keep unknown durations unknown, complete show denominators, scoped episode drilldowns, and watch-state filtering before paging/export.
+- Published version: 1.2.0. The user explicitly requested episode full/partial detection, related features, and publication. Read saved Played, PlaybackPositionTicks, and RunTimeTicks without changing them. A saved position alone never implies completion or a proven rewatch. Keep unknown durations unknown, complete show denominators, scoped episode drilldowns, and watch-state filtering before paging/export.
 - Partial playback or saved resume positions for any current user must block media deletion, including after preview. Never automatically clear progress or change a watch flag to make media deletable.
 
 ## Build and test

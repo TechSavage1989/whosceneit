@@ -2,18 +2,16 @@
 
 ## Current state
 
-- Current candidate: 1.2.0; exact-source hosted CI, publication, and public upgrade verification are pending. The latest published release below remains the baseline until those steps succeed.
-
-- Latest maintained/published version: 1.1.1 preview; assembly/file version: 1.1.1.0.
-- User-confirmed baseline: 1.0.0 reports. The user requested individual/bulk deletion, then supplied the empty-path installation error while updating to 1.1.0. Real-library deletion is not yet user-confirmed. Affected older installations need one manual DLL replacement to receive 1.1.1.
+- Latest maintained/published version: 1.2.0 preview; assembly/file version: 1.2.0.0.
+- User-confirmed baseline: 1.0.0 reports. Later deletion, updater repair, and watch-progress features are covered by SDK/browser tests but are not yet user-confirmed in a real Emby library.
 - Repository: https://github.com/TechSavage1989/whosceneit; public. No visibility or credential changes were made.
-- Exact 1.1.1 source/tag: c29b1b94644168ec2ce63e359735fd244528fc3f, v1.1.1. Build metadata records this exact source and a clean tree. Never replace the published tag/assets.
-- Release: https://github.com/TechSavage1989/whosceneit/releases/tag/v1.1.1. All six public assets were independently downloaded and size/hash-checked. All 44 source files match the tagged tree; all 50 preview content hashes pass.
-- Published WhoSceneIt.dll: 131,584 bytes; SHA-256 9c79efe59c167cc7667cfa0fb85926bb532090b3dabd0ae7fb80e31e09949aad.
-- Live feed: https://raw.githubusercontent.com/TechSavage1989/whosceneit/main/update-manifest.json, verified to match the public 1.1.1 manifest. Feed commit: 4251cc01a912521b5582d821db765371b95d6073, created only after public asset verification.
-- Stable assembly/filename: WhoSceneIt.dll; plugin ID: b6405a2e-52e6-4218-a014-00a46a65f1f8. Resolve the native installed path lazily because byte-loaded Assembly.Location can be empty; preserve customized filenames.
-- Local branch: codex/whosceneit-publication, tracking origin/main. Main holds current verification notes; immutable release tags identify application source.
-- Previous immutable sources: 1.1.0 at 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd; 1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. The original repository baseline was only a README at c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5.
+- Exact 1.2.0 source/tag: e2be637d3e333d14fb6ae6e6a36c2b95dca59aaf, v1.2.0. Build metadata records this exact source and a clean tree. Never replace published tags/assets.
+- Release: https://github.com/TechSavage1989/whosceneit/releases/tag/v1.2.0. All six public assets were independently downloaded and size/hash-checked. All 46 source files match the tagged tree; all 52 preview content hashes pass.
+- Published WhoSceneIt.dll: 141,824 bytes; SHA-256 ab828ce02eff35e632ca6605c0b583eede2c0021fb74374a7740f243812a7661.
+- Live feed: https://raw.githubusercontent.com/TechSavage1989/whosceneit/main/update-manifest.json, verified to match the public 1.2.0 manifest. Feed commit: 50b6837bebafb76991a9c60e258fbbd3eba41cfb, created only after public asset verification.
+- Stable assembly/filename: WhoSceneIt.dll; plugin ID: b6405a2e-52e6-4218-a014-00a46a65f1f8. Native installed-path discovery preserves customized filenames. Versions 1.0.0/1.1.0 need manual replacement once; the public 1.1.1 updater successfully installed 1.2.0 using actual memory-loaded entry points in SDK fixtures.
+- Local branch: main, tracking origin/main. Main holds current verification notes; immutable release tags identify application source.
+- Previous immutable sources: 1.1.1 at c29b1b94644168ec2ce63e359735fd244528fc3f; 1.1.0 at 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd; 1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. Original repository baseline: c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5.
 
 ## Version 1.2.0 watch progress
 
@@ -23,7 +21,7 @@ WatchInspectorService reads the full accessible media inventory instead of relyi
 
 The dashboard defaults to Started, adds watch-state/progress/episode-order controls, progress bars and remaining time, and View episodes in both report views. Episode drilldown keeps the selected user and show together. CSV includes the same state/scope and progress fields. Reports do not modify watch flags or resume data. The native deletion backend now preserves media with any current user's saved position, even if another user completed it, and rechecks this before deletion. Local/native/browser fixtures use synthetic data only.
 
-Local validation passed 42 compiled checks and 20 browser checks including real browser timers. Hosted real-timer validation is expected to run 43 compiled checks per platform and 20 Linux browser checks. A long status option initially caused mobile overflow; constrained form fields and a shorter label pass the mobile check. The public check now additionally uses the pinned public 1.1.1 DLL, creates its actual entry point from bytes, installs the public new release, verifies custom target/settings/backup, and loads the new entry point to confirm pending health and cleanup. Run it only after publication/feed verification.
+Local validation passed 42 compiled checks and 20 browser checks including real browser timers. Exact-source hosted Windows and Linux each passed 43 compiled checks, including real timers; Linux passed 20 browser checks. A long status option initially caused mobile overflow; constrained form fields and a shorter label pass the mobile check. The public check now additionally uses the pinned public 1.1.1 DLL, creates its actual entry point from bytes, installs the public new release, verifies custom target/settings/backup, and loads the new entry point to confirm pending health and cleanup. It passed after publication/feed verification: the public 1.1.1 updater installed the exact public 1.2.0 bytes, preserved settings/custom filename/backup, and the new memory-loaded entry point verified pending health and cleaned staging. The legacy 1.0.0 failure/manual-bootstrap negative control also passed. See docs/validation-published-upgrade.txt. No live Emby process was started or restarted.
 
 ## Version 1.1.1 installation-path repair
 
@@ -69,7 +67,9 @@ After publication and feed verification, explicitly run the public previous-vers
 
     dotnet run --project tests/WhoSceneIt.Tests/WhoSceneIt.Tests.csproj -c Release -- --published-upgrade
 
-Current 1.1.1 validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40180285235, successful at exact source c29b1b94644168ec2ce63e359735fd244528fc3f. Windows/Linux each passed 34 compiled checks; Linux passed 15 browser checks. Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/40180822733 completed successfully, verified assets, and advanced the feed. Independent public verification and the revised memory-load/manual-bootstrap check passed. No live Emby process was started or restarted.
+Current 1.2.0 validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40213700764, successful at exact source e2be637d3e333d14fb6ae6e6a36c2b95dca59aaf. Windows/Linux each passed 43 compiled checks; Linux passed 20 browser checks. Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/40214340337 completed successfully. All six assets, source/preview archives, metadata, tag, and feed passed independent public verification. Actual public memory-loaded 1.1.1-to-1.2.0 updater installation and new-entry-point health/cleanup passed in SDK fixtures.
+
+Historical 1.1.1 validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40180285235, successful at exact source c29b1b94644168ec2ce63e359735fd244528fc3f. Windows/Linux each passed 34 compiled checks; Linux passed 15 browser checks. Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/40180822733 completed successfully, verified assets, and advanced the feed. Independent public verification and the revised memory-load/manual-bootstrap check passed. No live Emby process was started or restarted.
 
 Historical 1.1.0 hosted validation for exact release source 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd passed at https://github.com/TechSavage1989/whosceneit/actions/runs/40178145566. Windows and Linux each passed all 29 compiled checks, including actual five-minute polling, two-minute focus gating, cooldown expiry, ETag/304, temporary-file deletion/rollback, cancellation, stale-target/native permission/playback/folder guards, partial errors, and update/deletion concurrency. Linux passed all 15 browser checks, including real polling and timer/listener cleanup. Release builds reported zero compiler warnings/errors.
 

@@ -2,16 +2,16 @@
 
 Date: October 25, 2026.
 
-The 1.2.0 candidate adds episode watch progress and related controls. Exact-source hosted CI, publication, and public upgrade verification are pending. Live Emby deletion/restart testing remains outside the completed SDK/browser checks.
+Version 1.2.0 adds episode watch progress and related controls. Exact-source hosted CI, publication, all public assets/feed, and the public previous-version upgrade check passed. Live Emby deletion/restart testing remains outside the completed SDK/browser checks.
 
 ## Version 1.2.0 checks
 
-- Local Release builds pass without warnings/errors. Forty-two compiled checks cover the existing reports/updater/deletion plus eight new progress/report checks and one native cross-user resume protection check. Hosted real-timer validation should run 43 checks per platform.
+- Local Release builds pass without warnings/errors. Forty-two compiled checks cover the existing reports/updater/deletion plus eight new progress/report checks and one native cross-user resume protection check. Hosted Windows and Linux each passed all 43 checks, including the real five-minute timer.
 - Completion flags, partial positions, manual marks, watched-with-resume states, missing/negative durations, clamped overrun positions, all watch-state filters, full show denominators, not-started viewer inclusion, numeric episode order, and progress sorting are covered.
 - Native 4.8 SDK report fixtures exercise below-threshold positions, runtime reads, the unfiltered saved-data query, series-scoped episode lists, full series totals, viewer progress, and invalid report options.
 - Native deletion fixtures block saved positions for the selected or another user, including progress appearing after preview; original media remains present and native deletion is not called.
-- Twenty Chromium checks pass, including real browser timers. New cases cover episode drilldown/progress, scoped partial CSV, watched-with-resume protection, all/completed/not-started filters, clearing the scope, and selecting a viewer's episode list. A mobile overflow caused by a long option label was reproduced and fixed; the responsive-width check passes. Hosted Linux must rerun all 20 checks.
-- After publication, the public helper must reproduce the legacy empty-path failure/manual bootstrap and verify a genuine public 1.1.1-to-1.2.0 installation using actual memory-loaded entry points. This is not a live Emby restart.
+- Twenty Chromium checks pass, including real browser timers. New cases cover episode drilldown/progress, scoped partial CSV, watched-with-resume protection, all/completed/not-started filters, clearing the scope, and selecting a viewer's episode list. A mobile overflow caused by a long option label was reproduced and fixed; the responsive-width check passes. Hosted Linux passed all 20 checks on the exact released source.
+- After publication, the public helper passed both the legacy empty-path failure/manual bootstrap and genuine public 1.1.1-to-1.2.0 installation using actual memory-loaded entry points. It used real HTTPS feed/downloads and verified exact bytes, the custom installed filename, preserved settings/backup, pending health verification, and staging cleanup. See docs/validation-published-upgrade.txt. This is not a live Emby restart.
 
 ## Historical 1.1.1 validation
 
@@ -105,3 +105,13 @@ build-metadata.json identifies the source commit and DLL digest. CONTENTS_SHA256
 - WhoSceneIt.dll: 131,584 bytes; SHA-256 9c79efe59c167cc7667cfa0fb85926bb532090b3dabd0ae7fb80e31e09949aad.
 - The public main feed exactly matches the public release manifest, URL, version, digest, and size. Feed commit: 4251cc01a912521b5582d821db765371b95d6073. Existing releases/tags/assets were not overwritten.
 - The real public 1.0.0 memory-loaded entry point reproduced the reported empty-path installation failure. One-time manual bootstrap into the public 1.1.1 memory-loaded entry point passed path/settings/backup/cleanup checks. This corrects the earlier explicit-target fixture's coverage gap. No real user media was deleted and no live Emby restart was performed.
+
+## Verified 1.2.0 publication
+
+- Source/tag: e2be637d3e333d14fb6ae6e6a36c2b95dca59aaf, v1.2.0.
+- Hosted Windows/Linux validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40213700764, successful; 43 compiled checks per platform and 20 Linux browser checks.
+- Publication workflow: https://github.com/TechSavage1989/whosceneit/actions/runs/40214340337, successful. Public release: https://github.com/TechSavage1989/whosceneit/releases/tag/v1.2.0.
+- Six public assets independently downloaded and verified against API sizes/digests and SHA256SUMS.txt. All 46 source files match the exact tagged source; all 52 preview content hashes pass. Build metadata matches the tag and records a clean source tree.
+- WhoSceneIt.dll: 141,824 bytes; SHA-256 ab828ce02eff35e632ca6605c0b583eede2c0021fb74374a7740f243812a7661.
+- The public feed exactly matches the public manifest, version, URL, digest, and size. Feed commit: 50b6837bebafb76991a9c60e258fbbd3eba41cfb. Previous releases/tags/assets remain unchanged.
+- The pinned public 1.1.1 DLL, loaded from bytes through its real entry point, installed the public 1.2.0 DLL. The new memory-loaded entry point verified pending health and cleaned owned staging after acknowledgement; settings/custom filename/rollback were preserved. The older 1.0.0 path failure/manual bootstrap also passed as a negative control. No real user media was deleted and no live Emby process was started or restarted.
