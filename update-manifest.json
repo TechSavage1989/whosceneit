@@ -3,19 +3,19 @@
   "AppId": "WhoSceneIt",
   "PluginId": "b6405a2e-52e6-4218-a014-00a46a65f1f8",
   "Repository": "TechSavage1989/whosceneit",
-  "Version": "1.1.1",
+  "Version": "1.2.0",
   "MinimumEmbyVersion": "4.8.0.0",
-  "ReleaseUrl": "https://github.com/TechSavage1989/whosceneit/releases/tag/v1.1.1",
+  "ReleaseUrl": "https://github.com/TechSavage1989/whosceneit/releases/tag/v1.2.0",
   "Notes": [
-    "Fixed update installation when Emby loads the plugin into memory.",
-    "Uses Emby's registered DLL path and preserves custom filenames.",
-    "Memory-loaded older versions need one manual DLL replacement."
+    "Track watched, partially watched, and not-started episodes.",
+    "See saved progress, remaining time, show completion, and episode lists.",
+    "Saved partial playback and rewatches are preserved during media deletion."
   ],
   "HasMoreNotes": true,
   "Asset": {
     "FileName": "WhoSceneIt.dll",
-    "DownloadUrl": "https://github.com/TechSavage1989/whosceneit/releases/download/v1.1.1/WhoSceneIt.dll",
-    "Sha256": "9c79efe59c167cc7667cfa0fb85926bb532090b3dabd0ae7fb80e31e09949aad",
-    "SizeBytes": 131584
+    "DownloadUrl": "https://github.com/TechSavage1989/whosceneit/releases/download/v1.2.0/WhoSceneIt.dll",
+    "Sha256": "ab828ce02eff35e632ca6605c0b583eede2c0021fb74374a7740f243812a7661",
+    "SizeBytes": 141824
   }
 }
