@@ -2,18 +2,18 @@
 
 ## Current state
 
-- Current candidate: 1.2.1. Exact-source hosted validation, publication, and public upgrade verification are pending. The 1.2.0 screenshot shows a loaded plugin and failed report request; its new report features are not user-confirmed.
-
-- Latest maintained/published version: 1.2.0 preview; assembly/file version: 1.2.0.0.
-- User-confirmed baseline: 1.0.0 reports. Later deletion, updater repair, and watch-progress features are covered by SDK/browser tests but are not yet user-confirmed in a real Emby library.
+- Latest maintained/published version: 1.2.1 preview; assembly/file version: 1.2.1.0.
+- User-confirmed baseline: 1.0.0 reports. The latest screenshot confirms 1.2.0 is loaded but its default report fails. Version 1.2.1 repairs the verified null ancestor-list regression; a live server exception and user confirmation of the repaired report remain unavailable.
 - Repository: https://github.com/TechSavage1989/whosceneit; public. No visibility or credential changes were made.
-- Exact 1.2.0 source/tag: e2be637d3e333d14fb6ae6e6a36c2b95dca59aaf, v1.2.0. Build metadata records this exact source and a clean tree. Never replace published tags/assets.
-- Release: https://github.com/TechSavage1989/whosceneit/releases/tag/v1.2.0. All six public assets were independently downloaded and size/hash-checked. All 46 source files match the tagged tree; all 52 preview content hashes pass.
-- Published WhoSceneIt.dll: 141,824 bytes; SHA-256 ab828ce02eff35e632ca6605c0b583eede2c0021fb74374a7740f243812a7661.
-- Live feed: https://raw.githubusercontent.com/TechSavage1989/whosceneit/main/update-manifest.json, verified to match the public 1.2.0 manifest. Feed commit: 50b6837bebafb76991a9c60e258fbbd3eba41cfb, created only after public asset verification.
-- Stable assembly/filename: WhoSceneIt.dll; plugin ID: b6405a2e-52e6-4218-a014-00a46a65f1f8. Native installed-path discovery preserves customized filenames. Versions 1.0.0/1.1.0 need manual replacement once; the public 1.1.1 updater successfully installed 1.2.0 using actual memory-loaded entry points in SDK fixtures.
-- Local branch: main, tracking origin/main. Main holds current verification notes; immutable release tags identify application source.
-- Previous immutable sources: 1.1.1 at c29b1b94644168ec2ce63e359735fd244528fc3f; 1.1.0 at 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd; 1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. Original repository baseline: c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5.
+- Exact 1.2.1 source/tag: c68e1714c67c488adac12dda8b7c87e08b3f9126, v1.2.1. Build metadata records that exact source and a clean tree. Never replace published tags/assets.
+- Release: https://github.com/TechSavage1989/whosceneit/releases/tag/v1.2.1. All six public assets were independently downloaded and size/hash-checked. All 47 source files match the tagged tree; all 53 preview content hashes pass.
+- Published WhoSceneIt.dll: 142,336 bytes; SHA-256 16d75ae5b603e61545d9555412a86093fe03ecf51a3c9cce23e326d5b93bc8f2.
+- Live feed: https://raw.githubusercontent.com/TechSavage1989/whosceneit/main/update-manifest.json, independently verified through direct canonical HTTPS to match the public 1.2.1 manifest. Feed commit: 32d8d1b82d20982a4943d3f8d081a10a37042644.
+- Hosted validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40216607262, successful; Windows/Linux each passed 44 compiled checks, Linux passed 21 browser checks.
+- Publication run https://github.com/TechSavage1989/whosceneit/actions/runs/40217267071 published/verified assets and advanced the feed, then timed out on its final public-feed verification. The workflow remains marked failed. Subsequent independent downloads, canonical feed comparison, and actual public 1.2.0-to-1.2.1 SDK updater installation/health/cleanup all passed. Do not rerun or republish this version.
+- Stable assembly/filename: WhoSceneIt.dll; plugin ID: b6405a2e-52e6-4218-a014-00a46a65f1f8. Customized filenames/settings survive updates. Versions 1.0.0/1.1.0 need manual replacement once; the actual public 1.2.0 updater installed 1.2.1 in memory-loaded SDK fixtures.
+- Local branch: main, tracking origin/main. Main holds current verification notes and a longer future publication feed-verification retry budget; immutable release tags identify application source.
+- Previous immutable sources: 1.2.0 at e2be637d3e333d14fb6ae6e6a36c2b95dca59aaf; 1.1.1 at c29b1b94644168ec2ce63e359735fd244528fc3f; 1.1.0 at 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd; 1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. Original baseline: c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5.
 
 ## Version 1.2.1 report-query repair
 
@@ -21,7 +21,7 @@ The user's 1.2.0 screenshot shows the new UI and installed version, but UserRepo
 
 The patch creates the query with native defaults and only assigns AncestorIds for a validated show scope. Browser errors now show ResponseStatus.Message and HTTP status through textContent, omit stack traces and returned HTML, and retain authorization guidance. Loading/failed reports reset reportHealthy, and failure clears stale selections. A browser fixture covers JSON errors, non-JSON gateway errors, authorization failures, false health acknowledgement prevention, and successful retry. No watch data or settings are changed.
 
-Local validation passed 43 compiled checks and 19 quick browser checks. Hosted validation must run 44 compiled checks on each platform and 21 Linux browser checks including real timers. The post-publication helper now uses the pinned public 1.2.0 updater to install 1.2.1 in a temporary plugins directory; it must run after the new public feed/assets exist. The screenshot does not expose the server exception, and no live Emby process is used in these checks. The SDK-default repair is verified; confirmation against the user's report remains pending.
+Local validation passed 43 compiled checks and 21 browser checks including real timers. Exact-source hosted Windows and Linux each passed 44 compiled checks; Linux passed all 21 browser checks. The post-publication helper now uses the pinned public 1.2.0 updater to install 1.2.1 in a temporary plugins directory; it passed after publication, verifying exact public bytes, the custom target, settings/rollback preservation, pending version/digest verification, and simulated dashboard acknowledgement/cleanup. The older 1.0.0 failure/manual bootstrap also passed. See docs/validation-published-upgrade.txt. The screenshot does not expose the server exception, and no live Emby process is used in these checks. The SDK-default repair is verified; confirmation against the user's report remains pending.
 
 ## Version 1.2.0 watch progress
 
@@ -77,7 +77,9 @@ After publication and feed verification, explicitly run the public previous-vers
 
     dotnet run --project tests/WhoSceneIt.Tests/WhoSceneIt.Tests.csproj -c Release -- --published-upgrade
 
-Current 1.2.0 validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40213700764, successful at exact source e2be637d3e333d14fb6ae6e6a36c2b95dca59aaf. Windows/Linux each passed 43 compiled checks; Linux passed 20 browser checks. Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/40214340337 completed successfully. All six assets, source/preview archives, metadata, tag, and feed passed independent public verification. Actual public memory-loaded 1.1.1-to-1.2.0 updater installation and new-entry-point health/cleanup passed in SDK fixtures.
+Current 1.2.1 validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40216607262, successful at source c68e1714c67c488adac12dda8b7c87e08b3f9126. Windows/Linux each passed 44 compiled checks; Linux passed 21 browser checks. Public assets/tag/feed and a real public 1.2.0-to-1.2.1 updater file transaction passed independent verification. Publication workflow 40217267071 timed out only after publishing and advancing the feed; its failure status remains historical. No asset/tag was replaced.
+
+Historical 1.2.0 validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40213700764, successful at exact source e2be637d3e333d14fb6ae6e6a36c2b95dca59aaf. Windows/Linux each passed 43 compiled checks; Linux passed 20 browser checks. Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/40214340337 completed successfully. All six assets, source/preview archives, metadata, tag, and feed passed independent public verification. Actual public memory-loaded 1.1.1-to-1.2.0 updater installation and new-entry-point health/cleanup passed in SDK fixtures.
 
 Historical 1.1.1 validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40180285235, successful at exact source c29b1b94644168ec2ce63e359735fd244528fc3f. Windows/Linux each passed 34 compiled checks; Linux passed 15 browser checks. Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/40180822733 completed successfully, verified assets, and advanced the feed. Independent public verification and the revised memory-load/manual-bootstrap check passed. No live Emby process was started or restarted.
 
@@ -105,7 +107,7 @@ Negative controls: historical Windows run 40174933095 missed its timer request u
 
 1. Read AGENTS.md and this handoff. Inspect latest source, visibility, releases, and feed. Preserve the latest maintained feature set and the user-confirmed baseline.
 2. Use a new matching project/assembly/file version. Verify all required hosted CI jobs for the exact release source.
-3. Invoke the manual release workflow at that source ref. Existing tags/releases must not be overwritten. Draft verification resolves the authenticated release list and reads the stable release ID.
+3. Invoke the manual release workflow at that source ref. Existing tags/releases must not be overwritten. Draft verification resolves the authenticated release list and reads the stable release ID. Main now allows up to six minutes for canonical feed verification after the observed one-minute timeout in the 1.2.1 publication. If a release is already public, independently verify it rather than rerunning publication for the same tag.
 4. Verify public assets, source tag/ref, hashes, metadata, and matching feed. The feed must advance only after public asset validation.
 5. Use the explicit published-upgrade check after publication, and record its boundaries. Native Emby update/restart and real-library deletion require separate target-platform validation.
 6. Update this handoff and VALIDATION.md with actual results. Frozen release packages retain pre-publication notes; main holds current verification details.

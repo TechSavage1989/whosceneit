@@ -2,14 +2,14 @@
 
 Date: October 25, 2026.
 
-The 1.2.1 candidate repairs an unscoped report-query regression and adds useful error details. Exact-source hosted CI, publication, and public upgrade verification are pending. The supplied screenshot contains a generic failed-request message rather than a server exception; the exact live stack trace has not been observed.
+Version 1.2.1 repairs an unscoped report-query regression and adds useful error details. Exact-source hosted CI, all public assets/feed, and public upgrade verification passed. Publication completed before the workflow timed out on its final feed check; independent verification confirmed the canonical feed afterward. The supplied screenshot contains a generic failed-request message rather than a server exception; the exact live stack trace has not been observed.
 
 ## Version 1.2.1 checks
 
 - Negative control: Emby's 4.8 SDK creates AncestorIds as an empty array. The 1.2.0 normal report replaces it with null and fails the new regression assertion. See docs/validation-report-query-negative.txt. This detects an invalid query-default change; it does not execute a native Emby database query or claim to reproduce the unseen live exception.
-- Corrected local Release build has zero warnings/errors and passes all 43 quick compiled checks. The new case covers default ancestor arrays in Titles, Movies, Shows, and Episodes. Existing tests retain scoped series IDs, watch progress, updater, and deletion behavior. Hosted real-timer validation must pass 44 checks on each platform.
-- Nineteen quick browser checks pass. The new case exercises structured native error messages and HTTP status as safe text, literal HTML that never executes, omitted stack traces, non-JSON error fallback, 403 guidance, failed-report health prevention, and successful recovery. Hosted Linux must pass 21 checks including real timers.
-- After publication, run the public 1.2.0-to-1.2.1 memory-loaded entry-point installation/health/cleanup check, including the legacy 1.0.0 failure/manual-bootstrap negative control. This does not start or restart live Emby.
+- Corrected local Release build has zero warnings/errors and passes all 43 quick compiled checks. The new case covers default ancestor arrays in Titles, Movies, Shows, and Episodes. Existing tests retain scoped series IDs, watch progress, updater, and deletion behavior. Hosted real-timer validation passed all 44 checks on Windows and Linux.
+- Twenty-one browser checks pass, including real timers. The new case exercises structured native error messages and HTTP status as safe text, literal HTML that never executes, omitted stack traces, non-JSON error fallback, 403 guidance, failed-report health prevention, and successful recovery. Hosted Linux passed all 21 checks on the exact release source.
+- After publication, the public 1.2.0-to-1.2.1 memory-loaded entry-point installation/health/cleanup check passed, including the legacy 1.0.0 failure/manual-bootstrap negative control. Settings, custom filename, rollback bytes, and staging cleanup were verified. This does not start or restart live Emby.
 
 ## Historical 1.2.0 validation
 
@@ -126,3 +126,13 @@ build-metadata.json identifies the source commit and DLL digest. CONTENTS_SHA256
 - WhoSceneIt.dll: 141,824 bytes; SHA-256 ab828ce02eff35e632ca6605c0b583eede2c0021fb74374a7740f243812a7661.
 - The public feed exactly matches the public manifest, version, URL, digest, and size. Feed commit: 50b6837bebafb76991a9c60e258fbbd3eba41cfb. Previous releases/tags/assets remain unchanged.
 - The pinned public 1.1.1 DLL, loaded from bytes through its real entry point, installed the public 1.2.0 DLL. The new memory-loaded entry point verified pending health and cleaned owned staging after acknowledgement; settings/custom filename/rollback were preserved. The older 1.0.0 path failure/manual bootstrap also passed as a negative control. No real user media was deleted and no live Emby process was started or restarted.
+
+## Verified 1.2.1 publication
+
+- Source/tag: c68e1714c67c488adac12dda8b7c87e08b3f9126, v1.2.1.
+- Hosted validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40216607262, successful; 44 compiled checks per platform and 21 Linux browser checks.
+- Public release: https://github.com/TechSavage1989/whosceneit/releases/tag/v1.2.1. Six assets independently downloaded and checked against API sizes/digests and SHA256SUMS.txt; all 47 source files match the exact tagged tree and all 53 preview content hashes pass. Metadata records that source and a clean tree.
+- WhoSceneIt.dll: 142,336 bytes; SHA-256 16d75ae5b603e61545d9555412a86093fe03ecf51a3c9cce23e326d5b93bc8f2.
+- Feed commit: 32d8d1b82d20982a4943d3f8d081a10a37042644. A direct canonical raw.githubusercontent.com HTTPS request independently matched the public manifest, URL, version, digest, and size.
+- Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/40217267071 remains marked failed because its one-minute final feed-verification window expired after assets were published/verified and the feed was advanced. Subsequent canonical-feed verification and the public updater test passed. No tag or asset was overwritten, and publication was not rerun. Main's future publication check now permits up to six minutes of retries; this does not change the frozen 1.2.1 package.
+- The pinned actual public 1.2.0 updater installed the public 1.2.1 binary through its real memory-loaded entry point in SDK fixtures. New-entry-point pending version/digest verification and simulated dashboard acknowledgement/cleanup passed with settings/custom filename/rollback preserved. See docs/validation-published-upgrade.txt. No live Emby process was started/restarted and no real user media was deleted.

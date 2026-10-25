@@ -98,7 +98,9 @@ with tempfile.TemporaryDirectory(prefix="whosceneit-release-") as temporary:
     command("git", "commit", "-m", "Point update feed to verified Who Scene It " + version)
     command("git", "push", "origin", "HEAD:main")
     feed_url = "https://raw.githubusercontent.com/" + repo + "/main/update-manifest.json"
-    for attempt in range(12):
+    # Allow the canonical raw feed time to propagate after the verified commit.
+    feed_attempts = 72
+    for attempt in range(feed_attempts):
         try:
             request = urllib.request.Request(feed_url, headers={"Cache-Control": "no-cache"})
             with urllib.request.urlopen(request, timeout=30) as response:
@@ -107,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix="whosceneit-release-") as temporary:
                 break
         except (OSError, ValueError):
             pass
-        if attempt == 11:
+        if attempt == feed_attempts - 1:
             raise SystemExit("Release assets are published, but the public feed could not yet be verified. Do not republish the same version.")
         time.sleep(5)
     print("Published " + tag + " at " + sha + "; all assets and public DLL digest verified.")

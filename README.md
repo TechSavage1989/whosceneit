@@ -5,7 +5,7 @@ An administrator-only Emby Server plugin that answers two questions:
 - What movies and TV shows has this user watched?
 - Which users have watched this movie, TV show, or episode?
 
-Version 1.2.1 repairs the unscoped report query introduced in 1.2.0 and displays Emby's underlying error message when a request fails. It retains episode progress, watch-state filters, show completion totals, and per-show episode lists. It retains the 1.1.1 updater path fix and individual/bulk deletion. The user confirmed 1.0.0 reports work; real-library deletion and native Emby restart still need validation. See VALIDATION.md before installation.
+Version 1.2.1 is published at https://github.com/TechSavage1989/whosceneit/releases/tag/v1.2.1 and repairs the unscoped report query introduced in 1.2.0 and displays Emby's underlying error message when a request fails. It retains episode progress, watch-state filters, show completion totals, and per-show episode lists. It retains the 1.1.1 updater path fix and individual/bulk deletion. The user confirmed 1.0.0 reports work; real-library deletion and native Emby restart still need validation. See VALIDATION.md before installation.
 
 ## Features
 

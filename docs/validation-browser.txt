@@ -1,6 +1,6 @@
 
 > whosceneit-validation@1.2.1 test:ui
-> node tests/ui.smoke.cjs
+> node tests/ui.smoke.cjs --real-timers
 
 PASS initial user report, paging, and safe title rendering
 PASS CSV includes every page and neutralizes formula-like titles
@@ -21,3 +21,5 @@ PASS report errors show safe native messages and HTTP status, preserve auth guid
 PASS explicit download and install controls, restart warning, and hidden empty Read more
 PASS real browser focus events and listener cleanup without duplicate subscriptions
 PASS mobile layout and no browser exceptions
+PASS real browser update-status polling timer
+PASS browser timers stop after leaving the plugin page

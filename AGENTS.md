@@ -6,7 +6,7 @@ Read this file and DEVELOPMENT_HANDOFF.md before editing. Then inspect the curre
 
 - Repository: https://github.com/TechSavage1989/whosceneit
 - The repository was public with only an initial README at commit c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5 when work began.
-- Latest maintained/published application: 1.2.0 preview, tag v1.2.0 at e2be637d3e333d14fb6ae6e6a36c2b95dca59aaf. Hosted Windows/Linux each passed 43 compiled checks; Linux passed 20 browser checks. All six assets/feed, all 46 source files/52 preview hashes, and actual public 1.1.1-to-1.2.0 updater installation/health/cleanup are verified with memory-loaded SDK entry points. Versions 1.0.0/1.1.0 still need one manual DLL replacement. Live Emby restart/deletion remains unverified.
+- Latest maintained/published application: 1.2.1 preview, tag v1.2.1 at c68e1714c67c488adac12dda8b7c87e08b3f9126. Hosted Windows/Linux each passed 44 compiled checks; Linux passed 21 browser checks. All six public assets, canonical feed, 47 source files/53 preview hashes, and actual public 1.2.0-to-1.2.1 memory-loaded SDK updater installation/cleanup are verified. The publication workflow timed out on final feed verification after successful publication; do not rerun or replace this release. Live repaired-report confirmation remains pending.
 - User-confirmed working baseline: 1.0.0, tag v1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. The user confirmed it works on October 25, 2026. Version 1.1.0 adds the explicitly requested media deletion feature.
 - Public source publication and release publication require the user's explicit approval. A repository URL alone does not override that instruction. Do not change visibility, create credentials, or embed tokens.
 - Preserve the stable assembly name and installed filename WhoSceneIt.dll and plugin ID b6405a2e-52e6-4218-a014-00a46a65f1f8 across versions. Use the assembly's actual installed location for updates so custom filenames survive.
@@ -15,12 +15,12 @@ Read this file and DEVELOPMENT_HANDOFF.md before editing. Then inspect the curre
 
 ## Report-query repair
 
-- Current candidate: 1.2.1. The user's screenshot confirms 1.2.0 is loaded but its report request fails. The 1.2.0 unscoped report sets AncestorIds to null instead of retaining the SDK's default empty array. Preserve native collection defaults; set AncestorIds only for a validated show scope. The SDK regression test catches the old code. The screenshot does not show a native stack trace, so do not claim another server cause is excluded.
+- Published repair: 1.2.1. The user's screenshot confirms 1.2.0 is loaded but its report request fails. The 1.2.0 unscoped report sets AncestorIds to null instead of retaining the SDK's default empty array. Preserve native collection defaults; set AncestorIds only for a validated show scope. The SDK regression test catches the old code. The screenshot does not show a native stack trace, so do not claim another server cause is excluded.
 - Display structured Emby errors and HTTP status safely as plain text, retain 401/403 guidance, and never acknowledge dashboard health from an unsuccessful or stale report. Keep test coverage for normal and show-scoped queries.
 
 ## Watch-progress behavior
 
-- Published version: 1.2.0. The user explicitly requested episode full/partial detection, related features, and publication. Read saved Played, PlaybackPositionTicks, and RunTimeTicks without changing them. A saved position alone never implies completion or a proven rewatch. Keep unknown durations unknown, complete show denominators, scoped episode drilldowns, and watch-state filtering before paging/export.
+- Published version: 1.2.1. The user explicitly requested episode full/partial detection, related features, and publication. Read saved Played, PlaybackPositionTicks, and RunTimeTicks without changing them. A saved position alone never implies completion or a proven rewatch. Keep unknown durations unknown, complete show denominators, scoped episode drilldowns, and watch-state filtering before paging/export.
 - Partial playback or saved resume positions for any current user must block media deletion, including after preview. Never automatically clear progress or change a watch flag to make media deletable.
 
 ## Build and test
@@ -34,7 +34,7 @@ Use .NET SDK 8 or newer. The plugin must target netstandard2.0. Emby supplies it
     npm run test:ui -- --real-timers
     python scripts/package.py
 
-The C# test runner generates an unpublished next-patch DLL to exercise upgrades from the current version (1.2.2 for the 1.2.1 source). Never publish a test-artifacts fixture. Version 1.1.1 must be built from the actual patched source, not the old 1.1.0 source's same-numbered fixture. The real timer test takes about five minutes. Browser tests use synthetic data and never connect to a user's Emby server. After publication, --published-upgrade reproduces the public 1.0.0 memory-loaded entry-point failure and one-time manual bootstrap, then exercises the actual public 1.2.0 memory-loaded updater installing the current release. It never starts Emby.
+The C# test runner generates an unpublished next-patch DLL to exercise upgrades from the current version (1.2.2 for the 1.2.1 source). Never publish a test-artifacts fixture. Version 1.2.1 must be built from the actual repair source, not the old 1.2.0 source's same-numbered fixture. The real timer test takes about five minutes. Browser tests use synthetic data and never connect to a user's Emby server. After publication, --published-upgrade reproduces the public 1.0.0 memory-loaded entry-point failure and one-time manual bootstrap, then exercises the actual public 1.2.0 memory-loaded updater installing the current release. It never starts Emby.
 
 ## Updates and releases
 
