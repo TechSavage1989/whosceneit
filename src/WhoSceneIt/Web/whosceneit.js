@@ -2,12 +2,12 @@ define([], function () {
     'use strict';
     return function (view) {
         var find = function (name) { return view.querySelector('[data-id="' + name + '"]'); };
-        if (!find('integrationSettings') || !find('deletePhase') || !find('allowUnwatched') || !find('deleteScope') || !find('retentionSettings')) {
+        if (!find('integrationSettings') || !find('deletePhase') || !find('allowUnwatched') || !find('deleteScope') || !find('retentionSettings') || !find('watchStateHelp')) {
             var notice = document.createElement('p'); notice.textContent = 'Who Scene It was updated. Reload this page to load the current deletion and synchronization controls.'; view.prepend(notice); return;
         }
         var state = { mode: 'user', start: 0, total: 0, titleStart: 0, selected: null, series: null, token: 0, titleToken: 0, active: false, initialized: false, busy: false, exporting: false, reportHealthy: false };
         var pollTimer = null, filterTimer = null, deletionTimer = null;
-        var selections = new Set(), selectionContext = '', currentRows = [];
+        var selections = new Map(), selectionContext = '', currentRows = [];
         var integrationsLoaded = false, integrationBusy = false;
         var retention = { settings:null, actor:null, flags:{}, editing:null, busy:false }, retentionTimer = null;
         var deletion = { token: null, state: null, busy: false, submitting: false, ready: 0, request: 0, ids: [], userId: null, allowUnwatched: false };
@@ -185,24 +185,26 @@ define([], function () {
             find('selectionCount').hidden = byTitle; find('clearSelection').hidden = byTitle;
             find('deleteSelected').hidden = byTitle; find('deleteTitle').hidden = !byTitle;
             find('clearSelection').disabled = !selections.size || deletion.busy;
-            find('deleteSelected').disabled = !selections.size || state.busy || deletion.busy || retention.busy;
+            find('deleteSelected').disabled = !deletableSelections().length || state.busy || deletion.busy || retention.busy;
             find('protectSelected').disabled = !selections.size || retention.busy || state.busy; find('protectSelected').hidden = byTitle; find('protectTitle').hidden = !byTitle || !state.selected;
             var titleFlag = state.selected && retention.flags[state.selected.Id] || {}; text(find('protectTitle'),titleFlag.NeverDelete ? titleFlag.Explicit ? 'Remove never delete' : 'Protected by show' : 'Never delete this title'); find('protectTitle').disabled = state.busy || retention.busy || !!titleFlag.NeverDelete && !titleFlag.Explicit;
             find('deleteTitle').disabled = !!titleFlag.NeverDelete || !state.selected || !state.reportHealthy || (!allStates && !currentRows.some(canDelete)) || state.busy || deletion.busy || retention.busy;
             text(find('deleteTitle'), allStates ? 'Delete selected title media...' : 'Delete watched media...');
-            text(find('selectionNote'), allStates ? 'All watch states are eligible for review. Selected shows include all available episodes. Media with saved progress for any user can be removed. Deleting media affects every user; review the exact files and service actions.' : byTitle ? 'Deletion includes completed media only. Saved partial playback and rewatches for any user are preserved. Review the exact paths before confirming.' : 'Select fully watched media individually or by page. Selections carry across pages. TV shows expand to completed episodes. Saved partial playback and rewatches for any user are preserved. Deleting media affects every user.');
+            text(find('selectionNote'), allStates ? 'Select any unprotected title for Never delete. All watch states are eligible for deletion review. Selected shows include all available episodes. Media with saved progress for any user can be removed. Deleting media affects every user; review the exact files and service actions.' : byTitle ? 'Never delete is available even when nobody has watched this title. Deletion includes completed media only. Saved partial playback and rewatches for any user are preserved. Review the exact paths before confirming.' : 'Select any unprotected title for Never delete, including unwatched media. Selections carry across pages. Delete selected reviews only selections with fully watched media; other selections are left out. TV shows expand to completed episodes. Saved partial playback and rewatches for any user are preserved. Deleting media affects every user.');
             view.querySelectorAll('[data-item-selection]').forEach(function (box) { box.checked = selections.has(box.dataset.itemSelection); box.disabled = deletion.busy || state.busy || retention.busy; });
             view.querySelectorAll('[data-delete-item]').forEach(function (button) { var row = currentRows.find(function (r) { return r.ItemId === button.dataset.deleteItem; }); button.disabled = state.busy || deletion.busy || retention.busy || !row || !canDelete(row); });
             view.querySelectorAll('[data-protect-item]').forEach(function (button) { var flag = retention.flags[button.dataset.protectItem] || {}; button.disabled = state.busy || retention.busy || !!flag.NeverDelete && !flag.Explicit; });
             var pageBox = view.querySelector('[data-page-selection]');
             if (pageBox) {
-                var eligible = currentRows.filter(canDelete);
+                var eligible = currentRows.filter(canSelect);
                 pageBox.checked = !!eligible.length && eligible.every(function (row) { return selections.has(row.ItemId); });
                 pageBox.indeterminate = !pageBox.checked && eligible.some(function (row) { return selections.has(row.ItemId); });
                 pageBox.disabled = deletion.busy || state.busy || retention.busy || !eligible.length;
             }
         }
+        function canSelect(row) { return ['Movie','Episode','Series'].indexOf(row.Type) >= 0 && !(retention.flags[row.ItemId] || {}).NeverDelete; }
         function canDelete(row) { if ((retention.flags[row.ItemId] || {}).NeverDelete) return false; return find('allowUnwatched').checked ? ['Movie','Episode','Series'].indexOf(row.Type) >= 0 : row.DeletableCount != null ? row.DeletableCount > 0 : row.WatchedCount > 0 && !row.WatchedWithResumeCount; }
+        function deletableSelections() { return Array.from(selections.values()).filter(canDelete).map(function (row) { return row.ItemId; }); }
         function resetSelections() { selections.clear(); updateSelections(); }
         function reportParams(start, limit) {
             var values = { StartIndex: start, Limit: limit, WatchState: find('watchState').value, IncludeInProgress: true, SearchTerm: find('filter').value.trim(), SortBy: find('sort').value };
@@ -265,8 +267,8 @@ define([], function () {
             var tr = document.createElement('tr');
             if (!byTitle) {
                 var selectionHead = document.createElement('th'), pageBox = document.createElement('input');
-                pageBox.type = 'checkbox'; pageBox.dataset.pageSelection = 'true'; pageBox.setAttribute('aria-label', 'Select watched titles on this page');
-                pageBox.addEventListener('change', function () { currentRows.filter(canDelete).forEach(function (row) { if (pageBox.checked) selections.add(row.ItemId); else selections.delete(row.ItemId); }); updateSelections(); });
+                pageBox.type = 'checkbox'; pageBox.dataset.pageSelection = 'true'; pageBox.setAttribute('aria-label', 'Select unprotected titles on this page');
+                pageBox.addEventListener('change', function () { currentRows.filter(canSelect).forEach(function (row) { if (pageBox.checked) selections.set(row.ItemId, row); else selections.delete(row.ItemId); }); updateSelections(); });
                 selectionHead.appendChild(pageBox); tr.appendChild(selectionHead);
             }
             headings.forEach(function (label) { var th = document.createElement('th'); th.scope = 'col'; text(th, label); tr.appendChild(th); });
@@ -276,10 +278,10 @@ define([], function () {
                 var row = document.createElement('tr');
                 if (!byTitle) {
                     var selectionCell = cell(row, ''); selectionCell.className = 'wsi-selection';
-                    if (canDelete(item)) {
+                    if (canSelect(item)) {
                         var box = document.createElement('input'); box.type = 'checkbox'; box.dataset.itemSelection = item.ItemId;
                         box.setAttribute('aria-label', 'Select ' + item.Name);
-                        box.addEventListener('change', function () { if (box.checked) selections.add(item.ItemId); else selections.delete(item.ItemId); updateSelections(); });
+                        box.addEventListener('change', function () { if (box.checked) selections.set(item.ItemId, item); else selections.delete(item.ItemId); updateSelections(); });
                         selectionCell.appendChild(box);
                     }
                 }
@@ -326,6 +328,7 @@ define([], function () {
                 return (ids.length ? api('Retention/Protection',{ItemIds:ids.join(',')}) : Promise.resolve([])).then(function (flags) {
                 if (token !== state.token || !state.active) return;
                 retention.flags = {}; flags.forEach(function (flag) { retention.flags[flag.ItemId] = flag; if (flag.NeverDelete) selections.delete(flag.ItemId); });
+                (result.Items || []).forEach(function (row) { if (selections.has(row.ItemId)) selections.set(row.ItemId, row); });
                 state.busy = false;
                 state.reportHealthy = true;
                 if (!result.Items.length && state.start > 0 && result.TotalRecordCount > 0) { state.start = Math.floor((result.TotalRecordCount - 1) / pageSize) * pageSize; return loadReport(); }
@@ -532,7 +535,7 @@ define([], function () {
             find('testSonarr').addEventListener('click', function () { testIntegration('Sonarr'); });
             find('testRadarr').addEventListener('click', function () { testIntegration('Radarr'); });
             find('clearSelection').addEventListener('click', resetSelections);
-            find('protectSelected').addEventListener('click', function () { protectMedia(Array.from(selections),true); });
+            find('protectSelected').addEventListener('click', function () { protectMedia(Array.from(selections.keys()),true); });
             find('protectTitle').addEventListener('click', function () { if (!state.selected) return; var flag = retention.flags[state.selected.Id] || {}; protectMedia([flag.SourceId || state.selected.Id], !flag.NeverDelete); });
             find('cleanupForm').addEventListener('submit', saveCleanup);
             find('cleanupForm').addEventListener('change', function (event) { if (event.target !== find('cleanupAuthorize')) find('cleanupAuthorize').checked = false; cleanupControls(); });
@@ -547,7 +550,7 @@ define([], function () {
             find('clearCleanupHold').addEventListener('click', function () { if (find('clearCleanupHold').disabled) return; var value = find('cleanupHoldList').value.split('/'); retentionAction('Hold/Clear',{RunId:value[0],ItemId:value[1],Confirmed:find('cleanupHoldAuthorize').checked}); find('cleanupHoldAuthorize').checked = false; });
             find('protectedList').addEventListener('change', cleanupControls);
             find('removeProtection').addEventListener('click', function () { if (find('protectedList').value) protectMedia([find('protectedList').value], false); });
-            find('deleteSelected').addEventListener('click', function () { previewDeletion(Array.from(selections)); });
+            find('deleteSelected').addEventListener('click', function () { if (!find('deleteSelected').disabled) previewDeletion(deletableSelections()); });
             find('deleteTitle').addEventListener('click', function () { if (state.selected) previewDeletion([state.selected.Id]); });
             find('allowUnwatched').addEventListener('change', function () { selections.clear(); state.start = 0; if (find('allowUnwatched').checked && find('watchState').value === 'Started') find('watchState').value = 'All'; loadReport(); });
             find('deleteAcknowledge').addEventListener('change', confirmEnabled);

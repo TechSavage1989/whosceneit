@@ -1,5 +1,13 @@
 # Changes
 
+## 1.5.1 - protect unwatched media
+
+- Show all watch states by default and label the unwatched-only filter clearly, so entirely unwatched movies, shows, and episodes are easy to find.
+- Allow individual and page/bulk selection for Never delete regardless of watch status, without enabling unwatched deletion. Existing protected shows continue to cover current and future episodes.
+- Keep deletion eligibility separate from protection selection. Mixed selections include only eligible completed media in ordinary deletion previews; unfinished deletion still requires its explicit opt-in.
+- Refresh selected row eligibility when reports reload, retain cross-page selection, and preserve native protection/deletion rechecks and existing settings.
+- Add unwatched inventory/protection and mixed-selection regression coverage. Use a versioned 1.5.1 controller and reload guidance for cached older HTML.
+
 ## 1.5.0 - never delete and automatic cleanup
 
 - Added persistent Never delete protection for movies, shows, and episodes, with show protection inherited by current and future episodes. Manual, bulk, unfinished, and automatic deletion all recheck it. Protected titles can be managed individually, by selection, or from the protected list.

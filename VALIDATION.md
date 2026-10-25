@@ -1,6 +1,18 @@
-# Who Scene It 1.5.0 - preview validation
+# Who Scene It 1.5.1 - preview validation
 
 Date: October 25, 2026.
+
+Version 1.5.1 exposes unwatched media for individual and bulk Never delete protection without enabling unfinished deletion. All watch states are shown by default. Local Release builds passed with zero warnings/errors and all 84 quick compiled checks. All 39 browser checks passed, including real timers and timer cleanup. Required exact-source Windows/Linux hosted validation and publication remain pending; no live user server or media is connected.
+
+## Version 1.5.1 checks
+
+- Native SDK inventory tests cover wholly unwatched shows and scoped episodes under All and NotStarted filters, without adding a played/resumable query restriction or changing deletion eligibility. The real Admin protection endpoint can protect an unwatched movie without changing its flag or allowing opted-in deletion.
+- Browser tests show unwatched movies/shows by default, mark them individually and by page, and protect unwatched episodes in bulk while unfinished deletion remains off. Those protection flows issue no deletion request.
+- Mixed selections admit every unprotected watch state for protection; default deletion sends only eligible completed selection IDs. Existing cross-page selection, context resets, exact previews/checkbox confirmation, synchronization, rules, inherited protection, errors, CSV, mobile layout, and updater behavior also pass.
+- The 1.5.1 resource rejects cached older HTML missing the new help control. Current unpublished next-patch upgrade fixture: 1.5.2, never a release asset. The public-upgrade test pins actual public 1.5.0 for post-publication checks.
+- Tests use SDK, temporary-file, synthetic HTTP, and browser fixtures. Live Emby event delivery, native deletion, Sonarr/Radarr deletion, and loaded-DLL Windows replacement remain unverified.
+
+## Historical 1.5.0 baseline
 
 Version 1.5.0 adds persistent Never delete protection, cleanup rules, and optional empty Sonarr show removal. The user explicitly requested native automatic cleanup and publication. Rules remain disabled until configured; no real target server or user media is connected during development. Exact-source hosted CI, publication, all public asset/tag/source/feed checks, and the actual public 1.4.0-to-1.5.0 upgrade check passed. Exact source/tag: 45d198dd972d8c995f4a63589c62c5ba88c3afd5, v1.5.0. Validation: https://github.com/TechSavage1989/whosceneit/actions/runs/40235405080. Publication: https://github.com/TechSavage1989/whosceneit/actions/runs/40236020877.
 
@@ -14,7 +26,7 @@ Version 1.5.0 adds persistent Never delete protection, cleanup rules, and option
 - Validation uses the real Emby SDK and temporary files/HTTP/browser fixtures. Actual Emby event delivery, server-native task timing/authentication, loaded DLL replacement, and real Sonarr/Radarr deletion remain unverified. Read-back checks do not create an atomic transaction across services; files arriving after the last emptiness check cannot be locked by the plugin, and Sonarr series deletion always disables additional file deletion.
 - Primary interface references checked during implementation: https://dev.emby.media/reference/pluginapi/MediaBrowser.Controller.Library.IUserDataManager.html, https://dev.emby.media/reference/pluginapi/MediaBrowser.Controller.Library.UserDataSaveEventArgs.html, https://dev.emby.media/reference/pluginapi/MediaBrowser.Controller.Session.ISessionManager.html, and Sonarr's own SeriesController DeleteSeries API. The compiler verifies the pinned official 4.8.0.80 SDK event shapes.
 - A local browser test sampled a stale row during refresh; the actual bulk request protected the correct two IDs. The test now waits for the matching report, and row actions are disabled while refreshing. Incomplete local processes are not counted as successful suites; both runners require completion markers. Failed/timed-out attempts are superseded only by a complete passing rerun.
-- Independently verified all six public assets against API digests and SHA256SUMS, tag/source, clean metadata, all 61 source files/67 preview hashes, and the exact canonical feed. Public DLL: 274,944 bytes; SHA-256 014f6825803704453e657edaf5521c66435894cf38274f730280f0abdf879a4d. Feed commit: 63307d04e8f3572e317fbf45fadd92a95c176f75. The 1.5.1 fixture remains test-only.
+- Independently verified all six public assets against API digests and SHA256SUMS, tag/source, clean metadata, all 61 source files/67 preview hashes, and the exact canonical feed. Public DLL: 274,944 bytes; SHA-256 014f6825803704453e657edaf5521c66435894cf38274f730280f0abdf879a4d. Feed commit: 63307d04e8f3572e317fbf45fadd92a95c176f75. The historical 1.5.0 source's 1.5.1 fixture remains test-only and is not the actual 1.5.1 patch.
 - The pinned actual public 1.4.0 memory-loaded updater installed exact public 1.5.0 bytes and verified custom filename, settings, never-delete/cleanup-state preservation, backup, pending-health reload, and staging cleanup. The legacy public 1.0.0 failure/manual-bootstrap control also passed. See docs/validation-published-upgrade.txt. No real Emby process or user media was used.
 
 ## Historical 1.4.0 validation

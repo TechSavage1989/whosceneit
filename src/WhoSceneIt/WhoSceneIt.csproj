@@ -4,9 +4,9 @@
     <LangVersion>10.0</LangVersion>
     <AssemblyName>WhoSceneIt</AssemblyName>
     <RootNamespace>WhoSceneIt</RootNamespace>
-    <Version>1.5.0</Version>
-    <AssemblyVersion>1.5.0.0</AssemblyVersion>
-    <FileVersion>1.5.0.0</FileVersion>
+    <Version>1.5.1</Version>
+    <AssemblyVersion>1.5.1.0</AssemblyVersion>
+    <FileVersion>1.5.1.0</FileVersion>
     <Description>Administrator reports for Emby watched titles and title viewers.</Description>
     <Deterministic>true</Deterministic>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>

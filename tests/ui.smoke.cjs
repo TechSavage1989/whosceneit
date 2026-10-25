@@ -18,7 +18,7 @@ process.on('exit', () => {
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.setContent('<body style="background:#171c20;color:#e8ecef;font-family:Arial,sans-serif">'+fs.readFileSync(path.join(__dirname,'../src/WhoSceneIt/Web/whosceneit.html'),'utf8')+'</body>');
   await page.evaluate(() => {
-    window.calls=[];window.update={InstalledVersion:'1.4.0',LatestVersion:'1.5.0',UpdateAvailable:true,Downloaded:false,Busy:false,RestartRequired:false,CanRestart:true,AwaitingDashboardVerification:true,Message:'An update is available.',Notes:['Example change.'],HasMoreNotes:false,ReleaseUrl:'https://github.com/TechSavage1989/whosceneit/releases/tag/v1.5.0'};
+    window.calls=[];window.update={InstalledVersion:'1.5.0',LatestVersion:'1.5.1',UpdateAvailable:true,Downloaded:false,Busy:false,RestartRequired:false,CanRestart:true,AwaitingDashboardVerification:true,Message:'An update is available.',Notes:['Example change.'],HasMoreNotes:false,ReleaseUrl:'https://github.com/TechSavage1989/whosceneit/releases/tag/v1.5.1'};
     const connection=()=>({Enabled:false,BaseUrl:'',HasApiKey:false,EmbyPathRoot:'',ArrPathRoot:'',AddImportExclusion:true});
     window.arrSettings={Sonarr:{...connection(),HasApiKey:true},Radarr:connection()};
     window.deletionPlans={};window.deletionCounter=0;window.cleanupPolicyCounter=0;window.retention={ActorId:'admin',Settings:{Protected:[],Policies:[],Reviews:[],Runs:[],Holds:[]},Message:'Cleanup disabled until configured.'};
@@ -122,6 +122,24 @@ process.on('exit', () => {
   assert.equal(await get('reportBody').locator('tr').count(),100);
   assert.equal(await page.evaluate(()=>window.injected),undefined);
   console.log('PASS initial user report, paging, and safe title rendering');
+  assert.equal(await get('watchState').inputValue(),'All');
+  assert.equal((await page.evaluate(()=>window.calls.find(c=>c.path.endsWith('/UserReport')))).params.WatchState,'All');
+  const protectionDeleteBefore=await page.evaluate(()=>window.calls.filter(c=>c.path.includes('/Delete/')).length);
+  await page.evaluate(()=>window.sampleRows.push(...['Movie','Series'].map((type,i)=>({ItemId:String(970+i),UserId:'alice',UserName:'Alice',Name:'Unwatched library '+type,Type:type,Status:'Not started',WatchedCount:0,InProgressCount:0,SavedPlayCount:0,DeletableCount:0}))));
+  await get('filter').fill('Unwatched library');await get('reportStatus').filter({hasText:'2 matching titles'}).waitFor();
+  assert.equal(await get('reportBody').locator('[data-item-selection]').count(),2);assert.equal(await get('allowUnwatched').isChecked(),false);
+  await get('reportBody').locator('[data-protect-item="970"]').click();await page.waitForFunction(()=>document.querySelector('[data-protect-item="970"]').textContent==='Remove never delete');
+  assert.equal(await get('reportBody').locator('[data-item-selection="970"]').count(),0);
+  console.log('PASS all watch states are visible by default and an unwatched movie can be marked Never delete without enabling deletion');
+  await get('reportHead').locator('[data-page-selection]').check();assert.equal(await get('selectionCount').innerText(),'1 selected');
+  assert.equal(await get('protectSelected').isEnabled(),true);assert.equal(await get('deleteSelected').isEnabled(),false);
+  if(process.env.WSI_PROTECTION_SCREENSHOT)await page.screenshot({path:process.env.WSI_PROTECTION_SCREENSHOT,fullPage:true});
+  await get('protectSelected').click();await page.waitForFunction(()=>window.retention.Settings.Protected.some(p=>p.ItemId==='971')&&document.querySelector('[data-id=selectionCount]').textContent==='0 selected');
+  assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.includes('/Delete/')).length),protectionDeleteBefore);
+  assert.equal(await get('allowUnwatched').isChecked(),false);
+  for(const id of ['970','971']){await get('reportBody').locator('[data-protect-item="'+id+'"]').click();await page.waitForFunction(id=>document.querySelector('[data-protect-item="'+id+'"]').textContent==='Never delete',id);}
+  await page.evaluate(()=>window.sampleRows=window.sampleRows.filter(r=>!['970','971'].includes(r.ItemId)));await get('filter').fill('');await get('reportStatus').filter({hasText:'205 matching titles'}).waitFor();
+  console.log('PASS page selection protects an entirely unwatched show while watched-only deletion remains disabled and no deletion request is sent');
   await get('integrationSettings').locator('summary').click();
   await get('integrationSummary').filter({hasText:'Emby-only deletion'}).waitFor();
   assert.equal(await get('sonarrKey').inputValue(),'');assert.match(await get('sonarrKeyStatus').innerText(),/A key is stored/);
@@ -239,7 +257,7 @@ process.on('exit', () => {
   await page.evaluate(()=>window.sampleRows.push({ItemId:'999',UserId:'alice',UserName:'Alice',Name:'Partial Movie',Type:'Movie',Status:'In progress',WatchedCount:0,InProgressCount:1,SavedPlayCount:0}));
   await get('userTab').click();await get('userSelect').selectOption('alice');await get('filter').fill('Partial Movie');
   await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();
-  assert.equal(await get('reportBody').locator('[data-item-selection="999"]').count(),0);
+  assert.equal(await get('reportBody').locator('[data-item-selection="999"]').count(),1);
   assert.equal(await get('reportBody').getByRole('button',{name:'Review deletion of Partial Movie',exact:true}).isEnabled(),false);
   await get('allowUnwatched').check();await get('reportBody').locator('[data-item-selection="999"]').waitFor();
   assert.equal(await get('watchState').inputValue(),'All');await get('reportBody').locator('[data-item-selection="999"]').check();
@@ -249,10 +267,10 @@ process.on('exit', () => {
   const partialPreview=await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Preview')).at(-1));assert.equal(partialPreview.body.AllowUnwatched,true);assert.equal(partialPreview.body.ItemIds,'999');
   if(process.env.WSI_OPTIONS_SCREENSHOT)await page.screenshot({path:process.env.WSI_OPTIONS_SCREENSHOT,fullPage:false});
   await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});await get('allowUnwatched').uncheck();await get('watchState').selectOption('Started');
-  await page.waitForFunction(()=>!document.querySelector('[data-item-selection="999"]'));assert.equal(await get('selectionCount').innerText(),'0 selected');
+  await page.waitForFunction(()=>document.querySelector('[data-item-selection="999"]')&&!document.querySelector('[data-item-selection="999"]').checked&&!document.querySelector('[data-item-selection="999"]').disabled);assert.equal(await get('selectionCount').innerText(),'0 selected');
   console.log('PASS partially watched deletion is opt-in, resets selections, and needs only the confirmation checkbox');
   await get('filter').fill('');await get('titleTab').click();await get('reportStatus').filter({hasText:'2 matching users'}).waitFor();
-  console.log('PASS in-progress-only titles have no selection checkbox and cannot be deleted');
+  console.log('PASS in-progress-only titles can be selected for protection while deletion remains opt-in');
   await get('userTab').click();await get('userSelect').selectOption('alice');await get('viewSelect').selectOption('Shows');
   await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();
   await get('reportBody').getByRole('button',{name:'View episodes for Example Show',exact:true}).click();
@@ -266,7 +284,7 @@ process.on('exit', () => {
   assert.equal(scoped.params.SeriesId,'10');assert.equal(scoped.params.SortBy,'Episode');
   console.log('PASS show drilldown scopes the episode list and displays saved progress without inventing durations');
   await get('watchState').selectOption('Partial');await get('reportStatus').filter({hasText:'2 matching titles'}).waitFor();
-  assert.equal(await get('reportBody').locator('[data-item-selection]').count(),0);
+  assert.equal(await get('reportBody').locator('[data-item-selection]').count(),2);assert.equal(await get('deleteSelected').isEnabled(),false);
   const progressDownload=page.waitForEvent('download');await get('export').click();
   const progressCsv=fs.readFileSync(await (await progressDownload).path(),'utf8');
   assert.equal(progressCsv.trim().split('\r\n').length,3);assert.ok(progressCsv.includes('Remaining time'));assert.ok(progressCsv.includes('15:00'));assert.ok(progressCsv.includes('Playback percent'));
@@ -274,17 +292,28 @@ process.on('exit', () => {
   console.log('PASS partial filter and CSV preserve episode scope, position, duration, and remaining time');
   await get('watchState').selectOption('Resuming');await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();
   assert.match(await get('reportBody').innerText(),/Watched with resume position/);
-  assert.equal(await get('reportBody').locator('[data-item-selection]').count(),0);
+  assert.equal(await get('reportBody').locator('[data-item-selection]').count(),1);
   assert.equal(await get('reportBody').getByRole('button',{name:'Review deletion of Rewatching episode',exact:true}).isEnabled(),false);
   console.log('PASS rewatch filter retains prior completion while disabling media deletion');
   await get('watchState').selectOption('NotStarted');await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();assert.match(await get('reportBody').innerText(),/Not-started episode/);
+  assert.equal(await get('reportBody').locator('[data-item-selection="603"]').count(),1);
+  await get('reportBody').locator('[data-item-selection="603"]').check();assert.equal(await get('protectSelected').isEnabled(),true);assert.equal(await get('deleteSelected').isEnabled(),false);
+  const unwatchedProtectBefore=await page.evaluate(()=>window.calls.filter(c=>c.path.includes('/Delete/')).length);
+  await get('protectSelected').click();await page.waitForFunction(()=>document.querySelector('[data-protect-item="603"]').textContent==='Remove never delete');
   assert.equal(await get('reportBody').locator('[data-item-selection="603"]').count(),0);
+  assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.path.includes('/Delete/')).length),unwatchedProtectBefore);
+  await get('reportBody').locator('[data-protect-item="603"]').click();await get('reportBody').locator('[data-item-selection="603"]').waitFor();
   await get('allowUnwatched').check();await get('reportBody').locator('[data-item-selection="603"]').waitFor();await get('reportBody').locator('[data-item-selection="603"]').check();
   await get('deleteSelected').click();await get('deletePhase').filter({hasText:'Step 2 of 3'}).waitFor();
   const unwatchedPreview=await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Preview')).at(-1));assert.equal(unwatchedPreview.body.AllowUnwatched,true);assert.equal(unwatchedPreview.body.ItemIds,'603');assert.equal(unwatchedPreview.body.UserId,'alice');
-  await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});await get('allowUnwatched').uncheck();await page.waitForFunction(()=>!document.querySelector('[data-item-selection="603"]'));
-  console.log('PASS unwatched episodes stay protected by default and become selectable only for an opted-in preview');
+  await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});await get('allowUnwatched').uncheck();await page.waitForFunction(()=>document.querySelector('[data-item-selection="603"]')&&!document.querySelector('[data-item-selection="603"]').checked&&!document.querySelector('[data-item-selection="603"]').disabled);
+  console.log('PASS unwatched episodes can be protected in bulk without enabling deletion and retain the opt-in deletion guard');
   await get('watchState').selectOption('All');await get('reportStatus').filter({hasText:'5 matching titles'}).waitFor();
+  await get('reportHead').locator('[data-page-selection]').check();assert.equal(await get('selectionCount').innerText(),'5 selected');assert.equal(await get('protectSelected').isEnabled(),true);
+  await get('deleteSelected').click();await get('deletePhase').filter({hasText:'Step 2 of 3'}).waitFor();
+  const mixedPreview=await page.evaluate(()=>window.calls.filter(c=>c.path.endsWith('/Delete/Preview')).at(-1));assert.equal(mixedPreview.body.ItemIds,'601');assert.equal(mixedPreview.body.AllowUnwatched,false);
+  await get('cancelDelete').click();await get('deleteDialog').waitFor({state:'hidden'});await get('clearSelection').click();
+  console.log('PASS mixed-state page selection includes every title for protection while default deletion reviews only completed selections');
   if(process.env.WSI_PROGRESS_SCREENSHOT)await page.screenshot({path:process.env.WSI_PROGRESS_SCREENSHOT,fullPage:true});
   await get('watchState').selectOption('Watched');await get('reportStatus').filter({hasText:'2 matching titles'}).waitFor();
   await get('watchState').selectOption('Started');await get('clearSeries').click();await get('reportStatus').filter({hasText:'1 matching titles'}).waitFor();assert.equal(await get('episodeScope').isVisible(),false);
@@ -384,7 +413,7 @@ process.on('exit', () => {
   assert.deepEqual(errors,[]);
   console.log('PASS mobile layout and no browser exceptions');
   const stale=await browser.newPage();await stale.setContent('<div data-role="page"><p>Old cached dashboard</p></div>');
-  assert.equal(await page.locator('[data-role=page]').getAttribute('data-controller'),'__plugin/whosceneit-1.5.0.js');
+  assert.equal(await page.locator('[data-role=page]').getAttribute('data-controller'),'__plugin/whosceneit-1.5.1.js');
   await stale.evaluate(()=>{window.define=(deps,factory)=>{window.controller=factory();};});await stale.addScriptTag({path:path.join(__dirname,'../src/WhoSceneIt/Web/whosceneit.js')});
   await stale.evaluate(()=>window.controller(document.querySelector('[data-role=page]')));assert.match(await stale.locator('body').innerText(),/Reload this page to load the current deletion and synchronization controls/);await stale.close();
   console.log('PASS outdated cached HTML gets a reload notice and the dashboard uses a versioned controller');
@@ -400,5 +429,5 @@ process.on('exit', () => {
   }
   await browser.close();
   suiteCompleted = true;
-  console.log('RESULT ' + (process.argv.includes('--real-timers') ? 36 : 34) + ' browser checks passed');
+  console.log('RESULT ' + (process.argv.includes('--real-timers') ? 39 : 37) + ' browser checks passed');
 })().catch(async error=>{console.error(error);if(testPage)try{console.error(JSON.stringify(await testPage.evaluate(()=>({selection:document.querySelector('[data-id=selectionCount]')?.textContent,report:document.querySelector('[data-id=reportStatus]')?.textContent,deleteDisabled:document.querySelector('[data-id=deleteSelected]')?.disabled,phase:document.querySelector('[data-id=deletePhase]')?.textContent,calls:window.calls?.slice(-6)}))));}catch{}if(browser)await browser.close();process.exitCode=1;});

@@ -84,6 +84,18 @@ public static class ProgressChecks
             var viewers = (ViewerReport)fixture.Service.Get(new GetWatchInspectorViewers { ItemId = "2", WatchState = "Partial" });
             assert(viewers.Items.Single().UserName == "Alice" && viewers.Items[0].RunTimeTicks == TimeSpan.FromMinutes(30).Ticks, "The native viewer path omitted partial progress or duration.");
         });
+        test("Native reports expose wholly unwatched shows and scoped episodes for protection without enabling deletion", () =>
+        {
+            var fixture = new ProgressServiceFixture(true);
+            foreach (var state in new[] { "All", "NotStarted" })
+            {
+                var episodes = (PagedResult<ReportRow>)fixture.Service.Get(new GetWatchInspectorUserReport { UserId = "alice", View = "Episodes", WatchState = state, SeriesId = "10" });
+                assert(episodes.Items.Length == 3 && episodes.Items.All(r => r.Status == "Not started" && r.DeletableCount == 0), "Unwatched episodes were hidden or became deletable merely by being listed.");
+                assert(fixture.LastQuery.IsPlayed == null && fixture.LastQuery.IsResumable == null && fixture.LastQuery.AncestorIds.Single() == 10, "The unwatched inventory lost its scope or imposed a played-only query.");
+                var shows = (PagedResult<ReportRow>)fixture.Service.Get(new GetWatchInspectorUserReport { UserId = "alice", View = "Shows", WatchState = state });
+                assert(shows.Items.Single().ItemId == "10" && shows.Items[0].NotStartedCount == 3 && shows.Items[0].DeletableCount == 0, "An entirely unwatched show was omitted from the protection inventory.");
+            }
+        });
         test("Native progress reports reject invalid status and episode scopes", () =>
         {
             var fixture = new ProgressServiceFixture();
@@ -100,7 +112,7 @@ public sealed class ProgressServiceFixture
 {
     public InternalItemsQuery LastQuery;
     public WatchInspectorService Service;
-    public ProgressServiceFixture()
+    public ProgressServiceFixture(bool allUnwatched = false)
     {
         var user = new User { InternalId = 4, Name = "Alice", Policy = new UserPolicy() };
         var series = new Series { InternalId = 10, Name = "Show" };
@@ -110,7 +122,7 @@ public sealed class ProgressServiceFixture
             "GetUserById" => user, "GetUserPolicy" => user.Policy, "GetUserList" => new[] { user },
             "GetUserDto" => new UserDto { Id = "alice", Name = "Alice" }, _ => null
         });
-        var data = Proxy.Create<IUserDataManager>((m, a) => m.Name == "GetUserData" ? new UserItemData { Played = ((BaseItem)a[1]).InternalId == 1, PlaybackPositionTicks = ((BaseItem)a[1]).InternalId == 2 ? TimeSpan.FromSeconds(1).Ticks : 0L } : null);
+        var data = Proxy.Create<IUserDataManager>((m, a) => m.Name == "GetUserData" ? new UserItemData { Played = !allUnwatched && ((BaseItem)a[1]).InternalId == 1, PlaybackPositionTicks = !allUnwatched && ((BaseItem)a[1]).InternalId == 2 ? TimeSpan.FromSeconds(1).Ticks : 0L } : null);
         var library = Proxy.Create<ILibraryManager>((m, a) =>
         {
             if (m.Name == "GetItemById") { var id = (long)a[0]; return id == 10 ? series : items.FirstOrDefault(i => i.InternalId == id); }

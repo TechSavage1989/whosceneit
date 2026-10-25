@@ -5,7 +5,7 @@ An administrator-only Emby Server plugin that answers two questions:
 - What movies and TV shows has this user watched?
 - Which users have watched this movie, TV show, or episode?
 
-Version 1.5.0 adds persistent Never delete protection, cleanup rules with review prompts/schedules/triggers, completed-with-resume eligibility, and configurable removal of empty Sonarr show entries. Existing reports, manual deletion modes, synchronization, settings, and updater behavior remain available. See VALIDATION.md for test boundaries.
+Version 1.5.1 shows all watch states by default and lets unwatched movies, shows, and episodes be marked Never delete individually or in bulk, without enabling unwatched deletion. Persistent protection, cleanup rules, and optional empty Sonarr show removal remain available. Existing reports, manual deletion modes, synchronization, settings, and updater behavior remain available. See VALIDATION.md for test boundaries.
 
 ## Features
 
@@ -14,7 +14,7 @@ Version 1.5.0 adds persistent Never delete protection, cleanup rules with review
 - Watched, partially watched, not-started, and watched-with-resume filters; saved position, percentage, duration, and remaining time when available.
 - Show completion percentages and watched/partial/not-started episode counts; View episodes opens a show for the selected user. Episode order and progress sorting are available.
 - Saved play counts and the last recorded playback date.
-- Watched and partially watched titles appear together by default. Search/filter controls, pagination, and CSV export include the matching progress details.
+- All watch states appear by default, including entirely unwatched movies, shows, and episodes. Search/filter controls, pagination, and CSV export include the matching progress details.
 - Individual and bulk watched-media deletion, with an exact-path preview, explicit confirmation, progress, cancellation, and Emby permission/playback checks.
 - Optional Sonarr/Radarr connection settings, read-only connection tests, path mapping, strict matching, unmonitoring, and separate synchronization results.
 - Explicit, administrator-controlled plugin updates with SHA-256 and assembly validation, a rollback backup, and restart guards.
@@ -25,7 +25,7 @@ Emby Server 4.8 or newer is the intended target. The plugin is built against the
 
 ## Install
 
-If version 1.0.0 or 1.1.0 reports an empty "path" during installation, replace the DLL manually using the steps below. The already loaded old updater cannot apply its own path fix. Install the current 1.5.0 DLL directly; intermediate versions are unnecessary. Version 1.1.1 already contains the path fix and can use the normal updater. Keep the existing filename if you customized it.
+If version 1.0.0 or 1.1.0 reports an empty "path" during installation, replace the DLL manually using the steps below. The already loaded old updater cannot apply its own path fix. Install the current 1.5.1 DLL directly; intermediate versions are unnecessary. Version 1.1.1 already contains the path fix and can use the normal updater. Keep the existing filename if you customized it.
 
 1. Stop Emby Server.
 2. Find its Server Data Folder in the Emby dashboard. Open the plugins directory directly under that folder.
@@ -43,13 +43,13 @@ Emby's saved Played flag identifies a watched title. Manual marks and imported w
 
 The user report includes titles currently visible to the selected user. It reads saved positions directly, including positive positions below Emby's normal resumable threshold. The title report checks saved user data for all current users, including disabled accounts, even if their present library access differs. Unsaved playback and positions Emby has cleared cannot be recovered. A series manually marked watched without episode watch data cannot be reconstructed as watched episodes.
 
-The default Started filter includes watched items and positive saved positions. Fully watched uses Emby's Played flag; Partially watched selects unfinished items with a saved position. Watched with resume includes possible rewatches and manual watched marks with a saved position, without claiming a second viewing occurred. Not started and All watch states can include unplayed episodes and users. Progress is the saved position relative to the current runtime, not a record of every scene viewed. Unknown durations stay unknown; a position at the end does not create a completion flag. Refresh report reads the latest saved data.
+All watch states is the default and includes unplayed media. Watched and partially watched limits the list to completion flags or positive saved positions. Fully watched uses Emby's Played flag; Partially watched selects unfinished items with a saved position. Watched with resume includes possible rewatches and manual watched marks with a saved position, without claiming a second viewing occurred. Unwatched (not started) includes items with neither a completion flag nor a positive saved position. Progress is the saved position relative to the current runtime, not a record of every scene viewed. Unknown durations stay unknown; a position at the end does not create a completion flag. Refresh report reads the latest saved data.
 
 A show appears when its episode states match the filter. Fully watched shows require every currently available episode to be marked watched; Partially watched also includes a show with some completed episodes and others unfinished. Counts use the full inventory, independently of the chosen filter. Choose View episodes beside a show or viewer to inspect that user's episodes, then Back to TV shows to clear the scope. The viewer report counts available episode files, including specials, rather than claiming that a user finished every episode ever released. Duplicate physical versions can affect these counts. Removed files and deleted users cannot be recovered from current user data. Dates are shown in your browser's time zone; CSV dates use UTC.
 
 ## Never delete
 
-Use Never delete beside a report row, Never delete this title in By title, or Never delete selected for selected rows. A protected show also protects its current and future episode files. Protection applies to every deletion mode in this plugin, including the unfinished/unwatched option, bulk deletion, and cleanup rules. It does not depend on who watched the media.
+Use Never delete beside a report row, Never delete this title in By title, or Never delete selected for selected rows. Unwatched media is included by default; choose Unwatched (not started) to see only titles with no completion flag or saved progress. Select movies, shows, or scoped episodes individually or by page. Protection never requires the unfinished-deletion option. A protected show also protects its current and future episode files. Protection applies to every deletion mode in this plugin, including the unfinished/unwatched option, bulk deletion, and cleanup rules. It does not depend on who watched the media.
 
 Open Never delete and automatic cleanup to manage protected titles. An episode protected by its show cannot remove that inherited protection; remove the show's protection explicitly from the protected list first. Exact paths also preserve protection when a file is reindexed under another library ID. These marks are plugin state; Emby's own controls and other applications retain their own deletion behavior. Back up Emby's DataPath/WhoSceneIt/retention.json and retention.json.bak with the server configuration. Unreadable or unsavable protection state blocks plugin deletion.
 
@@ -67,7 +67,7 @@ The same playback, visibility, permissions, path/fingerprint, root/shared-folder
 
 ## Delete watched media
 
-In By user, choose a user and use a title's Delete button, or select rows and choose Delete selected media. The header checkbox selects watched titles on the current page. Selections carry across pages and clear when the user, report view, or filter changes. Each batch supports up to 500 media items after TV shows expand to their watched episodes. By default, partially watched and watched-with-resume items cannot be selected, and saved progress for any current user blocks deletion, including progress appearing after preview. To include them, enable Allow deletion of partially watched and unwatched media. This is off on a freshly loaded page and applies only to previews prepared with that option. Enabling it changes the default Started report filter to All; other chosen filters stay selected. Use All watch states or Not started to find unwatched media. Changing this option clears the selection.
+In By user, choose a user and use a title's Delete button, or select rows and choose Delete selected media. The header checkbox selects all unprotected titles on the current page for protection, regardless of watch status. Delete selected media reviews only selected rows that contain eligible completed media unless the unfinished-deletion option is enabled. Selections carry across pages and clear when the user, report view, or filter changes. Each batch supports up to 500 media items after TV shows expand to their watched episodes. Partially watched and watched-with-resume items can be selected for protection. Their deletion remains disabled by default, and saved progress for any current user blocks ordinary deletion, including progress appearing after preview. To include them, enable Allow deletion of partially watched and unwatched media. This is off on a freshly loaded page and applies only to previews prepared with that option. Enabling it changes Watched and partially watched to All watch states when that filter is selected; other chosen filters stay selected. Use All watch states or Unwatched (not started) to find unwatched media. Changing this option clears the selection.
 
 In By title, select a movie, show, or episode and choose Delete watched media. This view includes media marked watched by at least one current user; filtering the viewer list does not narrow the deletion preview. By default, TV shows expand into watched episodes. With the unfinished/unwatched option enabled, they expand into all currently available episodes within the selected user scope. The plugin never uses a show-folder deletion to implement this action.
 

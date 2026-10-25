@@ -2,6 +2,8 @@
 
 ## Current state
 
+- Prepared application version 1.5.1, assembly/file 1.5.1.0. Last published version remains 1.5.0 until the new source passes required checks and publication. The user confirmed Ctrl+F5 revealed the 1.5.0 features, then requested unwatched Never delete selection.
+
 - Latest published version: 1.5.0 preview; assembly/file version 1.5.0.0. Exact source/tag: 45d198dd972d8c995f4a63589c62c5ba88c3afd5, v1.5.0. Persistent protection, native cleanup rules/schedules/triggers, and configurable empty Sonarr show removal are published. The user explicitly authorized native unattended cleanup and publication; new rules remain disabled until configured.
 - Release: https://github.com/TechSavage1989/whosceneit/releases/tag/v1.5.0. All six assets, 61 source files/67 preview hashes, and the matching canonical feed passed independent verification.
 - Public 1.5.0 DLL: 274,944 bytes; SHA-256 014f6825803704453e657edaf5521c66435894cf38274f730280f0abdf879a4d. Feed commit: 63307d04e8f3572e317fbf45fadd92a95c176f75.
@@ -11,6 +13,14 @@
 - User-confirmed baseline remains 1.0.0 reports. The later screenshot identified the missing native visibility method, repaired in 1.3.0. Real Emby/Sonarr/Radarr deletion is not established by SDK/HTTP fixtures.
 - Workspace maintenance removed the previous scratch checkout after 1.3.0 publication. The repository and exact source were restored from GitHub; required SDK/browser dependencies were restored from official sources. No source or release was lost. The local .NET process-metadata compatibility shim remains development-only and outside the repository.
 - Historical immutable sources: 1.2.2 at 43494290988f57813fdfcb6ca9a42d225951f5b5; 1.2.1 at c68e1714c67c488adac12dda8b7c87e08b3f9126; earlier version history remains below. Versions 1.0.0/1.1.0 need one manual updater bootstrap.
+
+## Version 1.5.1 unwatched protection
+
+The dashboard now defaults to All watch states and calls the unstarted filter Unwatched (not started). The existing report API already reads the complete selected-user movie/episode inventory, so no production query or watch-state mutation is needed. The By title search also remains independent of completion. A help note explains how to find unwatched media without changing deletion permissions.
+
+Selections now retain report rows in a Map. Individual/page checkboxes admit all unprotected media, including fully unwatched shows and scoped episodes. Never delete selected sends all selected IDs to the existing persistence API. Delete selected filters the row snapshots through unchanged eligibility first; an unfinished-only selection cannot enable ordinary deletion. Successful refreshes update selected row snapshots, and native previews still revalidate exact items and settings. Existing selection-context resets, cross-page selection, protection inheritance, rules, synchronization, and updates are preserved.
+
+The embedded controller resource is 1.5.1, with all old aliases preserved. Cached HTML missing watchStateHelp receives reload guidance. Current unpublished next-patch fixture: 1.5.2. Public upgrade verification pins the actual public 1.5.0 binary/hash and preserves settings plus retention.json. Local Release builds passed with zero warnings/errors and all 84 quick compiled checks. All 39 browser checks passed, including real polling and cleanup timers. Exact-source hosted Windows/Linux validation and publication are pending. Logs in docs/validation-dotnet.txt and docs/validation-browser.txt record complete runs; no real server/media was connected.
 
 ## Version 1.5.0 retention and automation
 
@@ -136,7 +146,7 @@ Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/4
 
 The historical public 1.0.0-to-1.1.0 test passed real GitHub HTTPS transport and file replacement with an explicitly supplied target. It bypassed UpdateEntryPoint and did not establish that Emby supplied a usable installation path. The user screenshot disproved that assumption. See the 1.1.1 repair and revised post-publication check above; retain the old output only as historical file-transaction evidence.
 
-The current test runner creates an unpublished next-patch 1.4.1 fixture for the 1.4.0 source. The old 1.3.0 source's 1.3.1 fixture is not this release. The old 1.2.2 source's 1.2.3 fixture is unrelated to this release. The old 1.2.1 source's 1.2.2 test fixture is not this release and must never be published. The old 1.2.0 source's same-numbered 1.2.1 fixture is not this patch and must never be published. The old 1.1.0 source generated a test-only 1.1.1 fixture; it is not the patched release and must never be published. Never publish that fixture. Browser fixtures contain synthetic data only. Native SDK fixture protocol/service stubs are test infrastructure, not a running Emby server.
+The current 1.5.1 source creates an unpublished next-patch 1.5.2 fixture. The historical 1.5.0 source's 1.5.1 fixture is not this release. The historical 1.4.0 source created an unpublished 1.4.1 fixture. The old 1.3.0 source's 1.3.1 fixture is not this release. The old 1.2.2 source's 1.2.3 fixture is unrelated to this release. The old 1.2.1 source's 1.2.2 test fixture is not this release and must never be published. The old 1.2.0 source's same-numbered 1.2.1 fixture is not this patch and must never be published. The old 1.1.0 source generated a test-only 1.1.1 fixture; it is not the patched release and must never be published. Never publish that fixture. Browser fixtures contain synthetic data only. Native SDK fixture protocol/service stubs are test infrastructure, not a running Emby server.
 
 Negative controls: historical Windows run 40174933095 missed its timer request under the redundant five-minute wall-clock gate. The corrected real timer passes on both platforms. A local run restoring the broad update Busy guard reproduced interruption of deletion by a background check; the corrected IsInstalling guard passes that same test.
 

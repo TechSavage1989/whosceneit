@@ -13,6 +13,14 @@ Read this file and DEVELOPMENT_HANDOFF.md before editing. Then inspect the curre
 - Keep reports read-only. The user explicitly approved individual and bulk deletion of watched media and publication of the new build. Deletion must use Emby's native policy checks and library deletion API, an administrator-bound expiring preview, exact-path revalidation, explicit checkbox confirmation, and progress/error reporting. Never delete a TV show folder to implement watched-episode deletion. Never grant permissions or change watch state to make an item eligible. Every plugin endpoint must require Emby's native Admin role.
 - No server setup, Codex CLI automation, unattended workers, payment setup, or API-account setup. GitHub CI and an explicitly invoked release workflow are part of the requested build/release scope.
 
+## Version 1.5.1 unwatched protection work
+
+- Prepared version 1.5.1; local checks passed 84 quick compiled and 39 complete browser checks. Required hosted validation/publication are pending; last published release is 1.5.0. The user requested the ability to find and protect unwatched movies/shows/episodes. Ongoing public source and release publication remain authorized.
+- The dashboard defaults to All watch states. Unwatched (not started) is a display filter; it does not enable deletion. Keep the prior Started filter available.
+- Selection is independent of deletion eligibility. Row/page checkboxes select any unprotected movie/show/episode for Never delete. The selection map retains each report row across pages. Ordinary bulk deletion filters those snapshots through existing completed-only eligibility before creating a fresh native preview. Do not broaden AllowUnwatched or change saved viewing data. Refresh selected row snapshots on successful report reload.
+- Keep protected rows out of selection and inherited show protection intact. The 1.5.1 dashboard controller requires watchStateHelp to reject old cached HTML; retain existing script aliases.
+- The unpublished next-patch fixture is 1.5.2. Public 1.5.1 must be built from the actual maintained source, never the historical 1.5.0 source's same-numbered fixture. Post-publication transport checks pin the actual public 1.5.0 updater.
+
 ## Version 1.5.0 protection and cleanup work
 
 - The user explicitly requested persistent Never delete marks for movies/shows/episodes, automatic cleanup of completed and completed-with-resume media through prompts/schedules/triggers, publication, and configurable removal of empty Sonarr shows. This authorizes the native Emby cleanup entry point and explicitly enabled automatic rules; the older ban on unattended work and per-operation confirmation is superseded only for this feature. No external workers, ChatGPT scheduled tasks, or live target-server setup are authorized or needed.
@@ -64,7 +72,7 @@ Use .NET SDK 8 or newer. The plugin must target netstandard2.0. Emby supplies it
     npm run test:ui -- --real-timers
     python scripts/package.py
 
-The C# test runner generates an unpublished next-patch DLL to exercise upgrades from the current version (1.5.1 for the 1.5.0 source). Never publish a test-artifacts fixture. Version 1.5.0 must be built from this source; never publish an upgrade-test fixture. The real timer test takes about five minutes. Browser tests use synthetic data and never connect to a user's Emby server. After publication, --published-upgrade reproduces the public 1.0.0 memory-loaded entry-point failure and one-time manual bootstrap, then exercises the actual public 1.4.0 memory-loaded updater installing the current release. It never starts Emby.
+The C# test runner generates an unpublished next-patch DLL to exercise upgrades from the current version (1.5.2 for the 1.5.1 source). Never publish a test-artifacts fixture. Version 1.5.1 must be built from this source; never publish an upgrade-test fixture. The real timer test takes about five minutes. Browser tests use synthetic data and never connect to a user's Emby server. After publication, --published-upgrade reproduces the public 1.0.0 memory-loaded entry-point failure and one-time manual bootstrap, then exercises the actual public 1.5.0 memory-loaded updater installing the current release. It never starts Emby.
 
 ## Updates and releases
 

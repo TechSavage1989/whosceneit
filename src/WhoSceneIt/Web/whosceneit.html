@@ -1,4 +1,4 @@
-<div data-role="page" class="page type-interior pluginConfigurationPage" data-controller="__plugin/whosceneit-1.5.0.js">
+<div data-role="page" class="page type-interior pluginConfigurationPage" data-controller="__plugin/whosceneit-1.5.1.js">
   <style>
     .wsi { max-width: 1400px; margin: 0 auto; padding: 1.2em 1em 3em; }
     .wsi * { box-sizing: border-box; }
@@ -115,7 +115,7 @@
         <p data-id="cleanupPrompt" class="wsi-note" role="status" hidden></p>
         <details data-id="retentionSettings" class="wsi-panel">
           <summary>Never delete and automatic cleanup</summary>
-          <p class="wsi-note">Never delete applies to manual, bulk, and automatic cleanup in this plugin. Protecting a show includes its current and future episodes. Use each title's protection button below, or select watched rows and choose Never delete selected. Remove a show's protection here before changing an inherited episode protection.</p>
+          <p class="wsi-note">Never delete applies to manual, bulk, and automatic cleanup in this plugin. Protecting a show includes its current and future episodes. All watch states are shown by default, including unwatched titles. Use each title's protection button below, or select rows and choose Never delete selected. You do not need to allow unwatched deletion to protect unwatched media. Remove a show's protection here before changing an inherited episode protection.</p>
           <div class="wsi-fields"><label>Protected titles<select data-id="protectedList"><option value="">No protected titles</option></select></label></div>
           <button data-id="removeProtection" type="button" disabled>Remove selected protection</button>
           <h3>Cleanup rules</h3>
@@ -162,7 +162,7 @@
           <button type="button" data-id="titleTab" role="tab" aria-selected="false" aria-controls="wsi-title-panel">By title</button>
         </div>
         <section id="wsi-user-panel" data-id="userPanel" role="tabpanel" class="wsi-panel">
-          <h2>What has this user watched?</h2>
+          <h2>Watch status and media protection by user</h2>
           <div class="wsi-fields">
             <label>User<select data-id="userSelect" aria-label="User"></select></label>
             <label>Show<select data-id="viewSelect"><option value="Titles">Movies and TV shows</option><option value="Movies">Movies</option><option value="Shows">TV shows</option><option value="Episodes">TV episodes</option></select></label>
@@ -171,7 +171,7 @@
           <div class="wsi-actions" data-id="episodeScope" hidden><span data-id="episodeScopeName"></span><button type="button" data-id="clearSeries">Back to TV shows</button></div>
         </section>
         <section id="wsi-title-panel" data-id="titlePanel" role="tabpanel" class="wsi-panel" hidden>
-          <h2>Who has watched this title?</h2>
+          <h2>Watch status by title</h2>
           <form data-id="titleSearchForm">
             <div class="wsi-fields">
               <label>Title<input data-id="titleSearch" type="search" maxlength="200" placeholder="Search your Emby library" required></label>
@@ -185,12 +185,13 @@
         </section>
         <div class="wsi-fields">
           <label>Filter results<input data-id="filter" type="search" maxlength="200" placeholder="Title, show, episode, or username"></label>
-          <label>Watch status<select data-id="watchState"><option value="Started">Watched and partially watched</option><option value="Watched">Fully watched</option><option value="Partial">Partially watched</option><option value="Resuming">Watched with resume</option><option value="NotStarted">Not started</option><option value="All">All watch states</option></select></label>
+          <label>Watch status<select data-id="watchState" aria-describedby="wsi-watch-state-help"><option value="All">All watch states</option><option value="Started">Watched and partially watched</option><option value="Watched">Fully watched</option><option value="Partial">Partially watched</option><option value="Resuming">Watched with resume</option><option value="NotStarted">Unwatched (not started)</option></select></label>
           <label>Sort by<select data-id="sort"><option value="LastPlayed">Last played, newest first</option><option value="Name">Name</option><option value="PlayCount">Saved play count</option><option value="WatchedCount">Watched count</option><option value="Progress">Progress, highest first</option><option value="Episode">Episode order</option></select></label>
         </div>
+        <p id="wsi-watch-state-help" data-id="watchStateHelp" class="wsi-note wsi-muted">Use All watch states or Unwatched (not started) to find media for Never delete. Any unprotected movie, show, or episode can be selected for protection, regardless of watch status.</p>
         <div class="wsi-actions"><button data-id="refresh" type="button" class="wsi-primary">Refresh report</button><button data-id="export" type="button" disabled>Export all matching rows to CSV</button></div>
         <label class="wsi-check"><input data-id="allowUnwatched" type="checkbox">Allow deletion of partially watched and unwatched media</label>
-        <p class="wsi-note wsi-muted">Off by default. When enabled, saved progress for any user no longer prevents deletion, and selected shows include all available episodes. Active playback, permissions, and file checks still apply. Use All watch states or Not started to find unwatched titles.</p>
+        <p class="wsi-note wsi-muted">Off by default. This option controls deletion eligibility only. Unwatched items can always be shown and marked Never delete. When enabled, saved progress for any user no longer prevents deletion, and selected shows include all available episodes. Active playback, permissions, and file checks still apply.</p>
         <div class="wsi-actions" data-id="deleteActions" style="margin-top:1em">
           <span data-id="selectionCount">0 selected</span>
           <button data-id="clearSelection" type="button" disabled>Clear selection</button>
@@ -200,7 +201,7 @@
           <button data-id="deleteTitle" type="button" class="wsi-danger" hidden disabled>Delete watched media...</button>
           <button data-id="viewDeletion" type="button" hidden>View deletion progress</button>
         </div>
-        <p data-id="selectionNote" class="wsi-note wsi-muted">Select fully watched media individually or by page. Saved partial playback and rewatches are preserved for every user. Deleting media affects every user.</p>
+        <p data-id="selectionNote" class="wsi-note wsi-muted">Select any unprotected title for Never delete, including unwatched media. Deletion reviews include fully watched media unless the unfinished-deletion option is enabled.</p>
         <div data-id="reportStatus" class="wsi-status" role="status" aria-live="polite"></div>
         <div class="wsi-tablewrap" data-id="tableWrap" hidden><table><thead data-id="reportHead"></thead><tbody data-id="reportBody"></tbody></table></div>
         <div class="wsi-pager" data-id="pager" hidden><button type="button" data-id="prev">Previous</button><span data-id="pageInfo"></span><button type="button" data-id="next">Next</button></div>
