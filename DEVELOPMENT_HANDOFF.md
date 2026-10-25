@@ -1,5 +1,10 @@
 # Who Scene It - development handoff
 
+## Documentation refresh — 2026-10-25
+
+README reorganized for end users: preview download, requirements, numbered setup, reporting, and prominent cleanup safeguards; full operational reference retained. Documentation-only change reviewed against main `2d0e52b21dbca093f7d1e4478d08e249c585854f`, published v1.5.2 assets, and the unchanged update feed. Application version, settings/data paths, source behavior, and release assets are unchanged. Markdown anchors, relative links, and release/workflow routing were checked; no live Emby or destructive media tests were performed for this documentation edit.
+
+
 ## Current state
 
 - Latest published version: 1.5.2 preview; assembly/file 1.5.2.0. Source/tag: 8379e23ce8a55f5d596d2a33961f1b2001468316, v1.5.2. Release: https://github.com/TechSavage1989/whosceneit/releases/tag/v1.5.2. Feed commit: 80c1192a39ca3003771da1d8c6ba265b00a30614. Public DLL: 283,648 bytes; SHA-256 3dd26e7e993da36fe1fe6f539c1164880f9feccbc2c2774fc51eb107097cde9a.

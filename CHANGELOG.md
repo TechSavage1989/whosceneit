@@ -1,5 +1,10 @@
 # Changes
 
+## Documentation refresh — 2026-10-25
+
+README reorganized for end users: preview download, requirements, numbered setup, reporting, and prominent cleanup safeguards; full operational reference retained. Documentation-only change reviewed against main `2d0e52b21dbca093f7d1e4478d08e249c585854f`, published v1.5.2 assets, and the unchanged update feed. Application version, settings/data paths, source behavior, and release assets are unchanged. Markdown anchors, relative links, and release/workflow routing were checked; no live Emby or destructive media tests were performed for this documentation edit.
+
+
 ## 1.5.2 - visible rules and update preservation
 
 - Added an always-visible saved-rule list with enabled/disabled status, action, owner, watch-history user, media/completion scope, waiting period, batch limit, schedules/triggers, next/last evaluation, and owner-only edit/evaluate actions.

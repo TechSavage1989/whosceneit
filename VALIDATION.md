@@ -1,5 +1,10 @@
 # Who Scene It 1.5.2 - preview validation
 
+## Documentation refresh — 2026-10-25
+
+README reorganized for end users: preview download, requirements, numbered setup, reporting, and prominent cleanup safeguards; full operational reference retained. Documentation-only change reviewed against main `2d0e52b21dbca093f7d1e4478d08e249c585854f`, published v1.5.2 assets, and the unchanged update feed. Application version, settings/data paths, source behavior, and release assets are unchanged. Markdown anchors, relative links, and release/workflow routing were checked; no live Emby or destructive media tests were performed for this documentation edit.
+
+
 Date: October 25, 2026.
 
 Version 1.5.2 adds a visible saved-rule list and verifies complete rule preservation across updates, restarts, health cleanup, and failed replacement rollback. Existing schema-1 rule fields are unchanged. Local Release builds passed with zero warnings/errors and all 86 quick compiled checks. All 42 browser checks passed, including real timers. Exact-source hosted Windows/Linux each passed all 87 compiled checks; Linux passed all 42 browser checks. Publication and independent public asset/source/tag/feed/complete-rule-state upgrade verification all passed.

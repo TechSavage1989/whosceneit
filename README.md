@@ -1,42 +1,74 @@
-# Who Scene It
+<h1 align="center">Who Scene It</h1>
 
-An administrator-only Emby Server plugin that answers two questions:
+<p align="center"><strong>See who watched what. Protect what you want to keep.</strong></p>
 
-- What movies and TV shows has this user watched?
-- Which users have watched this movie, TV show, or episode?
+An administrator-only **Emby Server plugin** for exploring movie and TV viewing progress, protecting titles, and reviewing optional media cleanup—all from your Emby dashboard.
 
-Version 1.5.2 adds a visible saved-rule list and verifies that existing rules keep their settings, schedules, triggers, and enabled states through updates and restarts. All watch-state reports, Never delete protection, synchronization, and updater behavior remain available. See VALIDATION.md for test boundaries.
+<p align="center"><a href="https://github.com/TechSavage1989/whosceneit/releases">Download preview · Releases</a> · <a href="#getting-started">Get started</a> · <a href="#features">Features</a> · <a href="#before-you-delete-anything">Cleanup safety</a> · <a href="#updates-and-settings">Updates</a> · <a href="#development">Development</a></p>
+
+> **Preview release:** use the newest published preview's `WhoSceneIt.dll` asset. This is not a Windows EXE or a Jellyfin plugin. Read the release notes and [validation limits](VALIDATION.md) before installing on a live library.
 
 ## Features
 
-- By user: select an Emby user and view movies and grouped TV shows, movies only, shows only, or individual episodes.
-- By title: search for a movie, show, or episode and list its viewers. The viewer list follows the selected watch-state filter.
-- Watched, partially watched, not-started, and watched-with-resume filters; saved position, percentage, duration, and remaining time when available.
-- Show completion percentages and watched/partial/not-started episode counts; View episodes opens a show for the selected user. Episode order and progress sorting are available.
-- Saved play counts and the last recorded playback date.
-- All watch states appear by default, including entirely unwatched movies, shows, and episodes. Search/filter controls, pagination, and CSV export include the matching progress details.
-- Individual and bulk watched-media deletion, with an exact-path preview, explicit confirmation, progress, cancellation, and Emby permission/playback checks.
-- Optional Sonarr/Radarr connection settings, read-only connection tests, path mapping, strict matching, unmonitoring, and separate synchronization results.
-- Visible saved-rule list with status, owner, watch-history user, eligibility, schedule, triggers, next/last evaluation, and owner actions.
-- Explicit, administrator-controlled plugin updates with SHA-256 and assembly validation, a rollback backup, and restart guards.
+| Explore | Protect | Clean up—with control |
+| --- | --- | --- |
+| Browse viewing progress by user or search a title's viewers. | Mark movies, shows, or episodes **Never delete**. | Review individual or bulk deletion with exact paths and progress. |
+| Filter watched, partial, not-started, and watched-with-resume states. | Show protection includes current and future episodes. | Save review rules, or explicitly authorize automatic cleanup. |
+| Drill into episodes and export matching results to CSV. | Keep protection and saved rules across plugin updates. | Optionally synchronize matching Sonarr/Radarr records. |
+
+## Download
+
+Open [Releases](https://github.com/TechSavage1989/whosceneit/releases) and choose the newest published preview. Download `WhoSceneIt.dll` from **Assets**; the Source ZIP is for developers.
 
 ## Requirements
 
-Emby Server 4.8 or newer is the intended target. The plugin is built against the official 4.8.0.80 SDK and targets netstandard2.0. Actual compatibility with your Emby version and platform still needs an installation test. This is not a Jellyfin plugin. An Emby administrator account is required. Reports and plugin updates need no Emby API key. Optional synchronization needs each existing Sonarr/Radarr server URL and API key.
+- **Emby Server 4.8 or newer** is the intended target; built against the official 4.8.0.80 SDK for `netstandard2.0`. Compatibility with your exact server/platform still requires an installation test.
+- An **Emby administrator account** and access to the server's plugin directory.
+- Reports and plugin updates need **no Emby API key**. Optional Sonarr/Radarr connections require each service's URL and API key.
 
-## Install
+## Getting started
 
-If version 1.0.0 or 1.1.0 reports an empty "path" during installation, replace the DLL manually using the steps below. The already loaded old updater cannot apply its own path fix. Install the current 1.5.2 DLL directly; intermediate versions are unnecessary. Version 1.1.1 already contains the path fix and can use the normal updater. Keep the existing filename if you customized it.
+1. Open [Releases](https://github.com/TechSavage1989/whosceneit/releases), read the newest preview's notes, and download **`WhoSceneIt.dll`** from **Assets**.
+2. **Stop Emby Server.** Find its **Server Data Folder** in the Emby dashboard, then open the `plugins` directory directly beneath it.
+3. Copy the DLL into that directory. Install **only the plugin DLL**, not the source package or Emby SDK/dependency DLLs. Preserve an existing customized filename.
+4. Start Emby and sign in to its web interface as an administrator.
+5. Open **Dashboard → Plugins → Who Scene It → settings/configuration**. Where supported, the server menu also offers a Who Scene It page.
+6. After an update, reload the plugin page with **Ctrl+F5**. If it is missing, refresh the browser and check Emby's server log for `WhoSceneIt`.
 
-1. Stop Emby Server.
-2. Find its Server Data Folder in the Emby dashboard. Open the plugins directory directly under that folder.
-3. Copy WhoSceneIt.dll from this package into that plugins directory. Do not copy the Source folder or Emby's SDK/dependency DLLs.
-4. Start Emby Server and sign in through its web interface as an administrator.
-5. Open Dashboard, Plugins, Who Scene It, then its settings/configuration page. The server menu also provides a Who Scene It page where supported.
+**Upgrading an old installation?** Versions 1.0.0/1.1.0 may report an empty “path” during installation. Replace the DLL manually once using the steps above; intermediate versions are unnecessary. Version 1.1.1 and later contain that path fix. Do not install this preview over a different plugin identity.
 
-After updating, reload the plugin page with Ctrl+F5 to refresh cached controls. The dashboard uses a versioned controller and shows a reload notice if it receives outdated HTML. If the page does not appear, refresh the browser and check Emby's server log for WhoSceneIt. Do not install this preview over an existing plugin with a different identity or name.
+[Emby's manual plugin instructions](https://emby.media/support/articles/Plugins.html)
 
-Emby's official manual plugin instructions: https://emby.media/support/articles/Plugins.html
+## How to use
+
+1. Choose **By user** and select an Emby user, or choose **By title** to find a title's viewers.
+2. Start with **All watch states**, then narrow the view by title, media type, or watch state.
+3. Use **View episodes** for show-level detail; refresh the report for the latest saved Emby data.
+4. Export matching results to CSV, or mark a title **Never delete** without enabling deletion.
+
+Reports read saved Emby state; they do not change watch flags. Manual watched marks count as watched, and saved progress is not proof that every scene was viewed or that a rewatch occurred. Missing dates/durations remain unknown.
+
+### Before you delete anything
+
+> **Deletion is permanent and affects every user.** It can remove media files and related folder contents. There is no media undo: plugin rollback restores the DLL, not deleted media. Keep independent backups and review every path and service action.
+
+- **Never delete** applies to this plugin's deletion modes, not Emby's own controls or other apps.
+- Ordinary deletion protects unfinished media and saved progress. **Allow deletion of partially watched and unwatched media** is a separate, off-by-default manual option that can include other users' saved progress.
+- Manual deletion needs a fresh preview and confirmation checkbox. Preview failure means deletion has not started; an uncertain execution response is not permission to repeat it.
+- New cleanup rules are **disabled by default** and default to review prompts. Automatic cleanup requires explicit authorization; previously enabled saved rules remain enabled after updates. Schedules can run while the dashboard is closed.
+- Sonarr/Radarr synchronization is optional and off until configured. Emby and external changes are **not one atomic transaction**; review partial failures before retrying. Empty Sonarr-series removal is separately off by default.
+- Live Emby/Sonarr/Radarr deletion and native event delivery remain unverified in this preview. Read the detailed guide below before enabling cleanup.
+
+## Updates and settings
+
+The plugin checks at server startup and every five minutes; downloads, installation, and restart remain explicit administrator actions. Choose **Download**, then **Install and restart**. This restarts **Emby Server**, briefly disconnecting clients; active playback, scans, scheduled tasks, reports, and deletion can block the operation.
+
+Updates preserve configuration, protection, and saved cleanup rules. Back up `retention.json` and `retention.json.bak` under Emby's `DataPath/WhoSceneIt` with your server configuration. Download hashes verify integrity, not publisher signing; the binaries are unsigned. See the detailed update and rollback guidance below for locked or unloadable DLLs.
+
+## Detailed user guide
+
+<details>
+<summary><strong>Open reporting, protection, cleanup, synchronization, update, and rollback reference</strong></summary>
 
 ## Understand the results
 
@@ -126,6 +158,15 @@ Plugin configuration stays in Emby's own plugin configuration directory. Update 
 
 To roll back, stop Emby Server, copy the rollback DLL over the installed plugin DLL, remove the plugin-owned pending-install.json record, and start Emby again. Keep the installed DLL's actual filename if you customized it. Do not remove Emby configuration, library files, or user data. The updater preserves configuration and never marks a title watched or unwatched.
 
+</details>
+
 ## Development
 
-Read AGENTS.md and DEVELOPMENT_HANDOFF.md first. Source is in src/WhoSceneIt; report/update tests and browser tests are in tests; reproducible build, test, packaging, and release scripts are in scripts. No Emby server, credentials, or media files are included.
+<details>
+<summary><strong>Source, build requirements, and validation</strong></summary>
+
+Read [AGENTS.md](AGENTS.md) and [DEVELOPMENT_HANDOFF.md](DEVELOPMENT_HANDOFF.md) before changing the project. See [CHANGELOG.md](CHANGELOG.md) for changes and [VALIDATION.md](VALIDATION.md) for exact checks and limitations.
+
+Source lives in `src/WhoSceneIt`, tests in `tests`, and build/package/release scripts in `scripts`. No Emby server, credentials, or media files are included. Development requires .NET SDK 8 or newer; end users install only the DLL.
+
+</details>
