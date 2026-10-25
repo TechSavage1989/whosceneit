@@ -69,7 +69,7 @@ public static class RetentionChecks
         });
         test("Cleanup rules default to review and require fresh authorization for enabled automatic deletion",()=>
         {
-            var f=new CleanupFixture(root);var p=f.Policy();assert(!p.Enabled && p.Action=="Review" && p.MinimumDays==7,"Defaults enabled unattended cleanup.");p.Enabled=true;p.Action="Automatic";Reject(()=>f.Coordinator.Save("admin",p,false));p=f.Coordinator.Save("admin",p,true);assert(p.OwnerId=="admin" && !string.IsNullOrEmpty(p.Revision),"The rule was not bound to the actual actor.");Reject(()=>f.Coordinator.Save("someone-else",p,true));
+            var f=new CleanupFixture(root);var p=f.Policy();assert(!p.Enabled && p.Action=="Review" && p.MinimumDays==7,"Defaults enabled unattended cleanup.");p.Enabled=true;p.Action="Automatic";Reject(()=>f.Coordinator.Save("admin",p,false));p=f.Coordinator.Save("admin",p,true);assert(p.OwnerId=="admin" && !string.IsNullOrEmpty(p.Revision),"The rule was not bound to the actual actor.");assert(f.Coordinator.Status().Message.Contains("saved and enabled"),"The status still reported disabled after enabling cleanup.");Reject(()=>f.Coordinator.Save("someone-else",p,true));
             p=f.Store.Read().Policies.Single();p.MaximumItems=501;Reject(()=>f.Coordinator.Save("admin",p,true));
         });
         await testAsync("On-demand evaluation queues a fresh checkbox review even for automatic rules",async()=>
@@ -77,7 +77,7 @@ public static class RetentionChecks
             var f=new CleanupFixture(root);var p=f.Policy();p.Enabled=true;p.Action="Automatic";p=f.Coordinator.Save("admin",p,true);f.Coordinator.EvaluateNow("admin",p.Id);
             assert(f.Backend.Deletes==0 && f.Store.Read().Reviews.Single().ItemIds.Length==3 && f.Store.Read().Holds.Length==0,"On demand started deletion or claimed an attempt too early.");
             var preview=f.Coordinator.OpenReview("admin",f.Store.Read().Reviews[0].Id);Reject(()=>f.Manager.Execute("admin",preview.Token,false));f.Manager.Execute("admin",preview.Token,true);var result=await Done(f.Manager,preview.Token);
-            assert(result.Deleted==3 && f.Store.Read().Reviews.Length==0 && f.Store.Read().Runs.Any(r=>r.State=="Completed") && f.Store.Read().Holds.Length==0,"Reviewed cleanup did not finish or left incorrect holds.");
+            assert(result.Deleted==3 && f.Store.Read().Reviews.Length==0 && f.Store.Read().Runs.Any(r=>r.State=="Completed") && f.Store.Read().Holds.Length==0,"Reviewed cleanup did not finish or left incorrect holds.");assert(f.Coordinator.Status().Message.Contains("Deletion finished"),"Completed cleanup retained a stale started message.");
         });
         await testAsync("Scheduled automatic cleanup journals targets before deletion and uses completed resume mode only",async()=>
         {

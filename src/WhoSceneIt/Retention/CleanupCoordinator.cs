@@ -45,12 +45,13 @@ namespace WhoSceneIt.Retention
                 policy.Id = old?.Id ?? Guid.NewGuid().ToString("N");
                 s.Policies = s.Policies.Where(p => p.Id != policy.Id).Concat(new[] { policy }).ToArray(); s.Reviews = s.Reviews.Where(r => r.PolicyId != policy.Id).ToArray();
             });
-            StopPolicy(policy.Id); return _store.Read().Policies.Single(p => p.Id == policy.Id);
+            StopPolicy(policy.Id); _message = policy.Name + (policy.Enabled ? ": rule saved and enabled. Its configured schedules and triggers are active." : ": rule saved and disabled. Evaluate now still prepares a review.");
+            return _store.Read().Policies.Single(p => p.Id == policy.Id);
         }
         public void Remove(string actor, string id)
         {
             _store.Change(s => { var p = Owned(s, actor, id); s.Policies = s.Policies.Where(x => x.Id != p.Id).ToArray(); s.Reviews = s.Reviews.Where(x => x.PolicyId != p.Id).ToArray(); });
-            StopPolicy(id);
+            StopPolicy(id); _message = "Cleanup rule removed. Any in-flight item may finish; remaining queued items are stopped.";
         }
         private void StopPolicy(string id)
         {
@@ -116,7 +117,7 @@ namespace WhoSceneIt.Retention
                 if (preview.Ready == 0) { _deletion.Cancel(policy.OwnerId, preview.Token); _message = "Cleanup found no deletable items after native/service checks."; Record(policy, trigger, "Blocked", _message, preview.Total); return; }
                 var started = _deletion.Execute(policy.OwnerId, preview.Token, true);
                 if (!started.Started) { _message = policy.Name + ": no deletion started. " + started.Message; Record(policy, trigger, "Not started", _message, preview.Total); return; }
-                _message = policy.Name + ": authorized cleanup started. Open its progress to monitor or stop remaining items.";
+
             }
             catch (Exception e) { _message = policy.Name + ": " + e.Message; Record(policy, trigger, "Needs review", _message, 0); }
             finally { Volatile.Write(ref _busy, 0); }
@@ -141,12 +142,13 @@ namespace WhoSceneIt.Retention
                         s.Reviews = s.Reviews.Where(r => r.Id != reviewId).ToArray();
                         s.Runs = s.Runs.Concat(new[] { new CleanupRun { Id = runId, OwnerId = policy.OwnerId, PolicyId = policy.Id, Name = policy.Name, Trigger = trigger, StartedUtc = _now().ToString("O"), State = "Deleting", Token = status.Token, Total = status.Total } }).Reverse().Take(100).Reverse().ToArray();
                     });
+                    _message = policy.Name + ": cleanup started. Open its progress to monitor or stop remaining items.";
                 },
-                Complete = status => _store.Change(s => {
+                Complete = status => { _store.Change(s => {
                     var r = s.Runs.Single(x => x.Id == runId); r.State = status.State; r.Message = status.Message; r.FinishedUtc = _now().ToString("O"); r.Deleted = status.Deleted; r.Skipped = status.Skipped; r.Failed = status.Failed; r.SyncFailed = status.SyncFailed;
                     var safe = status.Items.Where(i => i.State == "Deleted" && i.ExternalState != "Failed" || (i.State == "Skipped" || i.State == "Blocked") && (i.ExternalState == "Not run" || i.ExternalService == null || i.ExternalState == "Disabled")).Select(i => i.ItemId).ToArray();
                     s.Holds = s.Holds.Where(h => h.RunId != runId || !safe.Contains(h.ItemId)).ToArray();
-                }) };
+                }); _message = policy.Name + ": " + status.Message; } };
             return _deletion.Preview(policy.OwnerId, policy.UserId, ids, false, policy.WatchMode != "Watched", hooks);
         }
         private void Record(CleanupPolicy p, string trigger, string state, string message, int count) => _store.Change(s => s.Runs = s.Runs.Concat(new[] { new CleanupRun { Id = Guid.NewGuid().ToString("N"), OwnerId = p.OwnerId, PolicyId = p.Id, Name = p.Name, Trigger = trigger, State = state, Message = message, StartedUtc = _now().ToString("O"), FinishedUtc = _now().ToString("O"), Total = count } }).Reverse().Take(100).Reverse().ToArray());
