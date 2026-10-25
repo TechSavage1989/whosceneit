@@ -6,7 +6,7 @@ Read this file and DEVELOPMENT_HANDOFF.md before editing. Then inspect the curre
 
 - Repository: https://github.com/TechSavage1989/whosceneit
 - The repository was public with only an initial README at commit c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5 when work began.
-- First prepared application: 1.0.0. No user-confirmed working Emby installation exists yet.
+- First published application: 1.0.0 preview, tag v1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. No user-confirmed working Emby installation exists yet.
 - Public source publication and release publication require the user's explicit approval. A repository URL alone does not override that instruction. Do not change visibility, create credentials, or embed tokens.
 - Preserve the stable assembly name and installed filename WhoSceneIt.dll and plugin ID b6405a2e-52e6-4218-a014-00a46a65f1f8 across versions. Use the assembly's actual installed location for updates so custom filenames survive.
 - Keep reporting read-only. Do not change users, permissions, metadata, play counts, or watch state. Every plugin endpoint must require Emby's native Admin role.
@@ -40,4 +40,4 @@ The C# test runner uses an unpublished 1.0.1 test DLL to exercise upgrades from 
 
 Update DEVELOPMENT_HANDOFF.md, CHANGELOG.md, and VALIDATION.md after meaningful changes. Record source/ref, version, feed, settings/data paths, checks actually performed, and limitations. Keep credentials, runtime downloads, test servers, local absolute paths, and test data out of release artifacts.
 
-Full Emby startup validation was blocked by automatic approval review because Emby attempted an external public-IP lookup. Do not bypass that rejection or silently repeat the blocked test. Continue offline tests and seek explicit authorization only if that integration test is needed. Windows, Docker/NAS, hosted CI, public feed, and a published upgrade are not validated until recorded otherwise.
+Full Emby startup validation was blocked by automatic approval review because Emby attempted an external public-IP lookup. Do not bypass that rejection or silently repeat the blocked test. Continue offline tests and seek explicit authorization only if that integration test is needed. Hosted Windows/Linux CI and all six public v1.0.0 assets are verified. Native Emby loading/restart, loaded-DLL behavior on Windows, Docker/NAS, and a real published-version upgrade remain unverified. See DEVELOPMENT_HANDOFF.md for the publication recovery and feed verification.

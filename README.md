@@ -5,7 +5,7 @@ An administrator-only Emby Server plugin that answers two questions:
 - What movies and TV shows has this user watched?
 - Which users have watched this movie, TV show, or episode?
 
-Version 1.0.0 is a prepared preview. It has not yet been validated inside a live Emby server or published. See VALIDATION.md before installation.
+Version 1.0.0 is a published preview: https://github.com/TechSavage1989/whosceneit/releases/tag/v1.0.0. Hosted Windows/Linux CI and public asset hashes are verified. It has not yet been validated inside a live Emby server. See VALIDATION.md before installation.
 
 ## Features
 
@@ -41,7 +41,7 @@ A show appears when at least one individual episode qualifies. The viewer report
 
 ## Updates
 
-The trusted repository is https://github.com/TechSavage1989/whosceneit. The update feed is the repository's main/update-manifest.json file. It will become usable after an approved release is published.
+The trusted repository is https://github.com/TechSavage1989/whosceneit. The update feed is the repository's main/update-manifest.json file and currently points to the verified v1.0.0 preview release.
 
 The plugin checks in the background at server startup and every five minutes. Returning to the plugin page/window triggers a check if at least two minutes have passed. Manual checks have a 30-second cooldown. Conditional requests and backoff reduce repeated traffic. A failed/offline check reports failure and preserves any cached result without claiming to be current.
 

@@ -2,7 +2,7 @@
 
 Date: October 25, 2026.
 
-This is a locally built preview for review and an initial Emby installation test. It is not a verified public release. No user-confirmed working Emby baseline exists yet.
+This is a published preview for an initial Emby installation test. The exact tagged source passed hosted CI, and all six public release assets passed download, size, and SHA-256 verification. No user-confirmed working Emby baseline exists yet.
 
 ## Completed checks
 
@@ -21,6 +21,8 @@ This is a locally built preview for review and an initial Emby installation test
 
 The extended run passed all 16 compiled checks, including the two-minute focus gate and real manual-cooldown expiry. Nine browser checks passed. The complete outputs are recorded in docs/validation-dotnet.txt and docs/validation-browser.txt.
 
+Hosted GitHub Actions validation also passed on the exact released source commit 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a: https://github.com/TechSavage1989/whosceneit/actions/runs/40174051730. Windows and Linux each passed all 16 compiled checks, including real timers, actual filesystem rollback, and settings preservation. Linux passed all nine browser checks, including real browser polling and cleanup. Release builds reported zero compiler warnings and errors.
+
 ## Update test boundary
 
 The update fixture upgrades a copied 1.0.0 DLL to an unpublished test-only 1.0.1 DLL. HTTP responses are injected into the real updater; it performs real parsing, hashing, assembly inspection, staging, replacement, backup, and cleanup. No download is silently authorized by opening a page.
@@ -33,7 +35,7 @@ The actual .NET timer runs for approximately five minutes; browser timer checks 
 - Enforcement of Emby's running authentication filter for anonymous and non-admin users.
 - Native Emby restart, visible dashboard reconnection, and behavior when a loaded DLL is locked by Windows.
 - Docker/NAS supervision, platform permissions, and crash recovery from a DLL that prevents the plugin from loading.
-- Hosted GitHub Actions, public tags/releases/assets, the live feed, and a real published-version-to-next-release upgrade.
+- A real published-version-to-next-release upgrade. The initial public tag, release assets, and update feed are verified; no second application version has been published for an end-to-end upgrade test.
 - Actual cross-volume target filesystems. The installer explicitly copies staging into the target directory before atomic replacement; local tests use separate directories on one filesystem.
 
 ## Blocked native integration test
@@ -42,6 +44,10 @@ Automatic approval review rejected the isolated Emby startup test because Emby a
 
 ## Publication and artifact identity
 
-The repository was confirmed public and contained only its initial README, with no prior releases. The user explicitly approved source and v1.0.0 preview publication on October 25, 2026. Hosted CI and publication verification are in progress. The package includes the DLL, source, tests, scripts, CI definitions, installation instructions, handoff notes, a proposed release manifest, content hashes, and build metadata. The proposed manifest points at the intended release and must not be treated as a currently hosted working feed until publication is verified.
+The repository was confirmed public and contained only its initial README, with no prior releases. The user explicitly approved source and v1.0.0 preview publication on October 25, 2026. The published preview is https://github.com/TechSavage1989/whosceneit/releases/tag/v1.0.0, with immutable tag v1.0.0 at source 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. All six uploaded assets matched the successful Linux CI artifact byte for byte and were subsequently downloaded from their public versioned URLs and verified against their SHA-256 digests and sizes. The main update feed was activated only after those public checks passed.
+
+Published plugin SHA-256: e2f2e93ee1aa4e3d656bf373cbdc8b5e5fb7bdbca9a6f30dff9f4eb6995ed024. Plugin size: 89,088 bytes. Published assets: WhoSceneIt.dll, WhoSceneIt-v1.0.0-Preview.zip, WhoSceneIt-v1.0.0-Source.zip, update-manifest.json, build-metadata.json, and SHA256SUMS.txt.
+
+Publication recovery: workflow 40174523972 uploaded every asset but failed at the draft's by-tag lookup. The authenticated release list resolved that same draft, while the by-tag endpoint could not. The draft was published through GitHub's interface after comparison with the successful CI artifact; no uploaded asset or public tag was replaced. The release script on main now uses the stable draft ID. The historical publication workflow remains marked failed; hosted application validation and the completed public release are independently verified. Frozen release packages retain the pre-publication notes; current validation and handoff details are maintained on main.
 
 build-metadata.json identifies the source commit and DLL digest. CONTENTS_SHA256.txt verifies the package's contents. External SHA256SUMS.txt verifies each prepared release asset. Matching hashes are integrity checks, not publisher signatures; the plugin is unsigned.

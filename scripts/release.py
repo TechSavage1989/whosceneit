@@ -60,7 +60,14 @@ with tempfile.TemporaryDirectory(prefix="whosceneit-release-") as temporary:
         create.append("--prerelease")
     command(*create)
     command("gh", "release", "upload", tag, *map(str, files), "--repo", repo)
-    published = json.loads(command("gh", "api", f"repos/{repo}/releases/tags/{tag}", capture=True).stdout)
+    # GitHub's by-tag endpoint does not resolve an unpublished draft. Resolve
+    # the draft from the authenticated release list and use its stable ID.
+    releases = json.loads(command("gh", "api", f"repos/{repo}/releases?per_page=100", capture=True).stdout)
+    matching_drafts = [release for release in releases if release["tag_name"] == tag and release["draft"]]
+    if len(matching_drafts) != 1:
+        raise SystemExit("Could not identify the uploaded draft uniquely; nothing has been published.")
+    release_id = matching_drafts[0]["id"]
+    published = json.loads(command("gh", "api", f"repos/{repo}/releases/{release_id}", capture=True).stdout)
     tagged = json.loads(command("gh", "api", f"repos/{repo}/git/ref/tags/{tag}", capture=True).stdout)
     if tagged["object"]["sha"] != sha or published["tag_name"] != tag:
         raise SystemExit("The draft tag does not identify the approved source commit.")

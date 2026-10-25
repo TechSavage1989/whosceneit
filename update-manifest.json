@@ -1,0 +1,21 @@
+{
+  "SchemaVersion": 1,
+  "AppId": "WhoSceneIt",
+  "PluginId": "b6405a2e-52e6-4218-a014-00a46a65f1f8",
+  "Repository": "TechSavage1989/whosceneit",
+  "Version": "1.0.0",
+  "MinimumEmbyVersion": "4.8.0.0",
+  "ReleaseUrl": "https://github.com/TechSavage1989/whosceneit/releases/tag/v1.0.0",
+  "Notes": [
+    "Watched movies and TV shows by user.",
+    "Viewer reports by movie, show, or episode.",
+    "CSV exports and verified, administrator-controlled plugin updates."
+  ],
+  "HasMoreNotes": true,
+  "Asset": {
+    "FileName": "WhoSceneIt.dll",
+    "DownloadUrl": "https://github.com/TechSavage1989/whosceneit/releases/download/v1.0.0/WhoSceneIt.dll",
+    "Sha256": "e2f2e93ee1aa4e3d656bf373cbdc8b5e5fb7bdbca9a6f30dff9f4eb6995ed024",
+    "SizeBytes": 89088
+  }
+}
