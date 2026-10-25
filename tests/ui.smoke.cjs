@@ -4,6 +4,13 @@ const path = require('path');
 const assert = require('assert/strict');
 
 let browser;
+let suiteCompleted = false;
+process.on('exit', () => {
+  if (!suiteCompleted && !process.exitCode) {
+    console.error('FAIL browser suite exited before all checks completed');
+    process.exitCode = 1;
+  }
+});
 (async () => {
   browser = await chromium.launch({headless:true, executablePath:process.env.WSI_CHROMIUM || undefined, args:['--no-sandbox']});
   const page = await browser.newPage({viewport:{width:1280,height:1000},acceptDownloads:true});
@@ -252,4 +259,6 @@ let browser;
     console.log('PASS browser timers stop after leaving the plugin page');
   }
   await browser.close();
+  suiteCompleted = true;
+  console.log('RESULT ' + (process.argv.includes('--real-timers') ? 23 : 21) + ' browser checks passed');
 })().catch(async error=>{console.error(error);if(browser)await browser.close();process.exitCode=1;});
