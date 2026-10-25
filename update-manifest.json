@@ -3,19 +3,19 @@
   "AppId": "WhoSceneIt",
   "PluginId": "b6405a2e-52e6-4218-a014-00a46a65f1f8",
   "Repository": "TechSavage1989/whosceneit",
-  "Version": "1.2.0",
+  "Version": "1.2.1",
   "MinimumEmbyVersion": "4.8.0.0",
-  "ReleaseUrl": "https://github.com/TechSavage1989/whosceneit/releases/tag/v1.2.0",
+  "ReleaseUrl": "https://github.com/TechSavage1989/whosceneit/releases/tag/v1.2.1",
   "Notes": [
-    "Track watched, partially watched, and not-started episodes.",
-    "See saved progress, remaining time, show completion, and episode lists.",
-    "Saved partial playback and rewatches are preserved during media deletion."
+    "Fixed an invalid null scope in reports without a selected TV show.",
+    "Report failures now show Emby's error message and HTTP status safely.",
+    "Preserved episode progress, media deletion guards, and updater behavior."
   ],
   "HasMoreNotes": true,
   "Asset": {
     "FileName": "WhoSceneIt.dll",
-    "DownloadUrl": "https://github.com/TechSavage1989/whosceneit/releases/download/v1.2.0/WhoSceneIt.dll",
-    "Sha256": "ab828ce02eff35e632ca6605c0b583eede2c0021fb74374a7740f243812a7661",
-    "SizeBytes": 141824
+    "DownloadUrl": "https://github.com/TechSavage1989/whosceneit/releases/download/v1.2.1/WhoSceneIt.dll",
+    "Sha256": "16d75ae5b603e61545d9555412a86093fe03ecf51a3c9cce23e326d5b93bc8f2",
+    "SizeBytes": 142336
   }
 }
