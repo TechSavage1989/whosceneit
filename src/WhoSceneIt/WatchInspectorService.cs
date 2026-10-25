@@ -35,18 +35,29 @@ namespace WhoSceneIt
             CheckPage(request.StartIndex, request.Limit);
             var view = Choice(request.View, "Titles", "Movies", "Shows", "Episodes");
             CheckText(request.SearchTerm);
-            var sort = Choice(request.SortBy, "LastPlayed", "Name", "PlayCount", "WatchedCount");
+            var sort = Choice(request.SortBy, "LastPlayed", "Name", "PlayCount", "WatchedCount", "Progress", "Episode");
+            var watchState = WatchState(request.WatchState);
             if (string.IsNullOrWhiteSpace(request.UserId)) throw new ArgumentException("Select a user.");
             var user = _users.GetUserById(request.UserId);
             if (user == null) throw new ArgumentException("The selected user no longer exists.");
             var types = view == "Movies" ? new[] { "Movie" } :
                 (view == "Shows" || view == "Episodes" ? new[] { "Episode" } : new[] { "Movie", "Episode" });
-            var watched = _library.GetItemList(UserQuery(user, types, false));
-            IEnumerable<BaseItem> candidates = watched;
-            if (request.IncludeInProgress)
-                candidates = candidates.Concat(_library.GetItemList(UserQuery(user, types, true)));
+            long? seriesId = null;
+            if (!string.IsNullOrEmpty(request.SeriesId))
+            {
+                if (view != "Episodes" || !long.TryParse(request.SeriesId, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) || parsed <= 0 || !(_library.GetItemById(parsed) is Series))
+                    throw new ArgumentException("Select a valid TV show for the episode list.");
+                seriesId = parsed;
+            }
+            // Read saved positions directly, including positions below Emby's resumable threshold.
+            // Full episode inventories also keep series completion denominators accurate.
+            var candidates = _library.GetItemList(new InternalItemsQuery(user)
+            {
+                Recursive = true, IsVirtualItem = false, IncludeItemTypes = types,
+                AncestorIds = seriesId.HasValue ? new[] { seriesId.Value } : null
+            });
             var records = candidates.GroupBy(x => x.InternalId).Select(x => x.First()).Select(item => Read(user, item));
-            var rows = ReportBuilder.FilterAndSort(ReportBuilder.ForUser(records, view, request.IncludeInProgress), request.SearchTerm, sort).ToArray();
+            var rows = ReportBuilder.FilterAndSort(ReportBuilder.ForUser(records, view, request.IncludeInProgress, watchState), request.SearchTerm, sort).ToArray();
             var summary = Summarize(user);
             foreach (var row in rows) { row.UserId = summary.Id; row.UserName = summary.Name; row.UserDisabled = summary.IsDisabled; }
             return Page(rows, request.StartIndex, request.Limit);
@@ -82,7 +93,8 @@ namespace WhoSceneIt
             using var activity = new ReportActivity();
             CheckPage(request.StartIndex, request.Limit);
             CheckText(request.SearchTerm);
-            var sort = Choice(request.SortBy, "LastPlayed", "Name", "PlayCount", "WatchedCount");
+            var sort = Choice(request.SortBy, "LastPlayed", "Name", "PlayCount", "WatchedCount", "Progress", "Episode");
+            var watchState = WatchState(request.WatchState);
             if (!long.TryParse(request.ItemId, NumberStyles.None, CultureInfo.InvariantCulture, out var id) || id <= 0)
                 throw new ArgumentException("Select a valid movie, TV show, or episode.");
             var selected = _library.GetItemById(id);
@@ -97,7 +109,7 @@ namespace WhoSceneIt
             var rows = new List<ReportRow>();
             foreach (var user in AllUsers())
             {
-                var row = ReportBuilder.ForViewer(items.Select(item => Read(user, item)), title, Summarize(user), request.IncludeInProgress, available);
+                var row = ReportBuilder.ForViewer(items.Select(item => Read(user, item)), title, Summarize(user), request.IncludeInProgress, available, watchState);
                 if (row != null) rows.Add(row);
             }
             var sorted = ReportBuilder.FilterAndSort(rows, request.SearchTerm, sort).ToArray();
@@ -115,15 +127,6 @@ namespace WhoSceneIt
             return new UserSummary { Id = dto.Id, Name = user.Name, IsDisabled = _users.GetUserPolicy(user)?.IsDisabled ?? false };
         }
 
-        private static InternalItemsQuery UserQuery(User user, string[] types, bool resumable)
-        {
-            return new InternalItemsQuery(user)
-            {
-                Recursive = true, IsVirtualItem = false, IncludeItemTypes = types,
-                IsPlayed = resumable ? (bool?)null : true, IsResumable = resumable ? true : (bool?)null
-            };
-        }
-
         private WatchRecord Read(User user, BaseItem item)
         {
             var data = _data.GetUserData(user, item) ?? new UserItemData();
@@ -133,7 +136,7 @@ namespace WhoSceneIt
             {
                 Title = Title(item), SeriesId = series != null ? Id(series) : (item.SeriesId > 0 ? item.SeriesId.ToString(CultureInfo.InvariantCulture) : null),
                 SeriesYear = series?.ProductionYear,
-                Played = data.Played, PlayCount = data.PlayCount, PlaybackPositionTicks = data.PlaybackPositionTicks, LastPlayed = data.LastPlayedDate
+                Played = data.Played, PlayCount = data.PlayCount, PlaybackPositionTicks = data.PlaybackPositionTicks, RunTimeTicks = item.RunTimeTicks, LastPlayed = data.LastPlayedDate
             };
         }
 
@@ -149,6 +152,7 @@ namespace WhoSceneIt
         }
 
         private static string Id(BaseItem item) => item.InternalId.ToString(CultureInfo.InvariantCulture);
+        private static string WatchState(string value) => string.IsNullOrEmpty(value) ? null : Choice(value, "Started", "Watched", "Partial", "Resuming", "NotStarted", "All");
         private static PagedResult<T> Page<T>(T[] rows, int start, int limit) => new PagedResult<T>
         {
             Items = rows.Skip(start).Take(limit).ToArray(), TotalRecordCount = rows.Length, StartIndex = start

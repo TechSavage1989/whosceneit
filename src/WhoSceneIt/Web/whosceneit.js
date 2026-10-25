@@ -2,7 +2,7 @@ define([], function () {
     'use strict';
     return function (view) {
         var find = function (name) { return view.querySelector('[data-id="' + name + '"]'); };
-        var state = { mode: 'user', start: 0, total: 0, titleStart: 0, selected: null, token: 0, titleToken: 0, active: false, initialized: false, busy: false, exporting: false, reportHealthy: false };
+        var state = { mode: 'user', start: 0, total: 0, titleStart: 0, selected: null, series: null, token: 0, titleToken: 0, active: false, initialized: false, busy: false, exporting: false, reportHealthy: false };
         var pollTimer = null, filterTimer = null, deletionTimer = null;
         var selections = new Set(), selectionContext = '', currentRows = [];
         var deletion = { token: null, state: null, busy: false, ready: 0, request: 0 };
@@ -32,21 +32,22 @@ define([], function () {
             find('deleteSelected').hidden = byTitle; find('deleteTitle').hidden = !byTitle;
             find('clearSelection').disabled = !selections.size || deletion.busy;
             find('deleteSelected').disabled = !selections.size || state.busy || deletion.busy;
-            find('deleteTitle').disabled = !state.selected || !state.total || state.busy || deletion.busy;
-            text(find('selectionNote'), byTitle ? 'Deletion includes only movies or episodes marked watched by at least one current user. Review the exact media and paths before confirming.' : 'Select watched titles individually or by page. Selections carry across pages. TV shows expand to watched episodes. Deleting media affects every user.');
+            find('deleteTitle').disabled = !state.selected || !currentRows.some(canDelete) || state.busy || deletion.busy;
+            text(find('selectionNote'), byTitle ? 'Deletion includes completed media only. Saved partial playback and rewatches for any user are preserved. Review the exact paths before confirming.' : 'Select fully watched media individually or by page. Selections carry across pages. TV shows expand to completed episodes. Saved partial playback and rewatches for any user are preserved. Deleting media affects every user.');
             view.querySelectorAll('[data-item-selection]').forEach(function (box) { box.checked = selections.has(box.dataset.itemSelection); box.disabled = deletion.busy; });
             var pageBox = view.querySelector('[data-page-selection]');
             if (pageBox) {
-                var eligible = currentRows.filter(function (row) { return row.WatchedCount > 0; });
+                var eligible = currentRows.filter(canDelete);
                 pageBox.checked = !!eligible.length && eligible.every(function (row) { return selections.has(row.ItemId); });
                 pageBox.indeterminate = !pageBox.checked && eligible.some(function (row) { return selections.has(row.ItemId); });
                 pageBox.disabled = deletion.busy || !eligible.length;
             }
         }
+        function canDelete(row) { return row.DeletableCount != null ? row.DeletableCount > 0 : row.WatchedCount > 0 && !row.WatchedWithResumeCount; }
         function resetSelections() { selections.clear(); updateSelections(); }
         function reportParams(start, limit) {
-            var values = { StartIndex: start, Limit: limit, IncludeInProgress: find('includeProgress').checked, SearchTerm: find('filter').value.trim(), SortBy: find('sort').value };
-            if (state.mode === 'user') { values.UserId = find('userSelect').value; values.View = find('viewSelect').value; }
+            var values = { StartIndex: start, Limit: limit, WatchState: find('watchState').value, IncludeInProgress: true, SearchTerm: find('filter').value.trim(), SortBy: find('sort').value };
+            if (state.mode === 'user') { values.UserId = find('userSelect').value; values.View = find('viewSelect').value; if (state.series) values.SeriesId = state.series.Id; }
             else values.ItemId = state.selected.Id;
             return values;
         }
@@ -71,16 +72,42 @@ define([], function () {
             if (!value) return 'Not recorded';
             var date = new Date(value); return isNaN(date.getTime()) ? 'Not recorded' : date.toLocaleString();
         }
+        function durationLabel(ticks) {
+            if (ticks == null) return '';
+            var seconds = Math.floor(Math.max(0, ticks) / 10000000), hours = Math.floor(seconds / 3600), minutes = Math.floor(seconds / 60) % 60;
+            return (hours ? hours + ':' + String(minutes).padStart(2, '0') : String(minutes)) + ':' + String(seconds % 60).padStart(2, '0');
+        }
+        function progressCell(row, item) {
+            var series = item.Type === 'Series', percent = series ? item.CompletionPercent : item.PlaybackPercent;
+            var td = cell(row, percent == null ? (series ? 'Episode total unavailable' : (item.PlaybackPositionTicks > 0 ? 'Resume at ' + durationLabel(item.PlaybackPositionTicks) : 'Duration not recorded')) : percent + '%' + (series ? ' episodes completed' : (item.WatchedCount && !item.WatchedWithResumeCount ? ' complete' : ' saved position')));
+            td.className = 'wsi-progress';
+            if (percent != null) { var bar = document.createElement('progress'); bar.max = 100; bar.value = Math.max(0, Math.min(100, percent)); bar.setAttribute('aria-label', series ? 'Episodes completed' : 'Saved playback position'); td.appendChild(bar); }
+            var detail = document.createElement('small');
+            if (series) text(detail, (item.NotStartedCount == null ? '' : item.NotStartedCount + ' not started') + (item.WatchedWithResumeCount ? '; ' + item.WatchedWithResumeCount + ' watched with resume' : ''));
+            else if (item.RunTimeTicks != null) text(detail, item.WatchedCount && !item.WatchedWithResumeCount ? 'Completed in Emby; ' + durationLabel(item.RunTimeTicks) + ' total' : durationLabel(item.PlaybackPositionTicks) + ' of ' + durationLabel(item.RunTimeTicks) + '; ' + durationLabel(item.RemainingTicks) + ' remaining');
+            else text(detail, 'Duration not recorded; percentage and remaining time unavailable');
+            td.appendChild(detail);
+        }
+        function episodeButton(parent, item, byTitle) {
+            var detail = document.createElement('small'), button = document.createElement('button'); button.type = 'button'; button.className = 'wsi-link'; text(button, 'View episodes');
+            button.setAttribute('aria-label', 'View episodes for ' + (byTitle ? item.UserName : item.Name));
+            button.addEventListener('click', function () {
+                state.series = byTitle ? { Id: state.selected.Id, Name: state.selected.Name } : { Id: item.ItemId, Name: item.Name };
+                if (byTitle) find('userSelect').value = item.UserId;
+                find('viewSelect').value = 'Episodes'; find('sort').value = 'Episode'; find('filter').value = '';
+                text(find('episodeScopeName'), 'Episodes in ' + state.series.Name); find('episodeScope').hidden = false; changeMode('user');
+            }); detail.appendChild(button); parent.appendChild(detail);
+        }
         function renderReport(result) {
             var rows = result.Items || [], byTitle = state.mode === 'title';
             state.total = result.TotalRecordCount || 0;
             currentRows = rows;
-            var headings = byTitle ? ['User', 'Watch status', 'Watched / in progress', 'Saved play count', 'Last played'] : ['Title', 'Type', 'Watch status', 'Watched / in progress', 'Saved play count', 'Last played'];
+            var headings = byTitle ? ['User', 'Watch status', 'Watched / partial', 'Progress', 'Saved play count', 'Last played'] : ['Title', 'Type', 'Watch status', 'Watched / partial', 'Progress', 'Saved play count', 'Last played'];
             var tr = document.createElement('tr');
             if (!byTitle) {
                 var selectionHead = document.createElement('th'), pageBox = document.createElement('input');
                 pageBox.type = 'checkbox'; pageBox.dataset.pageSelection = 'true'; pageBox.setAttribute('aria-label', 'Select watched titles on this page');
-                pageBox.addEventListener('change', function () { currentRows.filter(function (row) { return row.WatchedCount > 0; }).forEach(function (row) { if (pageBox.checked) selections.add(row.ItemId); else selections.delete(row.ItemId); }); updateSelections(); });
+                pageBox.addEventListener('change', function () { currentRows.filter(canDelete).forEach(function (row) { if (pageBox.checked) selections.add(row.ItemId); else selections.delete(row.ItemId); }); updateSelections(); });
                 selectionHead.appendChild(pageBox); tr.appendChild(selectionHead);
             }
             headings.forEach(function (label) { var th = document.createElement('th'); th.scope = 'col'; text(th, label); tr.appendChild(th); });
@@ -90,29 +117,29 @@ define([], function () {
                 var row = document.createElement('tr');
                 if (!byTitle) {
                     var selectionCell = cell(row, ''); selectionCell.className = 'wsi-selection';
-                    if (item.WatchedCount > 0) {
+                    if (canDelete(item)) {
                         var box = document.createElement('input'); box.type = 'checkbox'; box.dataset.itemSelection = item.ItemId;
                         box.setAttribute('aria-label', 'Select ' + item.Name);
                         box.addEventListener('change', function () { if (box.checked) selections.add(item.ItemId); else selections.delete(item.ItemId); updateSelections(); });
                         selectionCell.appendChild(box);
                     }
                 }
-                if (byTitle) cell(row, item.UserName, item.UserDisabled ? 'Disabled account' : '');
+                if (byTitle) { var userCell = cell(row, item.UserName, item.UserDisabled ? 'Disabled account' : ''); if (item.Type === 'Series') episodeButton(userCell, item, true); }
                 else {
                     var nameCell = cell(row, '', item.Type === 'Episode' ? [item.SeriesName, item.Episode].filter(Boolean).join(' - ') : (item.Year || ''));
                     var titleButton = document.createElement('button'); titleButton.type = 'button'; titleButton.className = 'wsi-link'; text(titleButton, item.Name);
                     titleButton.addEventListener('click', function () { state.selected = { Id: item.ItemId, Name: item.Name, Type: item.Type, Year: item.Year }; showSelected(); changeMode('title'); });
-                    nameCell.prepend(titleButton); cell(row, item.Type === 'Series' ? 'TV show' : item.Type);
+                    nameCell.prepend(titleButton); if (item.Type === 'Series') episodeButton(nameCell, item, false); cell(row, item.Type === 'Series' ? 'TV show' : item.Type);
                 }
                 cell(row, item.Status);
                 var count = item.WatchedCount + ' watched';
                 if (item.Type === 'Series') count += ' episodes';
                 if (item.AvailableEpisodeCount != null) count += ' of ' + item.AvailableEpisodeCount + ' available';
-                if (item.InProgressCount) count += '; ' + item.InProgressCount + ' in progress';
-                cell(row, count); cell(row, item.SavedPlayCount || 0); cell(row, dateLabel(item.LastPlayedUtc));
+                if (item.InProgressCount) count += '; ' + item.InProgressCount + ' partially watched';
+                cell(row, count); progressCell(row, item); cell(row, item.SavedPlayCount || 0); cell(row, dateLabel(item.LastPlayedUtc));
                 if (!byTitle) {
                     var actionCell = cell(row, ''), remove = document.createElement('button'); remove.type = 'button'; remove.className = 'wsi-danger';
-                    text(remove, item.Type === 'Series' ? 'Delete watched episodes...' : 'Delete...'); remove.disabled = !item.WatchedCount || deletion.busy;
+                    text(remove, item.Type === 'Series' ? 'Delete watched episodes...' : 'Delete...'); remove.disabled = !canDelete(item) || deletion.busy;
                     remove.setAttribute('aria-label', 'Review deletion of ' + item.Name);
                     remove.addEventListener('click', function () { previewDeletion([item.ItemId]); }); actionCell.appendChild(remove);
                 }
@@ -130,7 +157,7 @@ define([], function () {
             if (state.mode === 'title' && !state.selected) { clearReport(); status('Search for a title and select a result.'); return Promise.resolve(); }
             if (state.mode === 'user' && !find('userSelect').value) { clearReport(); status('No Emby users were found.'); return Promise.resolve(); }
             var token = ++state.token, path = state.mode === 'user' ? 'UserReport' : 'Viewers';
-            var context = JSON.stringify([state.mode, find('userSelect').value, find('viewSelect').value, find('filter').value.trim(), find('includeProgress').checked, state.selected && state.selected.Id]);
+            var context = JSON.stringify([state.mode, find('userSelect').value, find('viewSelect').value, find('filter').value.trim(), find('watchState').value, state.series && state.series.Id, state.selected && state.selected.Id]);
             if (context !== selectionContext) { selectionContext = context; selections.clear(); }
             state.busy = true; find('export').disabled = true; status('Loading report...');
             updateSelections();
@@ -235,9 +262,9 @@ define([], function () {
                     if (!result.Items.length && parameters.StartIndex < result.TotalRecordCount) throw new Error('Report changed during export. Refresh and retry.');
                     all = all.concat(result.Items); parameters.StartIndex += result.Items.length;
                     if (parameters.StartIndex < result.TotalRecordCount) return next();
-                    var header = ['User', 'Title', 'Type', 'Year', 'Series', 'Episode', 'Status', 'Watched count', 'In-progress count', 'Available episodes', 'Saved play count', 'Last played UTC'];
+                    var header = ['User', 'Title', 'Type', 'Year', 'Series', 'Episode', 'Status', 'Watched count', 'In-progress count', 'Available episodes', 'Saved play count', 'Last played UTC', 'Not-started episodes', 'Watched-with-resume count', 'Episode completion percent', 'Saved position', 'Duration', 'Remaining time', 'Playback percent'];
                     var lines = [header.map(csvCell).join(',')];
-                    all.forEach(function (row) { lines.push([row.UserName,row.Name,row.Type,row.Year,row.SeriesName,row.Episode,row.Status,row.WatchedCount,row.InProgressCount,row.AvailableEpisodeCount,row.SavedPlayCount,row.LastPlayedUtc].map(csvCell).join(',')); });
+                    all.forEach(function (row) { lines.push([row.UserName,row.Name,row.Type,row.Year,row.SeriesName,row.Episode,row.Status,row.WatchedCount,row.InProgressCount,row.AvailableEpisodeCount,row.SavedPlayCount,row.LastPlayedUtc,row.NotStartedCount,row.WatchedWithResumeCount,row.CompletionPercent,durationLabel(row.PlaybackPositionTicks),durationLabel(row.RunTimeTicks),durationLabel(row.RemainingTicks),row.PlaybackPercent].map(csvCell).join(',')); });
                     var url = URL.createObjectURL(new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
                     var link = document.createElement('a'); link.href = url; link.download = 'WhoSceneIt-' + new Date().toISOString().slice(0,10) + '.csv'; document.body.appendChild(link); link.click(); link.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
                     status('Exported ' + all.length + ' rows.');
@@ -286,7 +313,8 @@ define([], function () {
             state.initialized = true;
             find('userTab').addEventListener('click', function () { changeMode('user'); });
             find('titleTab').addEventListener('click', function () { changeMode('title'); });
-            ['userSelect','viewSelect','sort','includeProgress'].forEach(function (id) { find(id).addEventListener('change', function () { state.start = 0; loadReport(); }); });
+            ['userSelect','viewSelect','sort','watchState'].forEach(function (id) { find(id).addEventListener('change', function () { if (id === 'viewSelect' && find(id).value !== 'Episodes') { state.series = null; find('episodeScope').hidden = true; } state.start = 0; loadReport(); }); });
+            find('clearSeries').addEventListener('click', function () { state.series = null; find('episodeScope').hidden = true; find('viewSelect').value = 'Shows'; state.start = 0; loadReport(); });
             find('filter').addEventListener('input', function () { clearTimeout(filterTimer); filterTimer = setTimeout(function () { state.start = 0; loadReport(); }, 300); });
             find('titleSearchForm').addEventListener('submit', function (event) { event.preventDefault(); searchTitles(0); });
             find('titlePrev').addEventListener('click', function () { searchTitles(Math.max(0,state.titleStart-30)); });

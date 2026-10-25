@@ -29,6 +29,7 @@ namespace WhoSceneIt
         public int? SeriesYear { get; set; }
         public bool Played { get; set; }
         public long PlaybackPositionTicks { get; set; }
+        public long? RunTimeTicks { get; set; }
         public long PlayCount { get; set; }
         public DateTimeOffset? LastPlayed { get; set; }
     }
@@ -44,10 +45,20 @@ namespace WhoSceneIt
         public int? Year { get; set; }
         public string SeriesName { get; set; }
         public string Episode { get; set; }
+        public int? SeasonNumber { get; set; }
+        public int? EpisodeNumber { get; set; }
         public string Status { get; set; }
         public int WatchedCount { get; set; }
         public int InProgressCount { get; set; }
         public int? AvailableEpisodeCount { get; set; }
+        public int? NotStartedCount { get; set; }
+        public int WatchedWithResumeCount { get; set; }
+        public int DeletableCount { get; set; }
+        public long? PlaybackPositionTicks { get; set; }
+        public long? RunTimeTicks { get; set; }
+        public long? RemainingTicks { get; set; }
+        public double? PlaybackPercent { get; set; }
+        public double? CompletionPercent { get; set; }
         public long SavedPlayCount { get; set; }
         public string LastPlayedUtc { get; set; }
     }

@@ -149,6 +149,19 @@ public static class DeletionChecks
             assert(fixture.Backend.Inspect("admin", "alice", "1").Item.State == "Blocked", "A configured library root was eligible for deletion.");
             assert(File.Exists(fixture.Movie.Path) && fixture.NativeDeletes == 0, "A blocked preview changed media.");
         });
+        test("Saved partial playback and rewatches for any user block native media deletion", () =>
+        {
+            var fixture = new NativeDeletionFixture(root);
+            fixture.Position = 100;
+            assert(fixture.Backend.Inspect("admin", "alice", "1").Item.State == "Blocked", "A watched item being rewatched was deletable.");
+            fixture.Position = 0; fixture.OtherPosition = 100;
+            assert(fixture.Backend.Inspect("admin", "alice", "1").Item.State == "Blocked", "Another user's partial playback was ignored.");
+            fixture.OtherPosition = 0;
+            var preview = fixture.Backend.Inspect("admin", "alice", "1");
+            fixture.OtherPosition = 100;
+            Reject(() => fixture.Backend.Delete("admin", "alice", "1", preview.Fingerprint));
+            assert(fixture.NativeDeletes == 0 && File.Exists(fixture.Movie.Path), "New progress after preview did not preserve the media.");
+        });
         test("Native Emby delete uses file-deletion options only after a matching path preview", () =>
         {
             var fixture = new NativeDeletionFixture(root);
@@ -166,6 +179,7 @@ public static class DeletionChecks
 public sealed class NativeDeletionFixture
 {
     public bool Played = true, Playing, SiblingMedia, LibraryRoot;
+    public long Position, OtherPosition;
     public int NativeDeletes;
     public DeleteOptions Options;
     public NativeDeletionMovie Movie;
@@ -186,7 +200,7 @@ public sealed class NativeDeletionFixture
             "GetUserById" => (string)a[0] == "admin" ? admin : user,
             "GetUserPolicy" => ((User)a[0]).Policy,
             "GetUserList" => new[] { user, admin }, _ => m.ReturnType == typeof(MediaBrowser.Model.Dto.UserItemShareLevel) ? Enum.GetValues<MediaBrowser.Model.Dto.UserItemShareLevel>().Max() : null });
-        var data = Proxy.Create<IUserDataManager>((m, a) => m.Name == "GetUserData" ? new UserItemData { Played = Played } : null);
+        var data = Proxy.Create<IUserDataManager>((m, a) => m.Name == "GetUserData" ? new UserItemData { Played = Played, PlaybackPositionTicks = ((User)a[0]).InternalId == 4 ? Position : OtherPosition } : null);
         var library = Proxy.Create<ILibraryManager>((m, a) => {
             if (m.Name == "GetItemById") return Movie;
             if (m.Name == "GetShareLevels") return new MediaBrowser.Model.Querying.QueryResult<MediaBrowser.Model.Dto.UserItemShareLevel?> { Items = new MediaBrowser.Model.Dto.UserItemShareLevel?[] { Enum.GetValues<MediaBrowser.Model.Dto.UserItemShareLevel>().Max() }, TotalRecordCount = 1 };

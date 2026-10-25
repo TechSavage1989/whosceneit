@@ -16,7 +16,8 @@
     .wsi [hidden] { display: none !important; }
     .wsi-panel { padding: 1.2em; border: 1px solid #80808055; border-radius: 8px; margin-bottom: 1em; }
     .wsi-fields { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 1em; margin: 1em 0; }
-    .wsi-fields label { display: flex; flex-direction: column; gap: .45em; }
+    .wsi-fields label { display: flex; flex-direction: column; gap: .45em; min-width: 0; }
+    .wsi-fields input, .wsi-fields select { width: 100%; min-width: 0; }
     .wsi-check { display: flex; align-items: center; gap: .5em; margin: .8em 0; }
     .wsi-check input { width: 1.1em; height: 1.1em; }
     .wsi-tablewrap { overflow-x: auto; margin-top: 1em; }
@@ -25,6 +26,8 @@
     .wsi th, .wsi td { padding: .8em .65em; border-bottom: 1px solid #80808040; vertical-align: top; }
     .wsi td:first-child { min-width: 210px; }
     .wsi td small { display: block; margin-top: .3em; opacity: .7; }
+    .wsi .wsi-progress { min-width: 180px; }
+    .wsi progress { display: block; width: 100%; max-width: 230px; height: .65em; margin: .45em 0; accent-color: #63b685; }
     .wsi .wsi-link { color: #63b685; text-decoration: underline; cursor: pointer; border: none; padding: 0; text-align: left; background: none; }
     .wsi-pager { justify-content: flex-end; margin-top: 1em; }
     .wsi-status { padding: .7em 0; min-height: 2.5em; }
@@ -66,7 +69,7 @@
           <a data-id="releaseLink" target="_blank" rel="noopener noreferrer" hidden>Read more</a>
         </div>
       </section>
-      <p class="wsi-note wsi-muted">Results use Emby's saved watch status. A title can be marked watched manually. Last played is the most recent saved playback date, not a complete viewing log. TV shows appear when at least one episode qualifies.</p>
+      <p class="wsi-note wsi-muted">Watched means Emby marked the item complete, including manual marks. Partially watched means a saved playback position without completion. Watched items with a saved position are listed separately, including possible rewatches. Progress shows the saved position, not proof that every scene was viewed. Refresh to read the latest saved progress.</p>
       <div data-id="adminError" class="wsi-error" role="alert" hidden>Sign in with an Emby administrator account to use Who Scene It.</div>
       <div data-id="reportApp" hidden>
         <div class="wsi-tabs" role="tablist" aria-label="Report type">
@@ -80,6 +83,7 @@
             <label>Show<select data-id="viewSelect"><option value="Titles">Movies and TV shows</option><option value="Movies">Movies</option><option value="Shows">TV shows</option><option value="Episodes">TV episodes</option></select></label>
           </div>
           <p class="wsi-note wsi-muted">Includes titles currently visible to the selected user. Use TV episodes for the individual episode list.</p>
+          <div class="wsi-actions" data-id="episodeScope" hidden><span data-id="episodeScopeName"></span><button type="button" data-id="clearSeries">Back to TV shows</button></div>
         </section>
         <section id="wsi-title-panel" data-id="titlePanel" role="tabpanel" class="wsi-panel" hidden>
           <h2>Who has watched this title?</h2>
@@ -96,9 +100,9 @@
         </section>
         <div class="wsi-fields">
           <label>Filter results<input data-id="filter" type="search" maxlength="200" placeholder="Title, show, episode, or username"></label>
-          <label>Sort by<select data-id="sort"><option value="LastPlayed">Last played, newest first</option><option value="Name">Name</option><option value="PlayCount">Saved play count</option><option value="WatchedCount">Watched count</option></select></label>
+          <label>Watch status<select data-id="watchState"><option value="Started">Watched and partially watched</option><option value="Watched">Fully watched</option><option value="Partial">Partially watched</option><option value="Resuming">Watched with resume</option><option value="NotStarted">Not started</option><option value="All">All watch states</option></select></label>
+          <label>Sort by<select data-id="sort"><option value="LastPlayed">Last played, newest first</option><option value="Name">Name</option><option value="PlayCount">Saved play count</option><option value="WatchedCount">Watched count</option><option value="Progress">Progress, highest first</option><option value="Episode">Episode order</option></select></label>
         </div>
-        <label class="wsi-check"><input data-id="includeProgress" type="checkbox">Include in-progress titles</label>
         <div class="wsi-actions"><button data-id="refresh" type="button" class="wsi-primary">Refresh report</button><button data-id="export" type="button" disabled>Export all matching rows to CSV</button></div>
         <div class="wsi-actions" data-id="deleteActions" style="margin-top:1em">
           <span data-id="selectionCount">0 selected</span>
@@ -106,7 +110,7 @@
           <button data-id="deleteSelected" type="button" class="wsi-danger" disabled>Delete selected media...</button>
           <button data-id="deleteTitle" type="button" class="wsi-danger" hidden disabled>Delete watched media...</button>
         </div>
-        <p data-id="selectionNote" class="wsi-note wsi-muted">Select watched titles individually or by page. Selections carry across pages. TV shows expand to watched episodes. Deleting media affects every user.</p>
+        <p data-id="selectionNote" class="wsi-note wsi-muted">Select fully watched media individually or by page. Saved partial playback and rewatches are preserved for every user. Deleting media affects every user.</p>
         <div data-id="reportStatus" class="wsi-status" role="status" aria-live="polite"></div>
         <div class="wsi-tablewrap" data-id="tableWrap" hidden><table><thead data-id="reportHead"></thead><tbody data-id="reportBody"></tbody></table></div>
         <div class="wsi-pager" data-id="pager" hidden><button type="button" data-id="prev">Previous</button><span data-id="pageInfo"></span><button type="button" data-id="next">Next</button></div>

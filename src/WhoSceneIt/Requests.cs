@@ -14,6 +14,8 @@ namespace WhoSceneIt
         public string UserId { get; set; }
         public string View { get; set; } = "Titles";
         public bool IncludeInProgress { get; set; }
+        public string WatchState { get; set; }
+        public string SeriesId { get; set; }
         public string SearchTerm { get; set; }
         public string SortBy { get; set; } = "LastPlayed";
         public int StartIndex { get; set; }
@@ -36,6 +38,7 @@ namespace WhoSceneIt
     {
         public string ItemId { get; set; }
         public bool IncludeInProgress { get; set; }
+        public string WatchState { get; set; }
         public string SearchTerm { get; set; }
         public string SortBy { get; set; } = "LastPlayed";
         public int StartIndex { get; set; }

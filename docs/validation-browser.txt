@@ -1,5 +1,5 @@
 
-> whosceneit-validation@1.1.1 test:ui
+> whosceneit-validation@1.2.0 test:ui
 > node tests/ui.smoke.cjs --real-timers
 
 PASS initial user report, paging, and safe title rendering
@@ -12,6 +12,11 @@ PASS show grouping and stale-request suppression during user changes
 PASS title selection and users who watched a show
 PASS title view previews watched episode media without deleting a TV show folder
 PASS in-progress-only titles have no selection checkbox and cannot be deleted
+PASS show drilldown scopes the episode list and displays saved progress without inventing durations
+PASS partial filter and CSV preserve episode scope, position, duration, and remaining time
+PASS rewatch filter retains prior completion while disabling media deletion
+PASS all, completed, and not-started filters work and clearing episode scope returns to shows
+PASS viewer drilldown keeps the chosen user and show together
 PASS explicit download and install controls, restart warning, and hidden empty Read more
 PASS real browser focus events and listener cleanup without duplicate subscriptions
 PASS mobile layout and no browser exceptions

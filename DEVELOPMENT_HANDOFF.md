@@ -2,6 +2,8 @@
 
 ## Current state
 
+- Current candidate: 1.2.0; exact-source hosted CI, publication, and public upgrade verification are pending. The latest published release below remains the baseline until those steps succeed.
+
 - Latest maintained/published version: 1.1.1 preview; assembly/file version: 1.1.1.0.
 - User-confirmed baseline: 1.0.0 reports. The user requested individual/bulk deletion, then supplied the empty-path installation error while updating to 1.1.0. Real-library deletion is not yet user-confirmed. Affected older installations need one manual DLL replacement to receive 1.1.1.
 - Repository: https://github.com/TechSavage1989/whosceneit; public. No visibility or credential changes were made.
@@ -12,6 +14,16 @@
 - Stable assembly/filename: WhoSceneIt.dll; plugin ID: b6405a2e-52e6-4218-a014-00a46a65f1f8. Resolve the native installed path lazily because byte-loaded Assembly.Location can be empty; preserve customized filenames.
 - Local branch: codex/whosceneit-publication, tracking origin/main. Main holds current verification notes; immutable release tags identify application source.
 - Previous immutable sources: 1.1.0 at 1d1d221b2b5fbc6e6f4ef0cebac8880115e09ccd; 1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. The original repository baseline was only a README at c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5.
+
+## Version 1.2.0 watch progress
+
+The user requested full/partial episode detection, related features, and publication. WatchProgress separates Started, Watched, Partial, Resuming, NotStarted, and All. Played remains the saved completion flag; positive PlaybackPositionTicks is saved progress. A watched item with a position is labelled Watched with resume position, including possible rewatches, without claiming a second viewing occurred. Positions at or past runtime remain partial unless Played is true. Missing/invalid durations never produce fabricated percentages or remaining time.
+
+WatchInspectorService reads the full accessible media inventory instead of relying on IsResumable, so below-threshold saved positions and not-started episodes can appear. Series totals count current available episode records, including specials, and retain the full denominator when filtering. UserReport accepts WatchState and an optional validated SeriesId for Episodes. Omitting WatchState preserves the legacy IncludeInProgress selection behavior. Both existing report routes still require native Admin authentication.
+
+The dashboard defaults to Started, adds watch-state/progress/episode-order controls, progress bars and remaining time, and View episodes in both report views. Episode drilldown keeps the selected user and show together. CSV includes the same state/scope and progress fields. Reports do not modify watch flags or resume data. The native deletion backend now preserves media with any current user's saved position, even if another user completed it, and rechecks this before deletion. Local/native/browser fixtures use synthetic data only.
+
+Local validation passed 42 compiled checks and 20 browser checks including real browser timers. Hosted real-timer validation is expected to run 43 compiled checks per platform and 20 Linux browser checks. A long status option initially caused mobile overflow; constrained form fields and a shorter label pass the mobile check. The public check now additionally uses the pinned public 1.1.1 DLL, creates its actual entry point from bytes, installs the public new release, verifies custom target/settings/backup, and loads the new entry point to confirm pending health and cleanup. Run it only after publication/feed verification.
 
 ## Version 1.1.1 installation-path repair
 
@@ -65,7 +77,7 @@ Publication workflow https://github.com/TechSavage1989/whosceneit/actions/runs/4
 
 The historical public 1.0.0-to-1.1.0 test passed real GitHub HTTPS transport and file replacement with an explicitly supplied target. It bypassed UpdateEntryPoint and did not establish that Emby supplied a usable installation path. The user screenshot disproved that assumption. See the 1.1.1 repair and revised post-publication check above; retain the old output only as historical file-transaction evidence.
 
-The current test runner creates an unpublished next-patch 1.1.2 fixture for the 1.1.1 source. The old 1.1.0 source generated a test-only 1.1.1 fixture; it is not the patched release and must never be published. Never publish that fixture. Browser fixtures contain synthetic data only. Native SDK fixture protocol/service stubs are test infrastructure, not a running Emby server.
+The current test runner creates an unpublished next-patch 1.2.1 fixture for the 1.2.0 source. The old 1.1.0 source generated a test-only 1.1.1 fixture; it is not the patched release and must never be published. Never publish that fixture. Browser fixtures contain synthetic data only. Native SDK fixture protocol/service stubs are test infrastructure, not a running Emby server.
 
 Negative controls: historical Windows run 40174933095 missed its timer request under the redundant five-minute wall-clock gate. The corrected real timer passes on both platforms. A local run restoring the broad update Busy guard reproduced interruption of deletion by a background check; the corrected IsInstalling guard passes that same test.
 

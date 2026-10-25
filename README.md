@@ -5,14 +5,16 @@ An administrator-only Emby Server plugin that answers two questions:
 - What movies and TV shows has this user watched?
 - Which users have watched this movie, TV show, or episode?
 
-Version 1.1.1 fixes update installation when Emby loads the plugin from bytes and provides no assembly file location. It includes the individual and bulk deletion features from 1.1.0. The user confirmed 1.0.0 reports work; real-library deletion and native Emby restart still need validation. See VALIDATION.md before installation.
+Version 1.2.0 adds episode progress, watch-state filters, show completion totals, and per-show episode lists. It retains the 1.1.1 updater path fix and individual/bulk deletion. The user confirmed 1.0.0 reports work; real-library deletion and native Emby restart still need validation. See VALIDATION.md before installation.
 
 ## Features
 
 - By user: select an Emby user and view movies and grouped TV shows, movies only, shows only, or individual episodes.
-- By title: search for a movie, show, or episode and list its viewers. A TV show qualifies when the user has at least one watched episode.
-- Watch status, watched episode counts, saved play counts, and the last recorded playback date.
-- Optional in-progress entries, search/filter controls, pagination, and CSV export of all matching rows.
+- By title: search for a movie, show, or episode and list its viewers. The viewer list follows the selected watch-state filter.
+- Watched, partially watched, not-started, and watched-with-resume filters; saved position, percentage, duration, and remaining time when available.
+- Show completion percentages and watched/partial/not-started episode counts; View episodes opens a show for the selected user. Episode order and progress sorting are available.
+- Saved play counts and the last recorded playback date.
+- Watched and partially watched titles appear together by default. Search/filter controls, pagination, and CSV export include the matching progress details.
 - Individual and bulk watched-media deletion, with an exact-path preview, explicit confirmation, progress, cancellation, and Emby permission/playback checks.
 - Explicit, administrator-controlled plugin updates with SHA-256 and assembly validation, a rollback backup, and restart guards.
 
@@ -22,7 +24,7 @@ Emby Server 4.8 or newer is the intended target. The plugin is built against the
 
 ## Install
 
-If version 1.0.0 or 1.1.0 reports an empty "path" during installation, replace the DLL manually using the steps below. The already loaded old updater cannot apply its own path fix. Install 1.1.1 directly; an intermediate 1.1.0 installation is unnecessary. Keep the existing filename if you customized it.
+If version 1.0.0 or 1.1.0 reports an empty "path" during installation, replace the DLL manually using the steps below. The already loaded old updater cannot apply its own path fix. Install the current 1.2.0 DLL directly; intermediate versions are unnecessary. Version 1.1.1 already contains the path fix and can use the normal updater. Keep the existing filename if you customized it.
 
 1. Stop Emby Server.
 2. Find its Server Data Folder in the Emby dashboard. Open the plugins directory directly under that folder.
@@ -38,13 +40,15 @@ Emby's official manual plugin instructions: https://emby.media/support/articles/
 
 Emby's saved Played flag identifies a watched title. Manual marks and imported watch state are included, so this is not a forensic playback log. A saved play count of zero remains zero, and a missing date remains "Not recorded". Repeated plays are a count, not a list of historical viewing events.
 
-The user report includes titles currently visible to the selected user. Its in-progress option uses Emby's resumable entries. The title report checks saved user data for all current users, including disabled accounts, even if their present library access differs. Very short playback below Emby's resume threshold may not appear in the user report. A series manually marked watched without episode watch data cannot be reconstructed as watched episodes.
+The user report includes titles currently visible to the selected user. It reads saved positions directly, including positive positions below Emby's normal resumable threshold. The title report checks saved user data for all current users, including disabled accounts, even if their present library access differs. Unsaved playback and positions Emby has cleared cannot be recovered. A series manually marked watched without episode watch data cannot be reconstructed as watched episodes.
 
-A show appears when at least one individual episode qualifies. The viewer report counts available episode files, including specials, rather than claiming that a user finished every episode ever released. Duplicate physical versions can affect these counts. Removed files and deleted users cannot be recovered from current user data. Dates are shown in your browser's time zone; CSV dates use UTC.
+The default Started filter includes watched items and positive saved positions. Fully watched uses Emby's Played flag; Partially watched selects unfinished items with a saved position. Watched with resume includes possible rewatches and manual watched marks with a saved position, without claiming a second viewing occurred. Not started and All watch states can include unplayed episodes and users. Progress is the saved position relative to the current runtime, not a record of every scene viewed. Unknown durations stay unknown; a position at the end does not create a completion flag. Refresh report reads the latest saved data.
+
+A show appears when its episode states match the filter. Fully watched shows require every currently available episode to be marked watched; Partially watched also includes a show with some completed episodes and others unfinished. Counts use the full inventory, independently of the chosen filter. Choose View episodes beside a show or viewer to inspect that user's episodes, then Back to TV shows to clear the scope. The viewer report counts available episode files, including specials, rather than claiming that a user finished every episode ever released. Duplicate physical versions can affect these counts. Removed files and deleted users cannot be recovered from current user data. Dates are shown in your browser's time zone; CSV dates use UTC.
 
 ## Delete watched media
 
-In By user, choose a user and use a title's Delete button, or select rows and choose Delete selected media. The header checkbox selects watched titles on the current page. Selections carry across pages and clear when the user, report view, or filter changes. Each batch supports up to 500 media items after TV shows expand to their watched episodes. In-progress-only items cannot be selected for deletion.
+In By user, choose a user and use a title's Delete button, or select rows and choose Delete selected media. The header checkbox selects watched titles on the current page. Selections carry across pages and clear when the user, report view, or filter changes. Each batch supports up to 500 media items after TV shows expand to their watched episodes. Partially watched and watched-with-resume items cannot be selected for deletion. A server-side recheck also blocks deletion if any current user has a saved position, including a possible rewatch, even when the selected user finished it. Progress appearing after preview also stops deletion.
 
 In By title, select a movie, show, or episode and choose Delete watched media. This view includes media marked watched by at least one current user; filtering the viewer list does not narrow the deletion preview. TV shows expand into watched episodes rather than deleting the show folder or unwatched episodes.
 

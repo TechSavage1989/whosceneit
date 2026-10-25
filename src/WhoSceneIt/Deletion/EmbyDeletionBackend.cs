@@ -72,6 +72,8 @@ namespace WhoSceneIt.Deletion
             var watched = WatchedUsers(selectedUser, item).ToArray();
             entry.WatchedBy = watched.Select(u => u.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToArray();
             if (watched.Length == 0) return Block("This item is not marked watched for the selected report. In-progress media is preserved.");
+            var resuming = _users.GetUserList(new UserQuery()).Where(u => WatchProgress.HasResume(_data.GetUserData(u, item)?.PlaybackPositionTicks ?? 0L)).Select(u => u.Name).ToArray();
+            if (resuming.Length > 0) return Block("Saved playback positions exist for: " + string.Join(", ", resuming) + ". This media is preserved, including possible rewatches.");
             if (selectedUser != null && _library.FilterItemsToIdsForUser(new[] { item }, selectedUser).Length == 0)
                 return Block("This title is no longer available to the selected user.");
             var folders = _library.GetCollectionFolders(item);

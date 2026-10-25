@@ -53,7 +53,7 @@ try
         var records = new[] { Record("1",played:false,count:3,date:dt), Record("2",played:false,position:100) };
         Assert(ReportBuilder.ForUser(records,"Titles",false).Count == 0,"Incomplete viewing counted as watched.");
         var row = ReportBuilder.ForUser(records,"Titles",true).Single();
-        Assert(row.ItemId == "2" && row.Status == "In progress", "Progress filter is incorrect.");
+        Assert(row.ItemId == "2" && row.Status == "Partially watched", "Progress filter is incorrect.");
     });
     Test("Shows with identical names remain separate and repeated records do not inflate counts", () =>
     {
@@ -69,7 +69,7 @@ try
         var row = ReportBuilder.ForViewer(new[]{ Record("1","Episode","10"), Record("2","Episode","10",false,100) },title,user,false,2);
         Assert(row.WatchedCount==1 && row.Status=="Watched episodes" && row.AvailableEpisodeCount==2,"Partial show incorrectly completed.");
         var progress = ReportBuilder.ForViewer(new[]{Record("2","Episode","10",false,100)},title,user,true,2);
-        Assert(progress.Status=="In progress" && progress.InProgressCount==1,"Partial viewer missing.");
+        Assert(progress.Status=="Partially watched" && progress.InProgressCount==1,"Partial viewer missing.");
     });
     Test("Episode ranges, title filtering, and unknown dates are handled", () =>
     {
@@ -208,6 +208,7 @@ try
         Assert(!manager.Status().Downloaded && manager.Status().Message.Contains("failed"),"Bad download was accepted.");
     });
 
+    ProgressChecks.Run(Test, Assert);
     await PluginPathChecks.Run(root, candidate, json, Test, TestAsync, Assert);
     await DeletionChecks.Run(root, Test, TestAsync, Assert);
     await TestAsync("Background update checks do not interrupt media deletion", async () =>

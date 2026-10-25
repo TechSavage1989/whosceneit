@@ -1,21 +1,21 @@
   Determining projects to restore...
-  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 207 ms).
+  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 202 ms).
   WhoSceneIt -> <source>/test-artifacts/upgrade-fixture/WhoSceneIt.dll
 
 Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:01.63
+Time Elapsed 00:00:01.77
   Determining projects to restore...
-  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 221 ms).
+  Restored <source>/src/WhoSceneIt/WhoSceneIt.csproj (in 287 ms).
   WhoSceneIt -> <source>/src/WhoSceneIt/bin/Release/netstandard2.0/WhoSceneIt.dll
 
 Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:01.62
+Time Elapsed 00:00:02.09
 PASS Manual watch flags are retained without inventing play counts or dates
 PASS Play counts and dates alone never imply completed viewing
 PASS Shows with identical names remain separate and repeated records do not inflate counts
@@ -31,6 +31,14 @@ PASS Startup, real concurrent checks, and manual cooldown share one request
 PASS Offline status is an error, and Retry-After blocks repeated manual checks
 PASS Complete update download, digest, staging, playback/scan guards, install, backup, and manual restart state
 PASS A bad downloaded digest never becomes installable
+PASS Episode progress keeps completion, partial playback, and rewatches separate
+PASS Missing, negative, and overrun durations never fabricate completed viewing
+PASS Watch-state filters distinguish started, watched, partial, rewatching, and not started
+PASS Show completion counts all episodes while preserving partial and rewatch counts
+PASS Viewer filtering includes not-started users only when requested
+PASS Episode ordering is numeric and progress sorting places unknown durations last
+PASS Native reports read below-threshold saved progress and keep the full series inventory
+PASS Native progress reports reject invalid status and episode scopes
 PASS Memory-loaded Emby entry point reproduces the old empty path and resolves registered custom filenames
 PASS Memory-load fallback finds one matching plugin DLL and rejects duplicate installations
 PASS Path discovery rejects wrong applications, versions, missing targets, and shadow-cache paths
@@ -46,7 +54,8 @@ PASS Expired and cancelled previews never become destructive requests
 PASS Native Emby series selection expands only watched episodes and removes duplicate IDs
 PASS Native deletion respects revoked admin access and rejects non-media folders
 PASS Native Emby adapter rechecks watch status, playback, deletion support, and shared folders
+PASS Saved partial playback and rewatches for any user block native media deletion
 PASS Native Emby delete uses file-deletion options only after a matching path preview
 PASS Background update checks do not interrupt media deletion
 PASS An active media deletion blocks plugin installation and restart
-RESULT 33 checks passed.
+RESULT 42 checks passed.

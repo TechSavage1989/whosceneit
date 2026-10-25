@@ -1,6 +1,19 @@
-# Who Scene It 1.1.1 - preview validation
+# Who Scene It 1.2.0 - preview validation
 
 Date: October 25, 2026.
+
+The 1.2.0 candidate adds episode watch progress and related controls. Exact-source hosted CI, publication, and public upgrade verification are pending. Live Emby deletion/restart testing remains outside the completed SDK/browser checks.
+
+## Version 1.2.0 checks
+
+- Local Release builds pass without warnings/errors. Forty-two compiled checks cover the existing reports/updater/deletion plus eight new progress/report checks and one native cross-user resume protection check. Hosted real-timer validation should run 43 checks per platform.
+- Completion flags, partial positions, manual marks, watched-with-resume states, missing/negative durations, clamped overrun positions, all watch-state filters, full show denominators, not-started viewer inclusion, numeric episode order, and progress sorting are covered.
+- Native 4.8 SDK report fixtures exercise below-threshold positions, runtime reads, the unfiltered saved-data query, series-scoped episode lists, full series totals, viewer progress, and invalid report options.
+- Native deletion fixtures block saved positions for the selected or another user, including progress appearing after preview; original media remains present and native deletion is not called.
+- Twenty Chromium checks pass, including real browser timers. New cases cover episode drilldown/progress, scoped partial CSV, watched-with-resume protection, all/completed/not-started filters, clearing the scope, and selecting a viewer's episode list. A mobile overflow caused by a long option label was reproduced and fixed; the responsive-width check passes. Hosted Linux must rerun all 20 checks.
+- After publication, the public helper must reproduce the legacy empty-path failure/manual bootstrap and verify a genuine public 1.1.1-to-1.2.0 installation using actual memory-loaded entry points. This is not a live Emby restart.
+
+## Historical 1.1.1 validation
 
 The user confirmed 1.0.0 reports work, then reported an empty installation-path error while updating to 1.1.0. Version 1.1.1 repairs byte-loaded plugin path discovery and retains individual/bulk deletion. Exact-source hosted CI, publication, all six public assets, the matching feed, and the public memory-load/manual-bootstrap check passed. Affected older installations require one manual DLL replacement. Automated live Emby deletion/restart validation remains incomplete.
 

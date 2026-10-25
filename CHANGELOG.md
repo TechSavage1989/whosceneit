@@ -1,5 +1,16 @@
 # Changes
 
+## 1.2.0 - episode watch progress
+
+- Added watched, partial, not-started, all-state, and watched-with-resume filters. Started items appear together by default; existing API callers retain IncludeInProgress behavior when WatchState is omitted.
+- Read saved positions directly, including positions below Emby's resumable threshold. Emby's Played flag remains authoritative for completion; positions, dates, or play counts never fabricate it.
+- Added saved position, runtime, percentage, and remaining time, with explicit unknown durations and separate watched-with-resume labels for possible rewatches.
+- Added complete show inventories, completion percentages, not-started counts, numeric episode sorting, progress sorting, and View episodes from either report view.
+- Added progress fields to CSV exports while preserving filtering, paging, and formula neutralization.
+- Preserved media with saved partial playback or resume positions for any user, including when progress changes after deletion preview.
+- Preserved reports, administrator-only routes, settings, updater path discovery, and existing deletion/update guards.
+- Added native SDK report checks, progress edge cases, cross-user deletion checks, and browser tests for the new controls. Published-upgrade validation now also exercises the real public 1.1.1 entry point installing the new release.
+
 ## 1.1.1 - updater installation path fix
 
 - Fixed the empty-path installation error when Emby loads the plugin DLL from bytes.
