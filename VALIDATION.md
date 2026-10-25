@@ -2,16 +2,17 @@
 
 Date: October 25, 2026.
 
-Version 1.4.0 adds explicit unfinished/unwatched deletion scope and checkbox confirmation. The user directly requested these changes; default watch/resume protection remains. Exact-source hosted CI, publication, and public upgrade verification are pending.
+Version 1.4.0 adds explicit unfinished/unwatched deletion scope and checkbox confirmation. The user directly requested these changes; default watch/resume protection remains. Exact-source hosted CI, publication, all public asset/source/feed checks, and the actual public 1.3.0-to-1.4.0 updater check passed. Exact source/tag: 33020fd765433302b45f5b487ed473e9bab41ac7, v1.4.0. Validation run: https://github.com/TechSavage1989/whosceneit/actions/runs/40230705080. Publication: https://github.com/TechSavage1989/whosceneit/actions/runs/40231340731.
 
 ## Version 1.4.0 checks
 
-- Local quick compiled validation passed 64 checks with zero warnings/errors. The hosted real-timer suite must pass 65 on Windows and Linux.
+- Local quick compiled validation passed 64 checks with zero warnings/errors. Hosted Windows and Linux each passed all 65 checks including real timers, with zero build warnings/errors.
 - New tests verify the option is false by default and frozen independently of mutable response DTOs, then passed to expansion, inspections, and deletion. Missing/false checkbox acknowledgement cannot start a job. The service passes the explicit mode and confirmation to native code.
 - Native SDK fixtures allow unwatched/saved-position media only when opted in, preserve watch data, include all available show episodes, and retain playback, deletion permission/support, visibility, and root-folder guards. Original default saved-progress and revalidation checks remain.
-- Local Chromium passed all 29 checks including real timers; exact-source hosted browser validation remains pending. New cases cover partially watched and not-started selection only when opted in, healthy empty-viewer show previews, clear/reset behavior, frozen-scope display, unchecked acknowledgement, removed typed input, boolean execution payloads, and versioned/stale controls.
+- Local Chromium and exact-source hosted Linux each passed all 29 checks including real timers. New cases cover partially watched and not-started selection only when opted in, healthy empty-viewer show previews, clear/reset behavior, frozen-scope display, unchecked acknowledgement, removed typed input, boolean execution payloads, and versioned/stale controls.
 - Sonarr/Radarr integration, native SDK compatibility, report/updater checks, and exact-path previews remain covered. All tests use synthetic data/temp files or explicitly pinned public release transport. Live Emby/Sonarr/Radarr deletion remains unverified.
-- After publication, verify all 1.4.0 assets/tag/source/feed and run the actual public 1.3.0 updater against 1.4.0. Never publish the test-only 1.4.1 fixture.
+- Independently verified all six public 1.4.0 assets against API digests and SHA256SUMS, tag/source, clean metadata, all 54 source files/60 preview hashes, and the exact canonical feed. Public DLL: 199,680 bytes; SHA-256 00591d2c6d3b5dda621e0e2049d3405b6465c8316a58fb6d652c93db079ca2a1. Feed commit: 537ff44b3ae718d85f4f8a8a2e1ccc5c0d82c525. The next-patch 1.4.1 fixture is test-only.
+- The pinned actual public 1.3.0 memory-loaded updater installed exact public 1.4.0 bytes and verified custom filename, settings, backup, pending-health reload, and cleanup. The legacy public 1.0.0 failure/manual-bootstrap control also passed. See docs/validation-published-upgrade.txt. No Emby process or real user media was used.
 
 ## Historical 1.3.0 validation
 

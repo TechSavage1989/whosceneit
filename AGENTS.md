@@ -6,7 +6,7 @@ Read this file and DEVELOPMENT_HANDOFF.md before editing. Then inspect the curre
 
 - Repository: https://github.com/TechSavage1989/whosceneit
 - The repository was public with only an initial README at commit c653762c30b37f3bb72ea3a3ac6b68aa7e8eb4b5 when work began.
-- Latest maintained/published application: 1.3.0 preview, tag v1.3.0 at deedd7b16d85e3644db9aaedb771b9d0f530e736. Hosted Windows/Linux each passed 63 compiled checks; Linux passed 26 browser checks. Publication 40225059244 succeeded. All six public assets, canonical feed, 54 source files/60 preview hashes, and actual public 1.2.2-to-1.3.0 memory-loaded SDK updater installation/cleanup are verified. Live Emby/Sonarr/Radarr deletion remains unverified.
+- Latest maintained/published application: 1.4.0 preview, tag v1.4.0 at 33020fd765433302b45f5b487ed473e9bab41ac7. Hosted Windows/Linux each passed 65 compiled checks; Linux passed 29 browser checks. Publication 40231340731 succeeded. All six public assets, canonical feed, 54 source files/60 preview hashes, and actual public 1.3.0-to-1.4.0 memory-loaded SDK updater installation/cleanup are verified. Live Emby/Sonarr/Radarr deletion remains unverified.
 - User-confirmed working baseline: 1.0.0, tag v1.0.0 at 59d6cfe49406446ee76ca52abc5dd40cc8e91d9a. The user confirmed it works on October 25, 2026. Version 1.1.0 adds the explicitly requested media deletion feature.
 - Public source publication and release publication require the user's explicit approval. A repository URL alone does not override that instruction. Do not change visibility, create credentials, or embed tokens.
 - Preserve the stable assembly name and installed filename WhoSceneIt.dll and plugin ID b6405a2e-52e6-4218-a014-00a46a65f1f8 across versions. Use the assembly's actual installed location for updates so custom filenames survive.
@@ -15,7 +15,7 @@ Read this file and DEVELOPMENT_HANDOFF.md before editing. Then inspect the curre
 
 ## Current deletion-option work
 
-- Candidate: 1.4.0. The user explicitly requested optional deletion of partially watched/unwatched movies and shows and removal of typed DELETE confirmation. This supersedes the earlier mandatory typed-confirmation and unconditional saved-progress restrictions. Require a checkbox acknowledgement (Confirmed=true) for the frozen preview; never infer consent from the broader watch-state option.
+- Published: 1.4.0. The user explicitly requested optional deletion of partially watched/unwatched movies and shows and removal of typed DELETE confirmation. This supersedes the earlier mandatory typed-confirmation and unconditional saved-progress restrictions. Require a checkbox acknowledgement (Confirmed=true) for the frozen preview; never infer consent from the broader watch-state option.
 - AllowUnwatched defaults false and is frozen in each administrator-bound preview. With it enabled, selected shows expand into all available scoped episodes; watch-state/resume checks alone are bypassed. Keep administrator/content-deletion policy, user visibility, playing/paused sessions, filesystem/library-root protections, exact fingerprints, and external-service target checks in both modes. Never alter Emby watch state.
 - Default previews must continue to preserve unfinished media and every user's saved progress. Each new/retried preview resets acknowledgement. Mode changes clear selections; the UI must explain that saved progress for any user can be included when enabled. Keep real SDK and browser tests for default, opt-in, scope freezing, and missing confirmation.
 
