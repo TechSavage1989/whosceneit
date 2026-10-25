@@ -110,7 +110,12 @@ namespace WhoSceneIt.Updates
             try
             {
                 var now = DateTimeOffset.UtcNow;
-                var wait = reason == "focus" ? FocusInterval : reason == "timer" ? AutomaticInterval : ManualCooldown;
+                // The server timer already provides the five-minute cadence. A second
+                // wall-clock five-minute gate can reject an early/clock-adjusted tick
+                // and postpone the next request for another whole interval (observed
+                // in hosted Windows CI). Keep the short cross-trigger cooldown and
+                // Retry-After/backoff without applying the timer interval twice.
+                var wait = reason == "focus" ? FocusInterval : ManualCooldown;
                 if (_restartRequired || (_cache.NextAllowedCheck > now) || (_cache.LastAttempt.HasValue && now - _cache.LastAttempt.Value < wait)) return Status();
                 _busy = true; _message = "Checking for updates...";
                 _cache.LastAttempt = now;

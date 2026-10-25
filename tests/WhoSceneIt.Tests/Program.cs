@@ -240,12 +240,15 @@ try
             using var manager=Manager(h);manager.Start();
             var focusHttp=new FakeHttp(request=>Task.FromResult(FakeHttp.ManifestResponse(Manifest())));
             var manualHttp=new FakeHttp(request=>Task.FromResult(FakeHttp.ManifestResponse(Manifest())));
-            using var focusManager=Manager(focusHttp);using var manualManager=Manager(manualHttp);
+            var timerHttp=new FakeHttp(request=>Task.FromResult(FakeHttp.ManifestResponse(Manifest())));
+            using var focusManager=Manager(focusHttp);using var manualManager=Manager(manualHttp);using var timerManager=Manager(timerHttp);
             await focusManager.CheckAsync("startup");await focusManager.CheckAsync("focus");
             await manualManager.CheckAsync("startup");
+            await timerManager.CheckAsync("startup");
             Assert(focusHttp.Count==1,"Focus check ignored its initial cooldown.");
             var realExpiry=Task.Run(async()=>{
                 await Task.Delay(31000);await manualManager.CheckAsync("manual");Assert(manualHttp.Count==2,"Manual cooldown did not expire.");
+                await timerManager.CheckAsync("timer");Assert(timerHttp.Count==2,"Timer callback incorrectly applied a second five-minute cooldown.");
                 await Task.Delay(91000);await focusManager.CheckAsync("focus");Assert(focusHttp.Count==2,"Focus check did not run after two real minutes.");
             });
             var until=DateTimeOffset.UtcNow.AddMinutes(5).AddSeconds(15);
