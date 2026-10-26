@@ -41,6 +41,8 @@ jobs:
         run: npm run test:ui -- --real-timers
       - name: Package preview artifacts
         run: python scripts/package.py
+      - name: Validate and rebuild extracted source package
+        run: python scripts/check_source_package.py
       - uses: actions/upload-artifact@v4
         with:
           name: WhoSceneIt-${{ matrix.os }}
