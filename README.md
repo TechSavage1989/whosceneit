@@ -6,7 +6,7 @@ An administrator-only **Emby Server plugin** for exploring movie and TV viewing 
 
 <p align="center"><a href="https://github.com/TechSavage1989/whosceneit/releases">Download preview · Releases</a> · <a href="#getting-started">Get started</a> · <a href="#features">Features</a> · <a href="#before-you-delete-anything">Cleanup safety</a> · <a href="#updates-and-settings">Updates</a> · <a href="#development">Development</a></p>
 
-> **Preview release:** use the newest published preview's `WhoSceneIt.dll` asset. This is not a Windows EXE or a Jellyfin plugin. Read the release notes and [validation limits](VALIDATION.md) before installing on a live library.
+> **Preview release:** use the newest published preview's `WhoSceneIt.dll` asset. This is not a Windows EXE or a Jellyfin plugin. Read the release notes and [validation limits](docs/VALIDATION.md) before installing on a live library.
 
 ## Features
 
@@ -165,7 +165,7 @@ To roll back, stop Emby Server, copy the rollback DLL over the installed plugin 
 <details>
 <summary><strong>Source, build requirements, and validation</strong></summary>
 
-Read [AGENTS.md](AGENTS.md) and [DEVELOPMENT_HANDOFF.md](DEVELOPMENT_HANDOFF.md) before changing the project. See [CHANGELOG.md](CHANGELOG.md) for changes and [VALIDATION.md](VALIDATION.md) for exact checks and limitations.
+Read [AGENTS.md](AGENTS.md) and [DEVELOPMENT_HANDOFF.md](DEVELOPMENT_HANDOFF.md) before changing the project. See [docs/CHANGELOG.md](docs/CHANGELOG.md) for changes and [docs/VALIDATION.md](docs/VALIDATION.md) for exact checks and limitations.
 
 Source lives in `src/WhoSceneIt`, tests in `tests`, and build/package/release scripts in `scripts`. No Emby server, credentials, or media files are included. Development requires .NET SDK 8 or newer; end users install only the DLL.
 

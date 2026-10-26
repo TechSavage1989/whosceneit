@@ -97,6 +97,10 @@ The C# test runner generates an unpublished next-patch DLL to exercise upgrades 
 
 ## Handoff and validation
 
-Update DEVELOPMENT_HANDOFF.md, CHANGELOG.md, and VALIDATION.md after meaningful changes. Record source/ref, version, feed, settings/data paths, checks actually performed, and limitations. Keep credentials, runtime downloads, test servers, local absolute paths, and test data out of release artifacts.
+Update DEVELOPMENT_HANDOFF.md, docs/CHANGELOG.md, and docs/VALIDATION.md after meaningful changes. Record source/ref, version, feed, settings/data paths, checks actually performed, and limitations. Keep credentials, runtime downloads, test servers, local absolute paths, and test data out of release artifacts.
 
 Automated Emby startup validation was blocked by automatic approval review because Emby attempted an external public-IP lookup. Do not bypass that rejection or silently repeat the blocked test. The user subsequently confirmed 1.0.0 works. Automated live Emby deletion/authentication/restart, loaded-DLL behavior on Windows, and Docker/NAS remain unverified. SDK and temporary-file deletion checks do not constitute a real-library deletion test. See DEVELOPMENT_HANDOFF.md for release state and exact checks.
+
+## Repository layout contract
+
+Keep the root limited to the entries in `scripts/check_layout.py`. Put implementation in the existing source directories, tests in `tests/`, automation in `scripts/` or `tools/`, and longer documentation/evidence in `docs/`. Do not add generated builds, logs, dependency trees, or versioned notes to the root. Any deliberate layout change must update the guard, all build/test/package path consumers, and this handoff in the same change. Run `python scripts/check_layout.py` before committing; CI and packaging enforce it. Preserve public executable/DLL/archive names and update endpoints.

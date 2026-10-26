@@ -6,6 +6,9 @@ import subprocess
 import xml.etree.ElementTree as ET
 import zipfile
 
+from check_layout import check
+check()
+
 root = Path(__file__).resolve().parents[1]
 version = ET.parse(root / "src/WhoSceneIt/WhoSceneIt.csproj").findtext(".//Version")
 dll = root / "src/WhoSceneIt/bin/Release/netstandard2.0/WhoSceneIt.dll"
@@ -48,7 +51,8 @@ with zipfile.ZipFile(source_zip, "w") as archive:
 complete = dist / ("WhoSceneIt-v" + version + "-Preview.zip")
 with zipfile.ZipFile(complete, "w") as archive:
     add(archive, "WhoSceneIt.dll", data)
-    for name in ["README.md", "CHANGELOG.md", "VALIDATION.md"]: add(archive, name, (root / name).read_bytes())
+    for name, source_path in [("README.md", "README.md"), ("CHANGELOG.md", "docs/CHANGELOG.md"), ("VALIDATION.md", "docs/VALIDATION.md")]: add(archive, name, (root / source_path).read_bytes())
+    for name in ["docs/CHANGELOG.md", "docs/VALIDATION.md"]: add(archive, name, (root / name).read_bytes())
     for name in ["update-manifest.json", "build-metadata.json"]: add(archive, name, (dist / name).read_bytes())
     for p in source: add(archive, "Source/" + p.relative_to(root).as_posix(), p.read_bytes())
     checks = "".join(hashlib.sha256(archive.read(name)).hexdigest() + "  " + name + "\n" for name in archive.namelist())

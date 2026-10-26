@@ -186,7 +186,7 @@ Negative controls: historical Windows run 40174933095 missed its timer request u
 3. Invoke the manual release workflow at that source ref. Existing tags/releases must not be overwritten. Draft verification resolves the authenticated release list and reads the stable release ID. Main now allows up to six minutes for canonical feed verification after the observed one-minute timeout in the 1.2.1 publication. If a release is already public, independently verify it rather than rerunning publication for the same tag.
 4. Verify public assets, source tag/ref, hashes, metadata, and matching feed. The feed must advance only after public asset validation.
 5. Use the explicit published-upgrade check after publication, and record its boundaries. Native Emby update/restart and real-library deletion require separate target-platform validation.
-6. Update this handoff and VALIDATION.md with actual results. Frozen release packages retain pre-publication notes; main holds current verification details.
+6. Update this handoff and docs/VALIDATION.md with actual results. Frozen release packages retain pre-publication notes; main holds current verification details.
 
 ## Known limitations
 
@@ -198,3 +198,7 @@ Negative controls: historical Windows run 40174933095 missed its timer request u
 - Real Emby/filesystem errors can leave media partially deleted. The UI states this explicitly. Folder layouts containing other library media or merged versions can require Emby's controls. Confirmed jobs are not automatically replayed after an Emby restart.
 - Saved watch flags/counts cannot reconstruct deleted history or reliably distinguish manual/imported marks from playback. Current user access, resumable thresholds, current episode files/specials/versions, and deleted users limit report completeness. Series-only manual marks do not fabricate episode data.
 - Historical public transport/file replacement used an explicit target; affected old byte-loaded updaters cannot install this patch automatically. Native Emby process restart and deletion on a real library are not verified. Actual cross-volume target filesystems are not separately characterized.
+
+## Repository organization — 2026-10-26
+
+Documentation and historical build wrappers are grouped under docs/ and scripts/history/ where applicable. Current source architecture and release artifact names are preserved. `scripts/check_layout.py` enforces the root contract in CI and build/package entry points, including extracted source archives. This is organization-only: no application version, updater behavior, media safety policy, published tag or release asset changes.

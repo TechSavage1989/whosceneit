@@ -6,6 +6,9 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
+from check_layout import check
+check()
+
 root = Path(__file__).resolve().parents[1]
 project = root / "src/WhoSceneIt/WhoSceneIt.csproj"
 fixture = root / "test-artifacts/upgrade-fixture"
