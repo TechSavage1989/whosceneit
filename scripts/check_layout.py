@@ -2,7 +2,7 @@
 from pathlib import Path
 import subprocess
 ROOT = Path(__file__).resolve().parents[1]
-ALLOWED = ['.github', '.gitignore', 'AGENTS.md', 'DEVELOPMENT_HANDOFF.md', 'README.md', 'docs', 'package-lock.json', 'package.json', 'scripts', 'src', 'tests', 'update-manifest.json']
+ALLOWED = ['.github', '.gitignore', 'AGENTS.md', 'CLAUDE.md', 'DEVELOPMENT_HANDOFF.md', 'README.md', 'docs', 'package-lock.json', 'package.json', 'scripts', 'src', 'tests', 'update-manifest.json']
 GENERATED = {'.git', 'dist', 'node_modules', 'test-artifacts', '__pycache__', '.pytest_cache'}
 def check():
     if (ROOT / '.git').exists():
