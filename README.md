@@ -30,17 +30,39 @@ An administrator-only **Emby Server plugin** for exploring movie and TV viewing 
 
 Captured from the plugin's dashboard page with a fictional sample library and users.
 
-**Viewers of a single title**
+### Explore viewing progress
 
-<img src="docs/images/title-viewers.png" alt="Viewers of a single title" width="900">
+<table>
+  <tr>
+    <td><strong>Viewers of a single title</strong><br><img src="docs/images/title-viewers.png" alt="Viewers of a single title" width="440"></td>
+    <td><strong>Episode drill-down with saved progress</strong><br><img src="docs/images/episodes.png" alt="Episode drill-down with saved progress" width="440"></td>
+  </tr>
+</table>
 
-**Deletion review with exact paths and Radarr actions**
+### Protect and clean up
 
-<img src="docs/images/deletion-review.png" alt="Deletion review with exact paths and Radarr actions" width="900">
+<table>
+  <tr>
+    <td><strong>Deletion review with exact paths and Radarr actions</strong><br><img src="docs/images/deletion-review.png" alt="Deletion review with exact paths and Radarr actions" width="440"></td>
+    <td><strong>Finished deletion with per-item Emby and Radarr results</strong><br><img src="docs/images/deletion-progress.png" alt="Finished deletion with per-item Emby and Radarr results" width="440"></td>
+  </tr>
+  <tr>
+    <td><strong>Saved cleanup rules</strong><br><img src="docs/images/cleanup-rules.png" alt="Saved cleanup rules" width="440"></td>
+    <td><strong>Cleanup rule editor with schedule and triggers</strong><br><img src="docs/images/cleanup-rule-editor.png" alt="Cleanup rule editor with schedule and triggers" width="440"></td>
+  </tr>
+</table>
 
-**Saved cleanup rules**
+### Sonarr and Radarr synchronization
 
-<img src="docs/images/cleanup-rules.png" alt="Saved cleanup rules" width="900">
+**Sonarr and Radarr connections with path mapping**
+
+<img src="docs/images/arr-sync.png" alt="Sonarr and Radarr connections with path mapping" width="900">
+
+### Updates
+
+**Plugin update check with release notes**
+
+<img src="docs/images/plugin-updates.png" alt="Plugin update check with release notes" width="900">
 
 ## Download
 
